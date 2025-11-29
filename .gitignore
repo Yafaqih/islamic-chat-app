@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+.next/
+out/
+
+# TypeScript
+*.ts
+*.tsx
+tsconfig.json
+next-env.d.ts
+lib/generated/
+
+# TypeScript
+*.ts
+*.tsx
+tsconfig.json
+next-env.d.ts
+lib/generated/
