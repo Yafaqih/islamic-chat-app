@@ -11,7 +11,7 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     try {
       const conversation = await prisma.conversation.findUnique({
-        where: { id: parseInt(id) },
+        where: { id: id },  // String maintenant, pas parseInt
         include: {
           messages: {
             orderBy: {
@@ -37,12 +37,12 @@ export default async function handler(req, res) {
     try {
       // Supprimer d'abord les messages
       await prisma.message.deleteMany({
-        where: { conversationId: parseInt(id) }
+        where: { conversationId: id }  // String maintenant, pas parseInt
       });
 
       // Puis supprimer la conversation
       await prisma.conversation.delete({
-        where: { id: parseInt(id) }
+        where: { id: id }  // String maintenant, pas parseInt
       });
 
       return res.status(200).json({ message: 'Conversation supprimée' });

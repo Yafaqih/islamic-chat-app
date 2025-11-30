@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   try {
     const conversations = await prisma.conversation.findMany({
       where: {
-        userId: parseInt(userId)
+        userId: userId  // String maintenant, pas parseInt
       },
       orderBy: {
         createdAt: 'desc'
