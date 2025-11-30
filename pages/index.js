@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
-import { Send, BookOpen, Sparkles, Star, X, Crown, Check, Zap, LogOut, MessageSquare, Shield, AlertCircle, Moon, Sun, Download } from 'lucide-react';
+import { useRouter } from 'next/router';
+import { Send, BookOpen, Sparkles, Star, X, Crown, Check, Zap, LogOut, MessageSquare, Shield, AlertCircle, Moon, Sun, Download, User } from 'lucide-react';
 import { exportCurrentConversationToPDF, exportConversationToPDF } from '../lib/pdfExport';
 
 export default function IslamicChatApp() {
   const { data: session, status } = useSession();
+  const router = useRouter();
   const isAuthenticated = status === "authenticated";
   const user = session?.user;
 
@@ -527,6 +529,15 @@ export default function IslamicChatApp() {
               disabled={messages.length <= 1 || subscriptionTier !== 'premium'}
             >
               <Download className="w-5 h-5" />
+            </button>
+
+            {/* ✨ NOUVEAU: Bouton Dashboard */}
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              title="لوحة التحكم"
+            >
+              <User className="w-5 h-5" />
             </button>
             
             <button
