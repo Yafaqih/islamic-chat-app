@@ -1,4 +1,5 @@
 // pages/_app.js
+
 import { SessionProvider } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import useServiceWorker from '../lib/useServiceWorker';
@@ -15,31 +16,31 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }) {
     }
   }, [updateAvailable]);
 
-  const handleUpdate = () => updateServiceWorker();
-  const handleDismiss = () => setShowUpdateNotification(false);
+  const handleUpdate = () => {
+    updateServiceWorker();
+  };
+
+  const handleDismiss = () => {
+    setShowUpdateNotification(false);
+  };
 
   return (
     <SessionProvider session={session}>
-      {/* Notification mise à jour */}
+      {/* Notification de mise à jour */}
       <UpdateNotification 
         show={showUpdateNotification}
         onUpdate={handleUpdate}
         onDismiss={handleDismiss}
       />
 
-      {/* Hors ligne */}
+      {/* Indicateur hors ligne */}
       {!isOnline && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-red-600 text-white px-5 py-3 rounded-full shadow-2xl z-[100] text-sm font-bold">
-          غير متصل بالإنترنت
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-[100] text-sm">
+          📡 غير متصل بالإنترنت
         </div>
       )}
 
-      {/* Conteneur principal responsive avec max-width et padding safe */}
-      <div className="min-h-screen">
-  <div className="w-full max-w-lg mx-auto px-4 pt-2 pb-28 sm:px-6 lg:px-8">
-    <Component {...pageProps} />
-  </div>
-</div>
+      <Component {...pageProps} />
     </SessionProvider>
   );
 }
