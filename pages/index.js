@@ -1,11 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
-import { Send, BookOpen, Sparkles, Star, X, Crown, Check, Zap, LogOut, MessageSquare, Shield, AlertCircle } from 'lucide-react';
+import { Send, BookOpen, Sparkles, Star, X, Crown, Check, Zap, LogOut, MessageSquare, Shield, AlertCircle, Moon, Sun } from 'lucide-react';
 
 export default function IslamicChatApp() {
   const { data: session, status } = useSession();
   const isAuthenticated = status === "authenticated";
   const user = session?.user;
+
+  // ✨ NOUVEAU: État pour le mode sombre
+  const [darkMode, setDarkMode] = useState(false);
 
   const [messages, setMessages] = useState([
     {
@@ -30,6 +33,35 @@ export default function IslamicChatApp() {
 
   const FREE_MESSAGE_LIMIT = 10;
   const PRO_MESSAGE_LIMIT = 100;
+
+  // ✨ NOUVEAU: Initialiser le mode sombre depuis localStorage
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+      setDarkMode(true);
+      document.documentElement.classList.add('dark');
+    } else if (!savedTheme) {
+      // Détecter la préférence système
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (prefersDark) {
+        setDarkMode(true);
+        document.documentElement.classList.add('dark');
+      }
+    }
+  }, []);
+
+  // ✨ NOUVEAU: Toggle du mode sombre
+  const toggleDarkMode = () => {
+    const newMode = !darkMode;
+    setDarkMode(newMode);
+    localStorage.setItem('theme', newMode ? 'dark' : 'light');
+    
+    if (newMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -113,7 +145,6 @@ export default function IslamicChatApp() {
       setMessages(prev => [...prev, assistantMessage]);
       setNextId(nextId + 2);
 
-      // ✨ NOUVEAU: Recharger l'historique après sauvegarde
       if (data.conversationId) {
         loadConversations();
       }
@@ -201,8 +232,7 @@ export default function IslamicChatApp() {
     if (text.includes('صحيح البخاري') || text.includes('صحيح مسلم')) {
       return {
         label: 'صحيح',
-        color: 'bg-green-100 text-green-800',
-        colorInverted: 'bg-green-500/20 text-white',
+        color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
         icon: <Shield className="w-3 h-3" />
       };
     }
@@ -210,8 +240,7 @@ export default function IslamicChatApp() {
     if (text.includes('حديث صحيح') || text.includes('إسناده صحيح')) {
       return {
         label: 'صحيح',
-        color: 'bg-green-100 text-green-800',
-        colorInverted: 'bg-green-500/20 text-white',
+        color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
         icon: <Shield className="w-3 h-3" />
       };
     }
@@ -221,8 +250,7 @@ export default function IslamicChatApp() {
         text.includes('سنن النسائي') || text.includes('سنن ابن ماجه')) {
       return {
         label: 'حسن',
-        color: 'bg-blue-100 text-blue-800',
-        colorInverted: 'bg-blue-500/20 text-white',
+        color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
         icon: <Check className="w-3 h-3" />
       };
     }
@@ -230,8 +258,7 @@ export default function IslamicChatApp() {
     if (text.includes('حديث ضعيف') || text.includes('إسناده ضعيف')) {
       return {
         label: 'ضعيف',
-        color: 'bg-orange-100 text-orange-800',
-        colorInverted: 'bg-orange-500/20 text-white',
+        color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
         icon: <AlertCircle className="w-3 h-3" />
       };
     }
@@ -239,8 +266,7 @@ export default function IslamicChatApp() {
     if (text.includes('موضوع') || text.includes('مكذوب')) {
       return {
         label: 'موضوع',
-        color: 'bg-red-100 text-red-800',
-        colorInverted: 'bg-red-500/20 text-white',
+        color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
         icon: <X className="w-3 h-3" />
       };
     }
@@ -249,8 +275,7 @@ export default function IslamicChatApp() {
         text.includes('تفسير') || text.includes('آية')) {
       return {
         label: 'قرآن كريم',
-        color: 'bg-emerald-100 text-emerald-800',
-        colorInverted: 'bg-emerald-500/20 text-white',
+        color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
         icon: <BookOpen className="w-3 h-3" />
       };
     }
@@ -260,19 +285,19 @@ export default function IslamicChatApp() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 flex items-center justify-center p-4" dir="rtl">
-        <div className="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl">
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4" dir="rtl">
+        <div className="bg-white dark:bg-gray-800 rounded-3xl max-w-md w-full p-8 shadow-2xl">
           <div className="text-center mb-8">
             <div className="bg-gradient-to-br from-emerald-500 to-teal-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <BookOpen className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">المساعد الإسلامي</h1>
-            <p className="text-gray-600">خطب، قرآن وأحاديث - السنة النبوية</p>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">المساعد الإسلامي</h1>
+            <p className="text-gray-600 dark:text-gray-300">خطب، قرآن وأحاديث - السنة النبوية</p>
           </div>
 
           <button
             onClick={() => signIn('google', { callbackUrl: '/' })}
-            className="w-full bg-white border-2 border-gray-300 text-gray-700 font-semibold py-3 rounded-xl hover:bg-gray-50 transition-all flex items-center justify-center gap-3"
+            className="w-full bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-semibold py-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600 transition-all flex items-center justify-center gap-3"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -282,89 +307,98 @@ export default function IslamicChatApp() {
             </svg>
             المتابعة مع Google
           </button>
+
+          {/* ✨ NOUVEAU: Toggle mode sombre sur la page de connexion */}
+          <button
+            onClick={toggleDarkMode}
+            className="mt-4 w-full flex items-center justify-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+          >
+            {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            {darkMode ? 'الوضع الفاتح' : 'الوضع الداكن'}
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50" dir="rtl">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-200" dir="rtl">
       {showPremiumModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-4xl w-full p-8 shadow-2xl transform animate-scale-in max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl max-w-4xl w-full p-8 shadow-2xl transform animate-scale-in max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-start mb-6 flex-row-reverse">
               <div className="bg-gradient-to-br from-yellow-400 to-amber-500 p-3 rounded-2xl">
                 <Crown className="w-8 h-8 text-white" />
               </div>
               <button 
                 onClick={() => setShowPremiumModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
 
-            <h2 className="text-3xl font-bold text-gray-900 mb-2 text-right">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2 text-right">
               اختر خطتك المناسبة
             </h2>
-            <p className="text-gray-600 mb-8 text-right">
+            <p className="text-gray-600 dark:text-gray-300 mb-8 text-right">
               {subscriptionTier === 'free' && `لقد وصلت إلى حد ${FREE_MESSAGE_LIMIT} رسائل مجانية`}
               {subscriptionTier === 'pro' && `لقد وصلت إلى حد ${PRO_MESSAGE_LIMIT} رسائل للخطة الاحترافية`}
             </p>
 
             <div className="grid md:grid-cols-3 gap-4 mb-8">
-              <div className="border-2 border-gray-200 rounded-2xl p-6">
-                <div className="text-sm font-semibold text-gray-500 mb-2 text-right">مجاني</div>
-                <div className="text-3xl font-bold text-gray-900 mb-4 text-right">0 درهم</div>
+              <div className="border-2 border-gray-200 dark:border-gray-700 rounded-2xl p-6 bg-white dark:bg-gray-800/50">
+                <div className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 text-right">مجاني</div>
+                <div className="text-3xl font-bold text-gray-900 dark:text-white mb-4 text-right">0 درهم</div>
                 <ul className="space-y-2 mb-4">
                   <li className="flex items-start gap-2 flex-row-reverse text-right">
                     <Check className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-gray-600">{FREE_MESSAGE_LIMIT} رسائل/جلسة</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-300">{FREE_MESSAGE_LIMIT} رسائل/جلسة</span>
                   </li>
                   <li className="flex items-start gap-2 flex-row-reverse text-right">
                     <Check className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-gray-600">إجابات أساسية</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-300">إجابات أساسية</span>
                   </li>
                   <li className="flex items-start gap-2 flex-row-reverse text-right">
                     <Check className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-gray-600">مراجع محدودة</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-300">مراجع محدودة</span>
                   </li>
                 </ul>
               </div>
 
-              <div className="border-2 border-blue-500 rounded-2xl p-6 relative">
+              <div className="border-2 border-blue-500 rounded-2xl p-6 relative bg-white dark:bg-gray-800/50">
                 <div className="absolute top-0 left-0 bg-blue-500 text-white px-3 py-1 text-xs font-bold rounded-br-lg rounded-tl-lg">
                   جديد
                 </div>
-                <div className="text-sm font-semibold text-blue-600 mb-2 text-right">احترافي</div>
+                <div className="text-sm font-semibold text-blue-600 dark:text-blue-400 mb-2 text-right">احترافي</div>
                 <div className="flex items-baseline gap-2 mb-4 flex-row-reverse justify-end">
-                  <span className="text-3xl font-bold text-gray-900">15 درهم</span>
-                  <span className="text-gray-500">/شهر</span>
+                  <span className="text-3xl font-bold text-gray-900 dark:text-white">15 درهم</span>
+                  <span className="text-gray-500 dark:text-gray-400">/شهر</span>
                 </div>
                 <ul className="space-y-2 mb-6">
                   <li className="flex items-start gap-2 flex-row-reverse text-right">
                     <Zap className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm">{PRO_MESSAGE_LIMIT} رسالة/شهر</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">{PRO_MESSAGE_LIMIT} رسالة/شهر</span>
                   </li>
                   <li className="flex items-start gap-2 flex-row-reverse text-right">
                     <Zap className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm">تفسير القرآن</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">تفسير القرآن</span>
                   </li>
                   <li className="flex items-start gap-2 flex-row-reverse text-right">
                     <Zap className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm">شرح الأحاديث</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">شرح الأحاديث</span>
                   </li>
                   <li className="flex items-start gap-2 flex-row-reverse text-right">
                     <Zap className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm">مراجع موثقة</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">مراجع موثقة</span>
                   </li>
                   <li className="flex items-start gap-2 flex-row-reverse text-right">
                     <Zap className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm">أسئلة فقهية</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">أسئلة فقهية</span>
                   </li>
                   <li className="flex items-start gap-2 flex-row-reverse text-right">
-                    <X className="w-4 h-4 text-gray-300 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-gray-400 line-through">إعداد الخطب</span>
+                    <X className="w-4 h-4 text-gray-300 dark:text-gray-600 flex-shrink-0 mt-0.5" />
+                    <span className="text-sm text-gray-400 dark:text-gray-500 line-through">إعداد الخطب</span>
                   </li>
                 </ul>
                 <button
@@ -419,20 +453,21 @@ export default function IslamicChatApp() {
               </div>
             </div>
 
-            <p className="text-center text-xs text-gray-500">
+            <p className="text-center text-xs text-gray-500 dark:text-gray-400">
               دفع آمن عبر Lemon Squeezy • إلغاء متى تشاء
             </p>
           </div>
         </div>
       )}
 
-      <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg">
+      {/* ✨ Header avec bouton mode sombre */}
+      <div className="bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-gray-800 dark:to-gray-900 text-white shadow-lg transition-colors duration-200">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <BookOpen className="w-8 h-8" />
             <div>
               <h1 className="text-xl font-bold">المساعد الإسلامي</h1>
-              <p className="text-sm text-emerald-100">
+              <p className="text-sm text-emerald-100 dark:text-gray-400">
                 {subscriptionTier === 'premium' && '⭐ مميز'}
                 {subscriptionTier === 'pro' && '💎 احترافي'}
                 {subscriptionTier === 'free' && `${messageCount}/${FREE_MESSAGE_LIMIT} رسائل مستخدمة`}
@@ -441,6 +476,15 @@ export default function IslamicChatApp() {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* ✨ NOUVEAU: Bouton toggle dark mode */}
+            <button
+              onClick={toggleDarkMode}
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              title={darkMode ? "الوضع الفاتح" : "الوضع الداكن"}
+            >
+              {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+            
             <button
               onClick={() => setShowHistory(!showHistory)}
               className="p-2 hover:bg-white/10 rounded-lg transition-colors"
@@ -475,25 +519,25 @@ export default function IslamicChatApp() {
         </div>
       </div>
 
-      {/* ✨ SECTION AMÉLIORÉE: Historique avec compteur de messages */}
+      {/* Historique avec mode sombre */}
       {showHistory && (
-        <div className="fixed inset-y-0 right-0 w-80 bg-white shadow-2xl z-40 overflow-y-auto">
+        <div className="fixed inset-y-0 right-0 w-80 bg-white dark:bg-gray-800 shadow-2xl z-40 overflow-y-auto transition-colors duration-200">
           <div className="p-6">
             <div className="flex justify-between items-center mb-6">
               <button
                 onClick={() => setShowHistory(false)}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
               >
                 <X className="w-6 h-6" />
               </button>
-              <h2 className="text-xl font-bold text-gray-900">المحادثات المحفوظة</h2>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">المحادثات المحفوظة</h2>
             </div>
             
             {conversations.length === 0 ? (
               <div className="text-center py-8">
-                <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 text-sm">لا توجد محادثات محفوظة</p>
-                <p className="text-gray-400 text-xs mt-2">
+                <MessageSquare className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+                <p className="text-gray-500 dark:text-gray-400 text-sm">لا توجد محادثات محفوظة</p>
+                <p className="text-gray-400 dark:text-gray-500 text-xs mt-2">
                   ستُحفظ محادثاتك تلقائياً
                 </p>
               </div>
@@ -502,29 +546,29 @@ export default function IslamicChatApp() {
                 {conversations.map((conv) => (
                   <div
                     key={conv.id}
-                    className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer group"
+                    className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer group"
                   >
                     <div className="flex justify-between items-start gap-2">
                       <button
                         onClick={() => deleteConversation(conv.id)}
-                        className="text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity"
                       >
                         <X className="w-4 h-4" />
                       </button>
                       <div onClick={() => loadConversation(conv.id)} className="flex-1 text-right">
-                        <p className="text-sm font-medium text-gray-900 line-clamp-2 mb-2">
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 line-clamp-2 mb-2">
                           {conv.title || 'محادثة جديدة'}
                         </p>
                         <div className="flex items-center gap-2 justify-end text-xs">
                           {conv.messageCount && (
                             <>
-                              <span className="text-emerald-600 font-medium">
+                              <span className="text-emerald-600 dark:text-emerald-400 font-medium">
                                 {conv.messageCount} رسائل
                               </span>
-                              <span className="text-gray-400">•</span>
+                              <span className="text-gray-400 dark:text-gray-500">•</span>
                             </>
                           )}
-                          <span className="text-gray-500">
+                          <span className="text-gray-500 dark:text-gray-400">
                             {new Date(conv.updatedAt || conv.createdAt).toLocaleDateString('ar-SA', {
                               day: 'numeric',
                               month: 'short',
@@ -542,14 +586,15 @@ export default function IslamicChatApp() {
         </div>
       )}
 
+      {/* Modal Favoris avec mode sombre */}
       {showFavorites && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-8 shadow-2xl">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-8 shadow-2xl">
             <div className="flex justify-between items-center mb-6 flex-row-reverse">
-              <h2 className="text-2xl font-bold text-gray-900">المفضلة</h2>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">المفضلة</h2>
               <button
                 onClick={() => setShowFavorites(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
               >
                 <X className="w-6 h-6" />
               </button>
@@ -557,15 +602,15 @@ export default function IslamicChatApp() {
 
             {favoriteMessages.length === 0 ? (
               <div className="text-center py-12">
-                <Star className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500">لا توجد رسائل مفضلة بعد</p>
+                <Star className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                <p className="text-gray-500 dark:text-gray-400">لا توجد رسائل مفضلة بعد</p>
               </div>
             ) : (
               <div className="space-y-4">
                 {favoriteMessages.map((msg) => (
-                  <div key={msg.id} className="bg-gray-50 rounded-2xl p-6">
+                  <div key={msg.id} className="bg-gray-50 dark:bg-gray-700/50 rounded-2xl p-6">
                     <div className="flex justify-between items-start mb-2 flex-row-reverse">
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
                         {msg.role === 'user' ? 'أنت' : 'المساعد'}
                       </span>
                       <button
@@ -575,7 +620,7 @@ export default function IslamicChatApp() {
                         <Star className="w-5 h-5 fill-current" />
                       </button>
                     </div>
-                    <p className="text-gray-800 text-right whitespace-pre-wrap leading-relaxed">
+                    <p className="text-gray-800 dark:text-gray-200 text-right whitespace-pre-wrap leading-relaxed">
                       {msg.content}
                     </p>
                   </div>
@@ -586,6 +631,7 @@ export default function IslamicChatApp() {
         </div>
       )}
 
+      {/* Messages avec mode sombre */}
       <div className="max-w-4xl mx-auto p-4 pb-32">
         <div className="space-y-6">
           {messages.map((msg) => (
@@ -607,38 +653,38 @@ export default function IslamicChatApp() {
               <div className="flex-1 max-w-3xl">
                 <div className={`rounded-2xl p-6 ${
                   msg.role === 'user' 
-                    ? 'bg-blue-50 border border-blue-100' 
-                    : 'bg-white border border-gray-200 shadow-sm'
+                    ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50' 
+                    : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm'
                 }`}>
                   <div className="flex justify-between items-start mb-2 flex-row-reverse">
-                    <span className="text-xs font-medium text-gray-500">
+                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
                       {msg.role === 'user' ? 'أنت' : 'المساعد الإسلامي'}
                     </span>
                     {msg.role === 'assistant' && (
                       <button
                         onClick={() => toggleFavorite(msg.id)}
-                        className="text-gray-400 hover:text-yellow-500 transition-colors"
+                        className="text-gray-400 dark:text-gray-500 hover:text-yellow-500 transition-colors"
                       >
                         <Star className={`w-5 h-5 ${msg.isFavorite ? 'fill-yellow-500 text-yellow-500' : ''}`} />
                       </button>
                     )}
                   </div>
 
-                  <p className="text-gray-800 text-right whitespace-pre-wrap leading-relaxed">
+                  <p className="text-gray-800 dark:text-gray-200 text-right whitespace-pre-wrap leading-relaxed">
                     {msg.content}
                   </p>
 
                   {msg.references && msg.references.length > 0 && (
-                    <div className="mt-4 pt-4 border-t border-gray-200">
+                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                       <div className="flex items-center gap-2 mb-3 flex-row-reverse">
-                        <BookOpen className="w-4 h-4 text-emerald-600" />
-                        <span className="text-sm font-semibold text-gray-700">المراجع</span>
+                        <BookOpen className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">المراجع</span>
                       </div>
                       <div className="space-y-2">
                         {msg.references.map((ref, idx) => {
                           const authenticity = getAuthenticityLevel(ref);
                           return (
-                            <div key={idx} className="bg-emerald-50/50 rounded-lg p-3 text-right">
+                            <div key={idx} className="bg-emerald-50/50 dark:bg-emerald-900/10 rounded-lg p-3 text-right border border-emerald-100/50 dark:border-emerald-800/30">
                               <div className="flex items-start gap-2 flex-row-reverse mb-1">
                                 {authenticity && (
                                   <span className={`px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1 ${authenticity.color}`}>
@@ -647,7 +693,7 @@ export default function IslamicChatApp() {
                                   </span>
                                 )}
                               </div>
-                              <p className="text-sm text-gray-700 leading-relaxed">{ref}</p>
+                              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{ref}</p>
                             </div>
                           );
                         })}
@@ -665,7 +711,7 @@ export default function IslamicChatApp() {
                 <BookOpen className="w-5 h-5 text-white" />
               </div>
               <div className="flex-1 max-w-3xl">
-                <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-6 shadow-sm">
                   <div className="flex gap-2">
                     <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce"></div>
                     <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
@@ -679,19 +725,20 @@ export default function IslamicChatApp() {
           <div ref={messagesEndRef} />
         </div>
 
+        {/* Suggestions avec mode sombre */}
         {messages.length === 1 && (
           <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-3">
             {suggestions.map((suggestion, idx) => (
               <button
                 key={idx}
                 onClick={() => handleSuggestion(suggestion)}
-                className="p-4 bg-white border border-gray-200 rounded-xl hover:border-emerald-500 hover:bg-emerald-50 transition-all text-right group"
+                className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-emerald-500 dark:hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all text-right group"
               >
                 <div className="flex items-center justify-between flex-row-reverse">
-                  <span className="text-sm text-gray-700 group-hover:text-emerald-700">
+                  <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-400">
                     {suggestion}
                   </span>
-                  <Sparkles className="w-4 h-4 text-gray-400 group-hover:text-emerald-500" />
+                  <Sparkles className="w-4 h-4 text-gray-400 dark:text-gray-500 group-hover:text-emerald-500 dark:group-hover:text-emerald-400" />
                 </div>
               </button>
             ))}
@@ -699,9 +746,10 @@ export default function IslamicChatApp() {
         )}
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-transparent p-4">
+      {/* Input avec mode sombre */}
+      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-white dark:from-gray-900 via-white dark:via-gray-900 to-transparent p-4">
         <div className="max-w-4xl mx-auto">
-          <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 p-4">
             <div className="flex gap-3 items-end">
               <button
                 onClick={handleSend}
@@ -720,7 +768,7 @@ export default function IslamicChatApp() {
                   }
                 }}
                 placeholder="اكتب سؤالك هنا..."
-                className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-right focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none min-h-[48px] max-h-32"
+                className="flex-1 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 text-right text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-transparent resize-none min-h-[48px] max-h-32"
                 rows={1}
                 style={{
                   height: 'auto',
@@ -732,7 +780,7 @@ export default function IslamicChatApp() {
                 }}
               />
             </div>
-            <p className="text-xs text-gray-500 mt-2 text-center">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
               اضغط Enter للإرسال • Shift+Enter لسطر جديد
             </p>
           </div>
