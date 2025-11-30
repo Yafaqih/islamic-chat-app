@@ -2,28 +2,34 @@
 @tailwind components;
 @tailwind utilities;
 
-* {
+/* Reset total */
+*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
+/* 100% largeur + zéro overflow */
+html, body, #__next {
+  width: 100%;
+  max-width: 100vw;
+  height: 100%;
+  overflow-x: hidden !important;
+  overscroll-behavior: none;
+}
+
+/* Police arabe + lissage iOS */
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family: 'Noto Naskh Arabic', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Animation pour la notification de mise à jour */
+/* Animation notification mise à jour */
 @keyframes slide-down {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
+  from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
-
 .animate-slide-down {
-  animation: slide-down 0.3s ease-out;
+  animation: slide-down 0.4s ease-out forwards;
 }
