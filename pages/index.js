@@ -55,16 +55,14 @@ export default function IslamicChatApp() {
   ];
 
   const handleLemonSqueezyCheckout = () => {
-    const variantId = process.env.NEXT_PUBLIC_LEMONSQUEEZY_PREMIUM_VARIANT_ID;
     const email = user?.email || '';
-    const checkoutUrl = `https://yafaqih.lemonsqueezy.com/checkout/buy/669f5834-1817-42d3-ab4a-a8441db40737?checkout[email]=${encodeURIComponent(email)}`;
+    const checkoutUrl = `https://yafaqih.lemonsqueezy.com/buy/669f5834-1817-42d3-ab4a-a8441db40737?checkout[email]=${encodeURIComponent(email)}`;
     window.open(checkoutUrl, '_blank');
   };
 
   const handleProCheckout = () => {
-    const variantId = process.env.NEXT_PUBLIC_LEMONSQUEEZY_PRO_VARIANT_ID;
     const email = user?.email || '';
-    const checkoutUrl = `https://yafaqih.lemonsqueezy.com/checkout/buy/c1fd514d-562d-45b0-8dff-c5f1ab34743f?checkout[email]=${encodeURIComponent(email)}`;
+    const checkoutUrl = `https://yafaqih.lemonsqueezy.com/buy/c1fd514d-562d-45b0-8dff-c5f1ab34743f?checkout[email]=${encodeURIComponent(email)}`;
     window.open(checkoutUrl, '_blank');
   };
 
@@ -114,6 +112,12 @@ export default function IslamicChatApp() {
       
       setMessages(prev => [...prev, assistantMessage]);
       setNextId(nextId + 2);
+
+      // ✨ NOUVEAU: Recharger l'historique après sauvegarde
+      if (data.conversationId) {
+        loadConversations();
+      }
+      
     } catch (error) {
       console.error('Error:', error);
       setMessages(prev => [...prev, {
@@ -471,6 +475,7 @@ export default function IslamicChatApp() {
         </div>
       </div>
 
+      {/* ✨ SECTION AMÉLIORÉE: Historique avec compteur de messages */}
       {showHistory && (
         <div className="fixed inset-y-0 right-0 w-80 bg-white shadow-2xl z-40 overflow-y-auto">
           <div className="p-6">
@@ -481,11 +486,17 @@ export default function IslamicChatApp() {
               >
                 <X className="w-6 h-6" />
               </button>
-              <h2 className="text-xl font-bold text-gray-900">المحادثات السابقة</h2>
+              <h2 className="text-xl font-bold text-gray-900">المحادثات المحفوظة</h2>
             </div>
             
             {conversations.length === 0 ? (
-              <p className="text-gray-500 text-center text-sm">لا توجد محادثات سابقة</p>
+              <div className="text-center py-8">
+                <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500 text-sm">لا توجد محادثات محفوظة</p>
+                <p className="text-gray-400 text-xs mt-2">
+                  ستُحفظ محادثاتك تلقائياً
+                </p>
+              </div>
             ) : (
               <div className="space-y-2">
                 {conversations.map((conv) => (
@@ -501,12 +512,26 @@ export default function IslamicChatApp() {
                         <X className="w-4 h-4" />
                       </button>
                       <div onClick={() => loadConversation(conv.id)} className="flex-1 text-right">
-                        <p className="text-sm font-medium text-gray-900 line-clamp-2">
+                        <p className="text-sm font-medium text-gray-900 line-clamp-2 mb-2">
                           {conv.title || 'محادثة جديدة'}
                         </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {new Date(conv.createdAt).toLocaleDateString('ar-SA')}
-                        </p>
+                        <div className="flex items-center gap-2 justify-end text-xs">
+                          {conv.messageCount && (
+                            <>
+                              <span className="text-emerald-600 font-medium">
+                                {conv.messageCount} رسائل
+                              </span>
+                              <span className="text-gray-400">•</span>
+                            </>
+                          )}
+                          <span className="text-gray-500">
+                            {new Date(conv.updatedAt || conv.createdAt).toLocaleDateString('ar-SA', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: conv.createdAt && new Date(conv.createdAt).getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+                            })}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>

@@ -9,6 +9,75 @@ const anthropic = new Anthropic({
 const FREE_MESSAGE_LIMIT = 10;
 const PRO_MESSAGE_LIMIT = 100;
 
+// Fonction pour sauvegarder la conversation
+async function saveConversation(userId, userMessage, assistantMessage, references) {
+  try {
+    // Chercher une conversation active pour aujourd'hui
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let conversation = await prisma.conversation.findFirst({
+      where: {
+        userId: userId,
+        createdAt: {
+          gte: today
+        }
+      },
+      orderBy: {
+        updatedAt: 'desc'
+      }
+    });
+
+    // Si pas de conversation aujourd'hui, en créer une nouvelle
+    if (!conversation) {
+      // Extraire un titre du premier message (premiers 60 caractères)
+      let title = userMessage.substring(0, 60);
+      if (userMessage.length > 60) {
+        title += '...';
+      }
+      
+      conversation = await prisma.conversation.create({
+        data: {
+          userId: userId,
+          title: title
+        }
+      });
+      
+      console.log('New conversation created:', conversation.id);
+    }
+
+    // Sauvegarder les messages
+    await prisma.message.createMany({
+      data: [
+        {
+          conversationId: conversation.id,
+          role: 'user',
+          content: userMessage,
+        },
+        {
+          conversationId: conversation.id,
+          role: 'assistant',
+          content: assistantMessage,
+          references: references && references.length > 0 ? JSON.stringify(references) : null
+        }
+      ]
+    });
+
+    // Mettre à jour le timestamp de la conversation
+    await prisma.conversation.update({
+      where: { id: conversation.id },
+      data: { updatedAt: new Date() }
+    });
+
+    console.log('Messages saved to conversation:', conversation.id);
+    return conversation.id;
+  } catch (error) {
+    console.error('Error saving conversation:', error);
+    // Ne pas bloquer la réponse si la sauvegarde échoue
+    return null;
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -70,8 +139,8 @@ export default async function handler(req, res) {
 Toujours inclure des références précises avec les numéros de sourate/verset ou la source du hadith.
 
 Pour les khutbas, utilise cette structure:
-- Introduction (المقدمة)
-- Corps du sermon (الموضوع)
+- Introduction (المقدمة) avec louanges à Allah
+- Corps du sermon (الموضوع) avec versets et hadiths
 - Conclusion avec invocations (الخاتمة)`;
       maxTokens = 4000;
     } else if (currentTier === 'pro') {
@@ -126,6 +195,9 @@ Pour les khutbas, utilise cette structure:
       }
     }
 
+    // ✨ SAUVEGARDER LA CONVERSATION AUTOMATIQUEMENT
+    const conversationId = await saveConversation(userId, message, response, references);
+
     // Mettre à jour le compteur de messages de l'utilisateur
     try {
       await prisma.user.update({
@@ -144,6 +216,7 @@ Pour les khutbas, utilise cette structure:
     return res.status(200).json({
       response,
       references: [...new Set(references)].slice(0, 5), // Dédupliquer et limiter à 5
+      conversationId, // Retourner l'ID de la conversation
       usage: {
         messagesUsed: user.messageCount + 1,
         messagesLimit: messageLimit,
