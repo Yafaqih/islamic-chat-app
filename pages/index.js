@@ -1,3 +1,4 @@
+import AboutPage from '../components/AboutPage';
 import React, { useState, useRef, useEffect } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useRouter } from 'next/router';
@@ -36,6 +37,7 @@ export default function IslamicChatApp() {
   const [showFavorites, setShowFavorites] = useState(false);
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [subscriptionTier, setSubscriptionTier] = useState('free');
+  const [showAbout, setShowAbout] = useState(false)
   const [messageCount, setMessageCount] = useState(0);
   const [nextId, setNextId] = useState(2);
   const [conversations, setConversations] = useState([]);
@@ -590,6 +592,12 @@ export default function IslamicChatApp() {
                 >
                   <Star className="w-5 h-5" />
                 </button>
+                <button
+  onClick={() => setShowAbout(true)}
+  className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-all text-sm font-medium"
+>
+  À propos
+</button>
 
                 {subscriptionTier === 'free' && (
                   <button
@@ -1013,4 +1021,7 @@ export default function IslamicChatApp() {
       */}
     </div>
   );
+  {showAbout && (
+  <AboutPage onClose={() => setShowAbout(false)} />
+)}
 }
