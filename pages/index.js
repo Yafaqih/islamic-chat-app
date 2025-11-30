@@ -5,6 +5,8 @@ import { Send, BookOpen, Sparkles, Star, X, Crown, Check, Zap, LogOut, MessageSq
 import { exportCurrentConversationToPDF, exportConversationToPDF } from '../lib/pdfExport';
 import QiblaCompass from '../components/QiblaCompass';
 import PrayerButton from '../components/PrayerButton';
+// ✨ NOUVEAU: Import du composant TTS
+import ArabicTTS from '../components/ArabicTTS';
 
 export default function IslamicChatApp() {
   const { data: session, status } = useSession();
@@ -861,14 +863,20 @@ export default function IslamicChatApp() {
                     <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
                       {msg.role === 'user' ? 'أنت' : 'المساعد الإسلامي'}
                     </span>
-                    {msg.role === 'assistant' && (
-                      <button
-                        onClick={() => toggleFavorite(msg.id)}
-                        className="text-gray-400 dark:text-gray-500 hover:text-yellow-500 transition-colors"
-                      >
-                        <Star className={`w-5 h-5 ${msg.isFavorite ? 'fill-yellow-500 text-yellow-500' : ''}`} />
-                      </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {/* ✨ NOUVEAU: Bouton TTS pour les messages de l'assistant */}
+                      {msg.role === 'assistant' && (
+                        <ArabicTTS text={msg.content} />
+                      )}
+                      {msg.role === 'assistant' && (
+                        <button
+                          onClick={() => toggleFavorite(msg.id)}
+                          className="text-gray-400 dark:text-gray-500 hover:text-yellow-500 transition-colors"
+                        >
+                          <Star className={`w-5 h-5 ${msg.isFavorite ? 'fill-yellow-500 text-yellow-500' : ''}`} />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   <p className="text-gray-800 dark:text-gray-200 text-right whitespace-pre-wrap leading-relaxed">
