@@ -15,14 +15,31 @@ export default function QiblaCompass() {
   const KAABA_LAT = 21.4225;
   const KAABA_LNG = 39.8262;
 
-  // Calculer la direction de la Qibla
-  const calculateQiblaDirection = (lat, lng) => {
-    const phiK = KAABA_LAT * Math.PI / 180.0;
-    const lambdaK = KAABA_LNG * Math.PI / 180.0;
-    const phi = lat * Math.PI / 180.0;
-    const lambda = lng * Math.PI / 180.0;
-    const psi = 180.0 / Math.PI * Math.atan2(Math.sin(lambdaK - lambda), Math.cos(phi) * Math.tan(phiK) - Math.sin(phi) * Math.cos(lambdaK - lambda));
-    return Math.round(psi < 0 ? psi + 360 : psi);
+  // Calculer la direction de la Qibla (méthode correcte)
+  const calculateQiblaDirection = (userLat, userLng) => {
+    // Convertir en radians
+    const lat1 = userLat * Math.PI / 180;
+    const lng1 = userLng * Math.PI / 180;
+    const lat2 = KAABA_LAT * Math.PI / 180;
+    const lng2 = KAABA_LNG * Math.PI / 180;
+
+    // Différence de longitude
+    const dLng = lng2 - lng1;
+
+    // Formule de bearing (relèvement)
+    const y = Math.sin(dLng) * Math.cos(lat2);
+    const x = Math.cos(lat1) * Math.sin(lat2) - 
+              Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+    
+    let bearing = Math.atan2(y, x);
+    
+    // Convertir en degrés
+    bearing = bearing * 180 / Math.PI;
+    
+    // Normaliser entre 0 et 360
+    bearing = (bearing + 360) % 360;
+    
+    return Math.round(bearing);
   };
 
   // Obtenir la position de l'utilisateur
@@ -35,11 +52,18 @@ export default function QiblaCompass() {
           const qibla = calculateQiblaDirection(latitude, longitude);
           setQiblaDirection(qibla);
           setPermission('granted');
+          console.log('User location:', latitude, longitude);
+          console.log('Qibla direction:', qibla);
         },
         (err) => {
           console.error('Geolocation error:', err);
           setError('Impossible d\'obtenir votre position');
           setPermission('denied');
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
         }
       );
     } else {
@@ -64,15 +88,24 @@ export default function QiblaCompass() {
 
     const startOrientationTracking = () => {
       orientationHandler = (event) => {
-        // Pour iOS, utiliser webkitCompassHeading
+        let compassHeading = null;
+
+        // Pour iOS, utiliser webkitCompassHeading (vrai nord magnétique)
         if (event.webkitCompassHeading !== undefined && event.webkitCompassHeading !== null) {
-          setHeading(360 - event.webkitCompassHeading);
+          // webkitCompassHeading donne déjà la bonne direction (0 = Nord)
+          compassHeading = event.webkitCompassHeading;
           hasReceivedData = true;
         }
-        // Pour Android, utiliser alpha
+        // Pour Android, utiliser alpha avec correction
         else if (event.alpha !== null && event.alpha !== undefined) {
-          setHeading(360 - event.alpha);
+          // alpha: 0 = Nord, augmente dans le sens horaire
+          compassHeading = event.alpha;
           hasReceivedData = true;
+        }
+
+        if (compassHeading !== null) {
+          setHeading(compassHeading);
+          console.log('Current heading:', compassHeading);
         }
       };
 
@@ -116,13 +149,13 @@ export default function QiblaCompass() {
     };
   }, [showCompass]);
 
-  // Vérifier si on pointe vers la Qibla (±10 degrés)
+  // Vérifier si on pointe vers la Qibla (±15 degrés pour être plus tolérant)
   useEffect(() => {
     if (qiblaDirection !== null && heading !== null) {
       const diff = Math.abs(heading - qiblaDirection);
       const normalizedDiff = diff > 180 ? 360 - diff : diff;
       
-      const isPointing = normalizedDiff < 10;
+      const isPointing = normalizedDiff < 15; // Plus tolérant: 15° au lieu de 10°
       setIsPointingToQibla(isPointing);
 
       // Vibration progressive quand on s'approche
@@ -130,10 +163,10 @@ export default function QiblaCompass() {
         if (isPointing) {
           // Vibration continue quand on pointe exactement
           navigator.vibrate([100, 50, 100]);
-        } else if (normalizedDiff < 20) {
+        } else if (normalizedDiff < 25) {
           // Vibration légère quand on est proche
           navigator.vibrate(50);
-        } else if (normalizedDiff < 30) {
+        } else if (normalizedDiff < 35) {
           // Vibration très légère quand on commence à approcher
           navigator.vibrate(20);
         }
@@ -142,7 +175,10 @@ export default function QiblaCompass() {
   }, [heading, qiblaDirection]);
 
   // Calculer l'angle de rotation de la flèche
-  const arrowRotation = qiblaDirection !== null ? qiblaDirection - heading : 0;
+  // La flèche doit pointer vers la Qibla par rapport au nord actuel
+  const arrowRotation = qiblaDirection !== null && heading !== null 
+    ? qiblaDirection - heading 
+    : 0;
 
   // Bouton pour demander la permission (iOS)
   const requestPermission = async () => {
@@ -152,7 +188,6 @@ export default function QiblaCompass() {
         if (permissionState === 'granted') {
           setError(null);
           setCompassSupported(true);
-          // L'effet useEffect se rechargera automatiquement
         } else {
           setError('Permission refusée. Veuillez autoriser l\'accès à la boussole dans les paramètres de Safari.');
         }
@@ -196,7 +231,7 @@ export default function QiblaCompass() {
             <div className="flex items-center justify-center gap-1 text-sm text-gray-600 dark:text-gray-400">
               <MapPin className="w-4 h-4" />
               <span>
-                {userLocation.lat.toFixed(2)}°, {userLocation.lng.toFixed(2)}°
+                {userLocation.lat.toFixed(4)}°, {userLocation.lng.toFixed(4)}°
               </span>
             </div>
           )}
@@ -233,8 +268,11 @@ export default function QiblaCompass() {
         ) : (
           <div className="space-y-6">
             {/* Debug info */}
-            <div className="text-xs text-center text-gray-500 dark:text-gray-400">
-              اتجاهك: {Math.round(heading)}° | القبلة: {qiblaDirection}°
+            <div className="text-xs text-center text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 p-2 rounded">
+              <div>موقعك: {userLocation.lat.toFixed(2)}°N, {userLocation.lng.toFixed(2)}°E</div>
+              <div>اتجاهك الحالي: {Math.round(heading)}°</div>
+              <div>اتجاه القبلة: {qiblaDirection}°</div>
+              <div>الفرق: {Math.round(Math.abs(heading - qiblaDirection))}°</div>
             </div>
 
             {/* Boussole */}
@@ -242,7 +280,7 @@ export default function QiblaCompass() {
               {/* Cercle extérieur de la boussole */}
               <div className="absolute inset-0 rounded-full border-4 border-gray-200 dark:border-gray-700 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
                 {/* Marqueurs cardinaux */}
-                <div className="absolute top-2 left-1/2 -translate-x-1/2 text-xs font-bold text-gray-600 dark:text-gray-400">N</div>
+                <div className="absolute top-2 left-1/2 -translate-x-1/2 text-xs font-bold text-red-600">N</div>
                 <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-xs font-bold text-gray-600 dark:text-gray-400">S</div>
                 <div className="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-600 dark:text-gray-400">W</div>
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-600 dark:text-gray-400">E</div>
