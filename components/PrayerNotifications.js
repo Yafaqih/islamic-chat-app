@@ -222,7 +222,7 @@ export default function PrayerNotifications() {
       {!showSettings && (
         <button
           onClick={() => setShowSettings(true)}
-          className={`fixed bottom-[210px] sm:bottom-48 left-4 ${
+          className={`fixed bottom-[140px] sm:bottom-32 right-4 ${
             enabled 
               ? 'bg-gradient-to-br from-purple-500 to-indigo-600 dark:from-purple-600 dark:to-indigo-700' 
               : 'bg-gray-400 dark:bg-gray-600'
@@ -232,7 +232,7 @@ export default function PrayerNotifications() {
         >
           {enabled ? <Bell className="w-6 h-6" /> : <BellOff className="w-6 h-6" />}
           {enabled && nextPrayer && nextPrayer.diff < 60 && (
-            <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold animate-pulse shadow-md">
+            <div className="absolute -top-1 -left-1 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold animate-pulse shadow-md">
               !
             </div>
           )}
