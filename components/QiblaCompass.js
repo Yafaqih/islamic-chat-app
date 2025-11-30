@@ -9,6 +9,7 @@ export default function QiblaCompass() {
   const [error, setError] = useState(null);
   const [isPointingToQibla, setIsPointingToQibla] = useState(false);
   const [showCompass, setShowCompass] = useState(false);
+  const [compassSupported, setCompassSupported] = useState(true);
 
   // Coordonnées de la Kaaba à La Mecque
   const KAABA_LAT = 21.4225;
@@ -49,51 +50,75 @@ export default function QiblaCompass() {
 
   // Gérer l'orientation du téléphone
   useEffect(() => {
-    let orientationHandler;
+    if (!showCompass) return;
 
-    if ('DeviceOrientationEvent' in window) {
-      // iOS 13+ nécessite une permission
-      if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-        DeviceOrientationEvent.requestPermission()
-          .then(permissionState => {
-            if (permissionState === 'granted') {
-              startOrientationTracking();
-            }
-          })
-          .catch(console.error);
-      } else {
-        // Android et anciens navigateurs
-        startOrientationTracking();
-      }
+    let orientationHandler;
+    let hasReceivedData = false;
+
+    // Vérifier le support de DeviceOrientationEvent
+    if (!('DeviceOrientationEvent' in window)) {
+      setCompassSupported(false);
+      setError('La boussole n\'est pas supportée sur cet appareil');
+      return;
     }
 
-    function startOrientationTracking() {
+    const startOrientationTracking = () => {
       orientationHandler = (event) => {
-        let compassHeading = event.alpha; // 0-360 degrés
-        
-        // Pour iOS, utiliser webkitCompassHeading si disponible
-        if (event.webkitCompassHeading) {
-          compassHeading = event.webkitCompassHeading;
+        // Pour iOS, utiliser webkitCompassHeading
+        if (event.webkitCompassHeading !== undefined && event.webkitCompassHeading !== null) {
+          setHeading(360 - event.webkitCompassHeading);
+          hasReceivedData = true;
         }
-
-        if (compassHeading !== null) {
-          setHeading(compassHeading);
+        // Pour Android, utiliser alpha
+        else if (event.alpha !== null && event.alpha !== undefined) {
+          setHeading(360 - event.alpha);
+          hasReceivedData = true;
         }
       };
 
-      window.addEventListener('deviceorientation', orientationHandler);
+      window.addEventListener('deviceorientationabsolute', orientationHandler, true);
+      window.addEventListener('deviceorientation', orientationHandler, true);
+
+      // Vérifier après 2 secondes si on reçoit des données
+      setTimeout(() => {
+        if (!hasReceivedData) {
+          setError('Aucune donnée de boussole reçue. Assurez-vous que votre appareil a un capteur de boussole.');
+        }
+      }, 2000);
+    };
+
+    // Pour iOS 13+, demander la permission
+    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+      DeviceOrientationEvent.requestPermission()
+        .then(permissionState => {
+          if (permissionState === 'granted') {
+            startOrientationTracking();
+          } else {
+            setError('Permission de la boussole refusée. Veuillez autoriser l\'accès dans les paramètres.');
+            setCompassSupported(false);
+          }
+        })
+        .catch(err => {
+          console.error('Permission error:', err);
+          setError('Erreur lors de la demande de permission');
+          setCompassSupported(false);
+        });
+    } else {
+      // Pour Android et anciens iOS
+      startOrientationTracking();
     }
 
     return () => {
       if (orientationHandler) {
-        window.removeEventListener('deviceorientation', orientationHandler);
+        window.removeEventListener('deviceorientationabsolute', orientationHandler, true);
+        window.removeEventListener('deviceorientation', orientationHandler, true);
       }
     };
-  }, []);
+  }, [showCompass]);
 
   // Vérifier si on pointe vers la Qibla (±10 degrés)
   useEffect(() => {
-    if (qiblaDirection !== null) {
+    if (qiblaDirection !== null && heading !== null) {
       const diff = Math.abs(heading - qiblaDirection);
       const normalizedDiff = diff > 180 ? 360 - diff : diff;
       
@@ -118,6 +143,24 @@ export default function QiblaCompass() {
 
   // Calculer l'angle de rotation de la flèche
   const arrowRotation = qiblaDirection !== null ? qiblaDirection - heading : 0;
+
+  // Bouton pour demander la permission (iOS)
+  const requestPermission = async () => {
+    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+      try {
+        const permissionState = await DeviceOrientationEvent.requestPermission();
+        if (permissionState === 'granted') {
+          setError(null);
+          setCompassSupported(true);
+          // L'effet useEffect se rechargera automatiquement
+        } else {
+          setError('Permission refusée. Veuillez autoriser l\'accès à la boussole dans les paramètres de Safari.');
+        }
+      } catch (err) {
+        setError('Erreur lors de la demande de permission');
+      }
+    }
+  };
 
   if (!showCompass) {
     return (
@@ -161,13 +204,26 @@ export default function QiblaCompass() {
 
         {error ? (
           <div className="text-center py-8">
-            <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
+            <p className="text-red-600 dark:text-red-400 mb-4 text-sm">{error}</p>
+            {typeof DeviceOrientationEvent.requestPermission === 'function' && (
+              <button
+                onClick={requestPermission}
+                className="bg-emerald-500 text-white px-6 py-3 rounded-lg hover:bg-emerald-600 transition-colors font-semibold mb-2"
+              >
+                السماح بالوصول إلى البوصلة
+              </button>
+            )}
             <button
               onClick={() => window.location.reload()}
-              className="bg-emerald-500 text-white px-6 py-2 rounded-lg hover:bg-emerald-600 transition-colors"
+              className="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 transition-colors block w-full"
             >
               إعادة المحاولة
             </button>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-4">
+              {typeof DeviceOrientationEvent.requestPermission === 'function' 
+                ? 'Sur iOS : Paramètres → Safari → Mouvement et orientation → Autoriser'
+                : 'Assurez-vous que votre appareil a un capteur de boussole'}
+            </p>
           </div>
         ) : qiblaDirection === null ? (
           <div className="text-center py-8">
@@ -176,6 +232,11 @@ export default function QiblaCompass() {
           </div>
         ) : (
           <div className="space-y-6">
+            {/* Debug info */}
+            <div className="text-xs text-center text-gray-500 dark:text-gray-400">
+              اتجاهك: {Math.round(heading)}° | القبلة: {qiblaDirection}°
+            </div>
+
             {/* Boussole */}
             <div className="relative w-64 h-64 mx-auto">
               {/* Cercle extérieur de la boussole */}
