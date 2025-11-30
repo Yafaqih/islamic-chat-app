@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useRouter } from 'next/router';
-import { Send, BookOpen, Sparkles, Star, X, Crown, Check, Zap, LogOut, MessageSquare, Shield, AlertCircle, Moon, Sun, Download, User, Navigation } from 'lucide-react';
+import { Send, BookOpen, Sparkles, Star, X, Crown, Check, Zap, LogOut, MessageSquare, Shield, AlertCircle, Moon, Sun, Download, User, Navigation, Menu } from 'lucide-react';
 import { exportCurrentConversationToPDF, exportConversationToPDF } from '../lib/pdfExport';
 import QiblaCompass from '../components/QiblaCompass';
 import PrayerNotifications from '../components/PrayerNotifications';
@@ -14,6 +14,9 @@ export default function IslamicChatApp() {
 
   // ✨ NOUVEAU: État pour le mode sombre
   const [darkMode, setDarkMode] = useState(false);
+  
+  // ✨ NOUVEAU: État pour le menu mobile
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   const [messages, setMessages] = useState([
     {
@@ -518,81 +521,182 @@ export default function IslamicChatApp() {
         </div>
       )}
 
-      {/* ✨ Header avec bouton mode sombre */}
+      {/* ✨ Header responsive avec menu mobile */}
       <div className="bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-gray-800 dark:to-gray-900 text-white shadow-lg transition-colors duration-200">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <BookOpen className="w-8 h-8" />
-            <div>
-              <h1 className="text-xl font-bold">المساعد الإسلامي</h1>
-              <p className="text-sm text-emerald-100 dark:text-gray-400">
-                {subscriptionTier === 'premium' && '⭐ مميز'}
-                {subscriptionTier === 'pro' && '💎 احترافي'}
-                {subscriptionTier === 'free' && `${messageCount}/${FREE_MESSAGE_LIMIT} رسائل مستخدمة`}
-              </p>
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
+          {/* Header principal */}
+          <div className="flex items-center justify-between">
+            {/* Logo et titre */}
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+              <BookOpen className="w-6 h-6 sm:w-8 sm:h-8 flex-shrink-0" />
+              <div className="min-w-0">
+                <h1 className="text-base sm:text-xl font-bold truncate">المساعد الإسلامي</h1>
+                <p className="text-xs sm:text-sm text-emerald-100 dark:text-gray-400 truncate">
+                  {subscriptionTier === 'premium' && '⭐ مميز'}
+                  {subscriptionTier === 'pro' && '💎 احترافي'}
+                  {subscriptionTier === 'free' && `${messageCount}/${FREE_MESSAGE_LIMIT}`}
+                </p>
+              </div>
+            </div>
+
+            {/* Actions desktop et bouton menu mobile */}
+            <div className="flex items-center gap-1 sm:gap-2">
+              {/* Actions visibles uniquement sur desktop */}
+              <div className="hidden md:flex items-center gap-2">
+                <button
+                  onClick={toggleDarkMode}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                  title={darkMode ? "الوضع الفاتح" : "الوضع الداكن"}
+                >
+                  {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                </button>
+
+                <button
+                  onClick={handleExportPDF}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
+                  title="تصدير المحادثة PDF"
+                  disabled={messages.length <= 1 || subscriptionTier !== 'premium'}
+                >
+                  <Download className="w-5 h-5" />
+                </button>
+
+                <button
+                  onClick={() => router.push('/dashboard')}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                  title="لوحة التحكم"
+                >
+                  <User className="w-5 h-5" />
+                </button>
+                
+                <button
+                  onClick={() => setShowHistory(!showHistory)}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                  title="المحادثات السابقة"
+                >
+                  <MessageSquare className="w-5 h-5" />
+                </button>
+
+                <button
+                  onClick={() => setShowFavorites(!showFavorites)}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                  title="المفضلة"
+                >
+                  <Star className="w-5 h-5" />
+                </button>
+
+                {subscriptionTier === 'free' && (
+                  <button
+                    onClick={() => setShowPremiumModal(true)}
+                    className="bg-yellow-400 text-gray-900 px-4 py-2 rounded-lg font-semibold hover:bg-yellow-300 transition-colors flex items-center gap-2"
+                  >
+                    <Crown className="w-4 h-4" />
+                    ترقية
+                  </button>
+                )}
+
+                <button
+                  onClick={() => signOut()}
+                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                  title="تسجيل الخروج"
+                >
+                  <LogOut className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Boutons essentiels mobile */}
+              <button
+                onClick={toggleDarkMode}
+                className="md:hidden p-2 hover:bg-white/10 rounded-lg transition-colors"
+                title={darkMode ? "الوضع الفاتح" : "الوضع الداكن"}
+              >
+                {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </button>
+
+              {/* Bouton menu hamburger (mobile uniquement) */}
+              <button
+                onClick={() => setShowMobileMenu(!showMobileMenu)}
+                className="md:hidden p-2 hover:bg-white/10 rounded-lg transition-colors"
+                title="القائمة"
+              >
+                <Menu className="w-6 h-6" />
+              </button>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* ✨ NOUVEAU: Bouton toggle dark mode */}
-            <button
-              onClick={toggleDarkMode}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-              title={darkMode ? "الوضع الفاتح" : "الوضع الداكن"}
-            >
-              {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </button>
-
-            {/* ✨ NOUVEAU: Bouton Export PDF */}
-            <button
-              onClick={handleExportPDF}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
-              title="تصدير المحادثة PDF (مميز فقط)"
-              disabled={messages.length <= 1 || subscriptionTier !== 'premium'}
-            >
-              <Download className="w-5 h-5" />
-            </button>
-
-            {/* ✨ NOUVEAU: Bouton Dashboard */}
-            <button
-              onClick={() => router.push('/dashboard')}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-              title="لوحة التحكم"
-            >
-              <User className="w-5 h-5" />
-            </button>
-            
-            <button
-              onClick={() => setShowHistory(!showHistory)}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-              title="المحادثات السابقة"
-            >
-              <MessageSquare className="w-5 h-5" />
-            </button>
-            <button
-              onClick={() => setShowFavorites(!showFavorites)}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-              title="المفضلة"
-            >
-              <Star className="w-5 h-5" />
-            </button>
-            {subscriptionTier === 'free' && (
+          {/* Menu mobile déroulant */}
+          {showMobileMenu && (
+            <div className="md:hidden mt-3 pt-3 border-t border-white/20 space-y-2">
               <button
-                onClick={() => setShowPremiumModal(true)}
-                className="bg-yellow-400 text-gray-900 px-4 py-2 rounded-lg font-semibold hover:bg-yellow-300 transition-colors flex items-center gap-2"
+                onClick={() => {
+                  setShowHistory(!showHistory);
+                  setShowMobileMenu(false);
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/10 rounded-lg transition-colors text-right"
               >
-                <Crown className="w-4 h-4" />
-                ترقية
+                <MessageSquare className="w-5 h-5" />
+                <span>المحادثات السابقة</span>
               </button>
-            )}
-            <button
-              onClick={() => signOut()}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-              title="تسجيل الخروج"
-            >
-              <LogOut className="w-5 h-5" />
-            </button>
-          </div>
+
+              <button
+                onClick={() => {
+                  setShowFavorites(!showFavorites);
+                  setShowMobileMenu(false);
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/10 rounded-lg transition-colors text-right"
+              >
+                <Star className="w-5 h-5" />
+                <span>المفضلة</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  handleExportPDF();
+                  setShowMobileMenu(false);
+                }}
+                disabled={messages.length <= 1 || subscriptionTier !== 'premium'}
+                className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/10 rounded-lg transition-colors text-right disabled:opacity-50"
+              >
+                <Download className="w-5 h-5" />
+                <span>تصدير PDF</span>
+                {subscriptionTier !== 'premium' && <span className="text-xs">(مميز)</span>}
+              </button>
+
+              <button
+                onClick={() => {
+                  router.push('/dashboard');
+                  setShowMobileMenu(false);
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/10 rounded-lg transition-colors text-right"
+              >
+                <User className="w-5 h-5" />
+                <span>لوحة التحكم</span>
+              </button>
+
+              {subscriptionTier === 'free' && (
+                <button
+                  onClick={() => {
+                    setShowPremiumModal(true);
+                    setShowMobileMenu(false);
+                  }}
+                  className="w-full bg-yellow-400 text-gray-900 px-3 py-2 rounded-lg font-semibold hover:bg-yellow-300 transition-colors flex items-center gap-2 justify-center"
+                >
+                  <Crown className="w-4 h-4" />
+                  <span>ترقية الحساب</span>
+                </button>
+              )}
+
+              <button
+                onClick={() => {
+                  signOut();
+                  setShowMobileMenu(false);
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2 hover:bg-red-500/20 rounded-lg transition-colors text-right text-red-200"
+              >
+                <LogOut className="w-5 h-5" />
+                <span>تسجيل الخروج</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -838,17 +942,17 @@ export default function IslamicChatApp() {
         )}
       </div>
 
-      {/* Input avec mode sombre */}
-      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-white dark:from-gray-900 via-white dark:via-gray-900 to-transparent p-4">
+      {/* Input responsive avec mode sombre */}
+      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-white dark:from-gray-900 via-white dark:via-gray-900 to-transparent p-2 sm:p-4">
         <div className="max-w-4xl mx-auto">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 p-4">
-            <div className="flex gap-3 items-end">
+          <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 p-2 sm:p-4">
+            <div className="flex gap-2 sm:gap-3 items-end">
               <button
                 onClick={handleSend}
                 disabled={!input.trim() || isLoading}
-                className="flex-shrink-0 w-12 h-12 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl hover:from-emerald-600 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center shadow-lg"
+                className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-lg sm:rounded-xl hover:from-emerald-600 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center shadow-lg"
               >
-                <Send className="w-5 h-5" />
+                <Send className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
               <textarea
                 value={input}
@@ -860,11 +964,11 @@ export default function IslamicChatApp() {
                   }
                 }}
                 placeholder="اكتب سؤالك هنا..."
-                className="flex-1 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 text-right text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-transparent resize-none min-h-[48px] max-h-32"
+                className="flex-1 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg sm:rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-right text-sm sm:text-base text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-transparent resize-none min-h-[40px] sm:min-h-[48px] max-h-32"
                 rows={1}
                 style={{
                   height: 'auto',
-                  minHeight: '48px'
+                  minHeight: window.innerWidth < 640 ? '40px' : '48px'
                 }}
                 onInput={(e) => {
                   e.target.style.height = 'auto';
@@ -872,7 +976,7 @@ export default function IslamicChatApp() {
                 }}
               />
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center hidden sm:block">
               اضغط Enter للإرسال • Shift+Enter لسطر جديد
             </p>
           </div>
