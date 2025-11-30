@@ -7,6 +7,8 @@ import QiblaCompass from '../components/QiblaCompass';
 import PrayerButton from '../components/PrayerButton';
 // ✨ NOUVEAU: Import du composant TTS
 import ArabicTTS from '../components/ArabicTTS';
+// ✨ NOUVEAU: Import du composant de reconnaissance vocale
+import VoiceRecognition from '../components/VoiceRecognition';
 
 export default function IslamicChatApp() {
   const { data: session, status } = useSession();
@@ -967,6 +969,13 @@ export default function IslamicChatApp() {
               >
                 <Send className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
+              
+              {/* ✨ NOUVEAU: Bouton de reconnaissance vocale */}
+              <VoiceRecognition
+                onTranscript={(text) => setInput(text)}
+                language="ar-SA"
+              />
+              
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -976,7 +985,7 @@ export default function IslamicChatApp() {
                     handleSend();
                   }
                 }}
-                placeholder="اكتب سؤالك هنا..."
+                placeholder="اكتب سؤالك هنا... أو استخدم الميكروفون 🎤"
                 className="flex-1 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg sm:rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-right text-sm sm:text-base text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:focus:ring-emerald-400 focus:border-transparent resize-none min-h-[40px] sm:min-h-[48px] max-h-32"
                 rows={1}
                 style={{
@@ -990,7 +999,7 @@ export default function IslamicChatApp() {
               />
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center hidden sm:block">
-              اضغط Enter للإرسال • Shift+Enter لسطر جديد
+              اضغط Enter للإرسال • Shift+Enter لسطر جديد • 🎤 للتسجيل الصوتي
             </p>
           </div>
         </div>
