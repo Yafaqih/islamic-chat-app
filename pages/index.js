@@ -57,14 +57,14 @@ export default function IslamicChatApp() {
   const handleLemonSqueezyCheckout = () => {
     const variantId = process.env.NEXT_PUBLIC_LEMONSQUEEZY_PREMIUM_VARIANT_ID;
     const email = user?.email || '';
-    const checkoutUrl = `https://yafaqih.lemonsqueezy.com/checkout/buy/${variantId}?checkout[email]=${encodeURIComponent(email)}`;
+    const checkoutUrl = `https://yafaqih.lemonsqueezy.com/checkout/buy/669f5834-1817-42d3-ab4a-a8441db40737?checkout[email]=${encodeURIComponent(email)}`;
     window.open(checkoutUrl, '_blank');
   };
 
   const handleProCheckout = () => {
     const variantId = process.env.NEXT_PUBLIC_LEMONSQUEEZY_PRO_VARIANT_ID;
     const email = user?.email || '';
-    const checkoutUrl = `https://yafaqih.lemonsqueezy.com/checkout/buy/${variantId}?checkout[email]=${encodeURIComponent(email)}`;
+    const checkoutUrl = `https://yafaqih.lemonsqueezy.com/checkout/buy/c1fd514d-562d-45b0-8dff-c5f1ab34743f?checkout[email]=${encodeURIComponent(email)}`;
     window.open(checkoutUrl, '_blank');
   };
 
