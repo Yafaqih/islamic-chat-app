@@ -344,7 +344,27 @@ export default function IslamicChatApp() {
             المتابعة مع Google
           </button>
 
-          {/* ✨ NOUVEAU: Toggle mode sombre sur la page de connexion */}
+          {/* ✨ NOUVEAU: Divider */}
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-4 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+                أو
+              </span>
+            </div>
+          </div>
+
+          {/* ✨ NOUVEAU: Lien vers authentification email/password */}
+          <button
+            onClick={() => router.push('/auth')}
+            className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold py-3 rounded-xl hover:from-emerald-600 hover:to-teal-700 transition-all"
+          >
+            تسجيل الدخول بالبريد الإلكتروني
+          </button>
+
+          {/* Toggle mode sombre */}
           <button
             onClick={toggleDarkMode}
             className="mt-4 w-full flex items-center justify-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
