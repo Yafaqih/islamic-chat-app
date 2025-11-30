@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import { Send, BookOpen, Sparkles, Star, X, Crown, Check, Zap, LogOut, MessageSquare, Shield, AlertCircle, Moon, Sun, Download, User, Navigation } from 'lucide-react';
 import { exportCurrentConversationToPDF, exportConversationToPDF } from '../lib/pdfExport';
 import QiblaCompass from '../components/QiblaCompass';
+import PrayerNotifications from '../components/PrayerNotifications';
 
 export default function IslamicChatApp() {
   const { data: session, status } = useSession();
@@ -880,6 +881,9 @@ export default function IslamicChatApp() {
 
       {/* ✨ NOUVEAU: Boussole Qibla */}
       {isAuthenticated && <QiblaCompass />}
+
+      {/* ✨ NOUVEAU: Notifications Prière */}
+      {isAuthenticated && <PrayerNotifications />}
     </div>
   );
 }
