@@ -4,7 +4,7 @@ import { useRouter } from 'next/router';
 import { Send, BookOpen, Sparkles, Star, X, Crown, Check, Zap, LogOut, MessageSquare, Shield, AlertCircle, Moon, Sun, Download, User, Navigation, Menu } from 'lucide-react';
 import { exportCurrentConversationToPDF, exportConversationToPDF } from '../lib/pdfExport';
 import QiblaCompass from '../components/QiblaCompass';
-import PrayerNotifications from '../components/PrayerNotifications';
+import PrayerButton from '../components/PrayerButton';
 
 export default function IslamicChatApp() {
   const { data: session, status } = useSession();
@@ -543,6 +543,9 @@ export default function IslamicChatApp() {
             <div className="flex items-center gap-1 sm:gap-2">
               {/* Actions visibles uniquement sur desktop */}
               <div className="hidden md:flex items-center gap-2">
+                {/* Bouton Notifications Prière */}
+                <PrayerButton />
+
                 <button
                   onClick={toggleDarkMode}
                   className="p-2 hover:bg-white/10 rounded-lg transition-colors"
@@ -604,6 +607,8 @@ export default function IslamicChatApp() {
               </div>
 
               {/* Boutons essentiels mobile */}
+              <PrayerButton />
+              
               <button
                 onClick={toggleDarkMode}
                 className="md:hidden p-2 hover:bg-white/10 rounded-lg transition-colors"
@@ -983,11 +988,10 @@ export default function IslamicChatApp() {
         </div>
       </div>
 
-      {/* ✨ DÉSACTIVÉ: Boussole Qibla 
+      {/* ✨ Boussole Qibla (bouton flottant en bas) */}
       {isAuthenticated && <QiblaCompass />}
-      */}
 
-      {/* ✨ DÉSACTIVÉ: Notifications Prière 
+      {/* ✨ DÉSACTIVÉ: Notifications Prière (déplacées dans header)
       {isAuthenticated && <PrayerNotifications />}
       */}
     </div>

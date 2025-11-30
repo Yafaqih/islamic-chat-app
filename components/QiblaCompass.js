@@ -255,7 +255,7 @@ export default function QiblaCompass() {
     return (
       <button
         onClick={() => setShowCompass(true)}
-        className="fixed bottom-[240px] sm:bottom-52 right-4 bg-gradient-to-br from-emerald-500 to-teal-600 dark:from-emerald-600 dark:to-teal-700 text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all z-40 hover:scale-110"
+        className="fixed bottom-[140px] sm:bottom-32 right-4 bg-gradient-to-br from-emerald-500 to-teal-600 dark:from-emerald-600 dark:to-teal-700 text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all z-40 hover:scale-110"
         title="البوصلة - Qibla"
         aria-label="فتح بوصلة القبلة"
       >
