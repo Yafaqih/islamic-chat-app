@@ -1,4 +1,4 @@
-impimport { getServerSession } from 'next-auth/next';
+import { getServerSession } from 'next-auth/next';
 import { authOptions } from './auth/[...nextauth]';
 import Anthropic from '@anthropic-ai/sdk';
 import prisma from '../../lib/prisma';
