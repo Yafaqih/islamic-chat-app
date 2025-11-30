@@ -5,6 +5,10 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
+// Limites de messages par tier
+const FREE_MESSAGE_LIMIT = 10;
+const PRO_MESSAGE_LIMIT = 100;
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -16,10 +20,46 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Message requis' });
   }
 
+  if (!userId) {
+    return res.status(400).json({ error: 'User ID requis' });
+  }
+
   try {
+    // Récupérer l'utilisateur pour vérifier son tier et son compteur
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        subscriptionTier: true,
+        messageCount: true,
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'Utilisateur non trouvé' });
+    }
+
+    // Déterminer la limite de messages selon le tier
+    const currentTier = user.subscriptionTier || 'free';
+    const messageLimit = currentTier === 'free' ? FREE_MESSAGE_LIMIT : 
+                        currentTier === 'pro' ? PRO_MESSAGE_LIMIT : 
+                        Infinity; // Premium = illimité
+
+    // Vérifier si l'utilisateur a atteint sa limite
+    if (user.messageCount >= messageLimit) {
+      return res.status(403).json({ 
+        error: 'Limite de messages atteinte',
+        limit: messageLimit,
+        current: user.messageCount,
+        tier: currentTier
+      });
+    }
+
     // Construire le prompt système selon le tier
-    const systemPrompt = subscriptionTier === 'premium' 
-      ? `Tu es un assistant islamique expert spécialisé dans la tradition sunnite. Tu dois:
+    let systemPrompt;
+    let maxTokens;
+
+    if (currentTier === 'premium') {
+      systemPrompt = `Tu es un assistant islamique expert spécialisé dans la tradition sunnite. Tu dois:
 
 1. Fournir des réponses détaillées et complètes
 2. Citer des sources authentiques (Coran, Hadith sahih)
@@ -27,13 +67,25 @@ export default async function handler(req, res) {
 4. Proposer des khutbas (sermons) bien structurés quand demandé
 5. Répondre en arabe de manière claire et éloquente
 
-Toujours inclure des références précises avec les numéros de sourate/verset ou la source du hadith.`
-      : `Tu es un assistant islamique basé sur la tradition sunnite. Tu fournis des réponses concises basées sur le Coran et les hadiths authentiques. Réponds en arabe de manière claire.`;
+Toujours inclure des références précises avec les numéros de sourate/verset ou la source du hadith.
+
+Pour les khutbas, utilise cette structure:
+- Introduction (المقدمة)
+- Corps du sermon (الموضوع)
+- Conclusion avec invocations (الخاتمة)`;
+      maxTokens = 4000;
+    } else if (currentTier === 'pro') {
+      systemPrompt = `Tu es un assistant islamique basé sur la tradition sunnite. Tu fournis des réponses détaillées basées sur le Coran et les hadiths authentiques. Réponds en arabe de manière claire et cite tes sources.`;
+      maxTokens = 2000;
+    } else {
+      systemPrompt = `Tu es un assistant islamique basé sur la tradition sunnite. Tu fournis des réponses concises basées sur le Coran et les hadiths authentiques. Réponds en arabe de manière claire.`;
+      maxTokens = 1000;
+    }
 
     // Appeler l'API Claude
     const completion = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: subscriptionTier === 'premium' ? 4000 : subscriptionTier === 'pro' ? 2000 : 1000,
+      max_tokens: maxTokens,
       system: systemPrompt,
       messages: [
         {
@@ -45,46 +97,74 @@ Toujours inclure des références précises avec les numéros de sourate/verset 
 
     const response = completion.content[0].text;
 
-    // Extraire les références du texte (simple regex pour détecter les citations)
+    // Extraire les références du texte
     const references = [];
     
-    // Détecter les sourates
+    // Détecter les sourates du Coran
     const surahMatches = response.matchAll(/سورة\s+[\u0600-\u06FF]+/g);
     for (const match of surahMatches) {
-      references.push(match[0]);
+      if (!references.includes(match[0])) {
+        references.push(match[0]);
+      }
     }
     
     // Détecter les hadiths
-    const hadithMatches = response.matchAll(/(صحيح البخاري|صحيح مسلم|سنن الترمذي|سنن أبي داود|سنن النسائي|سنن ابن ماجه)[^\.]+/g);
+    const hadithMatches = response.matchAll(/(صحيح البخاري|صحيح مسلم|سنن الترمذي|سنن أبي داود|سنن النسائي|سنن ابن ماجه)[^\.،]+/g);
     for (const match of hadithMatches) {
-      references.push(match[0]);
+      if (!references.includes(match[0])) {
+        references.push(match[0]);
+      }
+    }
+
+    // Détecter les références au Coran avec versets
+    const ayahMatches = response.matchAll(/[\u0600-\u06FF\s]+:\s*\d+/g);
+    for (const match of ayahMatches) {
+      if (match[0].includes('سورة') || match[0].length < 50) {
+        if (!references.includes(match[0])) {
+          references.push(match[0]);
+        }
+      }
     }
 
     // Mettre à jour le compteur de messages de l'utilisateur
-    if (userId) {
-      try {
-        await prisma.user.update({
-          where: { id: userId },
-          data: {
-            messageCount: {
-              increment: 1
-            }
+    try {
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          messageCount: {
+            increment: 1
           }
-        });
-      } catch (dbError) {
-        console.error('Error updating message count:', dbError);
-      }
+        }
+      });
+    } catch (dbError) {
+      console.error('Error updating message count:', dbError);
+      // On continue même si l'update échoue
     }
 
     return res.status(200).json({
       response,
-      references: [...new Set(references)].slice(0, 5) // Dédupliquer et limiter à 5
+      references: [...new Set(references)].slice(0, 5), // Dédupliquer et limiter à 5
+      usage: {
+        messagesUsed: user.messageCount + 1,
+        messagesLimit: messageLimit,
+        tier: currentTier
+      }
     });
+
   } catch (error) {
     console.error('Chat error:', error);
     
+    // Gérer les erreurs spécifiques de l'API Anthropic
     if (error.status === 401) {
       return res.status(500).json({ error: 'Erreur de configuration API' });
+    }
+    
+    if (error.status === 429) {
+      return res.status(429).json({ error: 'Trop de requêtes. Veuillez réessayer dans quelques instants.' });
+    }
+
+    if (error.status === 400) {
+      return res.status(400).json({ error: 'Requête invalide' });
     }
     
     return res.status(500).json({ error: 'Erreur serveur' });

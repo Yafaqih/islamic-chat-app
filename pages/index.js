@@ -1,5 +1,3 @@
-'use client';
-
 import React, { useState, useRef, useEffect } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { Send, BookOpen, Sparkles, Star, X, Crown, Check, Zap, LogOut, MessageSquare, Shield, AlertCircle } from 'lucide-react';
@@ -43,6 +41,8 @@ export default function IslamicChatApp() {
 
   useEffect(() => {
     if (isAuthenticated && user) {
+      setSubscriptionTier(user.subscriptionTier || 'free');
+      setMessageCount(user.messageCount || 0);
       loadConversations();
     }
   }, [isAuthenticated, user]);
@@ -55,33 +55,17 @@ export default function IslamicChatApp() {
   ];
 
   const handleLemonSqueezyCheckout = () => {
-    window.LemonSqueezy = window.LemonSqueezy || {};
-    window.LemonSqueezy.Setup({
-      eventHandler: (event) => {
-        if (event === 'Checkout.Success') {
-          setSubscriptionTier('premium');
-          setShowPremiumModal(false);
-          alert('مرحباً بك في الاشتراك المميز! جزاك الله خيرا');
-        }
-      }
-    });
-
-    window.LemonSqueezy.Url.Open('https://app.lemonsqueezy.com/share/711012');
+    const variantId = process.env.NEXT_PUBLIC_LEMONSQUEEZY_PREMIUM_VARIANT_ID;
+    const email = user?.email || '';
+    const checkoutUrl = `https://yafaqih.lemonsqueezy.com/checkout/buy/${variantId}?checkout[email]=${encodeURIComponent(email)}`;
+    window.open(checkoutUrl, '_blank');
   };
 
   const handleProCheckout = () => {
-    window.LemonSqueezy = window.LemonSqueezy || {};
-    window.LemonSqueezy.Setup({
-      eventHandler: (event) => {
-        if (event === 'Checkout.Success') {
-          setSubscriptionTier('pro');
-          setShowPremiumModal(false);
-          alert('مرحباً بك في الاشتراك الاحترافي! جزاك الله خيرا');
-        }
-      }
-    });
-
-    window.LemonSqueezy.Url.Open('https://app.lemonsqueezy.com/share/711011');
+    const variantId = process.env.NEXT_PUBLIC_LEMONSQUEEZY_PRO_VARIANT_ID;
+    const email = user?.email || '';
+    const checkoutUrl = `https://yafaqih.lemonsqueezy.com/checkout/buy/${variantId}?checkout[email]=${encodeURIComponent(email)}`;
+    window.open(checkoutUrl, '_blank');
   };
 
   const handleSend = async () => {
