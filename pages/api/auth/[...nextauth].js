@@ -11,7 +11,12 @@ export const authOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     }),
   ],
+  useSecureCookies: true,
   callbacks: {
+    async redirect({ url, baseUrl }) {
+      // Force toujours www.yafaqih.app
+      return 'https://www.yafaqih.app';
+    },
     async session({ session, user }) {
       if (session?.user) {
         session.user.id = user.id;
