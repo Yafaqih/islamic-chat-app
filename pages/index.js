@@ -1,4 +1,3 @@
-import AboutPage from '../components/AboutPage';
 import React, { useState, useRef, useEffect } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useRouter } from 'next/router';
@@ -10,6 +9,7 @@ import PrayerButton from '../components/PrayerButton';
 import ArabicTTS from '../components/ArabicTTS';
 // ✨ NOUVEAU: Import du composant de reconnaissance vocale
 import VoiceRecognition from '../components/VoiceRecognition';
+import AboutPage from '../components/AboutPage';
 
 export default function IslamicChatApp() {
   const { data: session, status } = useSession();
@@ -374,6 +374,14 @@ export default function IslamicChatApp() {
           >
             تسجيل الدخول بالبريد الإلكتروني
           </button>
+{/* ✨ a propos */}
+          <button
+  onClick={() => setShowAbout(true)}
+  className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-all text-sm font-medium flex items-center gap-2"
+>
+  <BookOpen className="w-4 h-4" />
+  حول التطبيق
+</button>
 
           {/* Toggle mode sombre */}
           <button
@@ -592,12 +600,7 @@ export default function IslamicChatApp() {
                 >
                   <Star className="w-5 h-5" />
                 </button>
-                <button
-  onClick={() => setShowAbout(true)}
-  className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-all text-sm font-medium"
->
-  À propos
-</button>
+                
 
                 {subscriptionTier === 'free' && (
                   <button
@@ -1015,13 +1018,14 @@ export default function IslamicChatApp() {
 
       {/* ✨ Boussole Qibla (bouton flottant en bas) */}
       {isAuthenticated && <QiblaCompass />}
-
+{/* Modal À propos */}
+      {showAbout && (
+        <AboutPage onClose={() => setShowAbout(false)} />
+      )}
       {/* ✨ DÉSACTIVÉ: Notifications Prière (déplacées dans header)
       {isAuthenticated && <PrayerNotifications />}
       */}
     </div>
   );
-  {showAbout && (
-  <AboutPage onClose={() => setShowAbout(false)} />
-)}
+  
 }
