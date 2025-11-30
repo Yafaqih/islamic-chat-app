@@ -1,12 +1,11 @@
 // pages/_app.js
-
 import { SessionProvider } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import useServiceWorker from '../lib/useServiceWorker';
 import UpdateNotification from '../components/UpdateNotification';
 import '../styles/globals.css';
 
-function MyApp({ Component, pageProps: { session, ...pageProps } }) {
+export default function MyApp({ Component, pageProps: { session, ...pageProps } }) {
   const { updateAvailable, isOnline, updateServiceWorker } = useServiceWorker();
   const [showUpdateNotification, setShowUpdateNotification] = useState(false);
 
@@ -27,7 +26,7 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }) {
   return (
     <SessionProvider session={session}>
       {/* Notification de mise à jour */}
-      <UpdateNotification 
+      <UpdateNotification
         show={showUpdateNotification}
         onUpdate={handleUpdate}
         onDismiss={handleDismiss}
@@ -35,14 +34,15 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }) {
 
       {/* Indicateur hors ligne */}
       {!isOnline && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-[100] text-sm">
-          📡 غير متصل بالإنترنت
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-red-600 text-white px-6 py-3 rounded-full shadow-2xl z-[9999] text-sm font-bold animate-pulse">
+          غير متصل بالإنترنت
         </div>
       )}
 
-      <Component {...pageProps} />
+      {/* CONTENEUR PRINCIPAL – LA CLÉ DE TOUT */}
+      <div className="w-full min-h-screen bg-gradient-to-b from-islamic-dark to-black text-white">
+        <Component {...pageProps} />
+      </div>
     </SessionProvider>
   );
 }
-
-export default MyApp;
