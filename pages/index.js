@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useRouter } from 'next/router';
-import { Send, BookOpen, Sparkles, Star, X, Crown, Check, Zap, LogOut, MessageSquare, Shield, AlertCircle, Moon, Sun, Download, User } from 'lucide-react';
+import { Send, BookOpen, Sparkles, Star, X, Crown, Check, Zap, LogOut, MessageSquare, Shield, AlertCircle, Moon, Sun, Download, User, Navigation } from 'lucide-react';
 import { exportCurrentConversationToPDF, exportConversationToPDF } from '../lib/pdfExport';
+import QiblaCompass from '../components/QiblaCompass';
 
 export default function IslamicChatApp() {
   const { data: session, status } = useSession();
@@ -876,6 +877,9 @@ export default function IslamicChatApp() {
           </div>
         </div>
       </div>
+
+      {/* ✨ NOUVEAU: Boussole Qibla */}
+      {isAuthenticated && <QiblaCompass />}
     </div>
   );
 }
