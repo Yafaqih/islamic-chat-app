@@ -921,20 +921,20 @@ export default function IslamicChatApp() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Suggestions avec mode sombre */}
+        {/* Suggestions avec mode sombre - Layout optimisé */}
         {messages.length === 1 && (
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="mt-8 flex flex-col items-end gap-3 max-w-2xl ml-auto">
             {suggestions.map((suggestion, idx) => (
               <button
                 key={idx}
                 onClick={() => handleSuggestion(suggestion)}
-                className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-emerald-500 dark:hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all text-right group"
+                className="w-full sm:w-3/4 md:w-2/3 p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-emerald-500 dark:hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all group"
               >
-                <div className="flex items-center justify-between flex-row-reverse">
-                  <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-400">
+                <div className="flex items-center gap-3 justify-end">
+                  <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 text-right">
                     {suggestion}
                   </span>
-                  <Sparkles className="w-4 h-4 text-gray-400 dark:text-gray-500 group-hover:text-emerald-500 dark:group-hover:text-emerald-400" />
+                  <Sparkles className="w-4 h-4 flex-shrink-0 text-gray-400 dark:text-gray-500 group-hover:text-emerald-500 dark:group-hover:text-emerald-400" />
                 </div>
               </button>
             ))}
@@ -983,11 +983,13 @@ export default function IslamicChatApp() {
         </div>
       </div>
 
-      {/* ✨ NOUVEAU: Boussole Qibla */}
+      {/* ✨ DÉSACTIVÉ: Boussole Qibla 
       {isAuthenticated && <QiblaCompass />}
+      */}
 
-      {/* ✨ NOUVEAU: Notifications Prière */}
+      {/* ✨ DÉSACTIVÉ: Notifications Prière 
       {isAuthenticated && <PrayerNotifications />}
+      */}
     </div>
   );
 }
