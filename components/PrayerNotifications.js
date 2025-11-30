@@ -375,6 +375,7 @@ export default function PrayerNotifications() {
             )}
           </div>
         </div>
+      )}
     </>
   );
 }
