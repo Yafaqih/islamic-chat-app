@@ -222,16 +222,17 @@ export default function PrayerNotifications() {
       {!showSettings && (
         <button
           onClick={() => setShowSettings(true)}
-          className={`fixed bottom-36 left-4 ${
+          className={`fixed bottom-[210px] sm:bottom-48 left-4 ${
             enabled 
               ? 'bg-gradient-to-br from-purple-500 to-indigo-600 dark:from-purple-600 dark:to-indigo-700' 
               : 'bg-gray-400 dark:bg-gray-600'
-          } text-white p-3 rounded-full shadow-lg hover:shadow-xl transition-all z-40`}
+          } text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all z-40 hover:scale-110 relative`}
           title="مواقيت الصلاة"
+          aria-label="فتح إعدادات مواقيت الصلاة"
         >
           {enabled ? <Bell className="w-6 h-6" /> : <BellOff className="w-6 h-6" />}
           {enabled && nextPrayer && nextPrayer.diff < 60 && (
-            <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold animate-pulse">
+            <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold animate-pulse shadow-md">
               !
             </div>
           )}
