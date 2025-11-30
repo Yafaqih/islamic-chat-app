@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
-import { Send, BookOpen, Sparkles, Star, X, Crown, Check, Zap, LogOut, MessageSquare, Shield, AlertCircle, Moon, Sun } from 'lucide-react';
+import { Send, BookOpen, Sparkles, Star, X, Crown, Check, Zap, LogOut, MessageSquare, Shield, AlertCircle, Moon, Sun, Download } from 'lucide-react';
+import { exportCurrentConversationToPDF, exportConversationToPDF } from '../lib/pdfExport';
 
 export default function IslamicChatApp() {
   const { data: session, status } = useSession();
@@ -60,6 +61,39 @@ export default function IslamicChatApp() {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
+    }
+  };
+
+  // ✨ NOUVEAU: Export PDF
+  const handleExportPDF = () => {
+    if (subscriptionTier !== 'premium') {
+      setShowPremiumModal(true);
+      return;
+    }
+
+    const title = messages.length > 1 
+      ? messages[1].content.substring(0, 60) 
+      : 'محادثة جديدة';
+
+    exportCurrentConversationToPDF(messages, user?.name, title);
+  };
+
+  const handleExportHistoricalPDF = async (conversationId) => {
+    if (subscriptionTier !== 'premium') {
+      setShowPremiumModal(true);
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/conversations/${conversationId}`);
+      const data = await response.json();
+      
+      if (response.ok && data.conversation) {
+        exportConversationToPDF(data.conversation, user?.name);
+      }
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      alert('خطأ في تصدير المحادثة');
     }
   };
 
@@ -484,6 +518,16 @@ export default function IslamicChatApp() {
             >
               {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
+
+            {/* ✨ NOUVEAU: Bouton Export PDF */}
+            <button
+              onClick={handleExportPDF}
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
+              title="تصدير المحادثة PDF (مميز فقط)"
+              disabled={messages.length <= 1 || subscriptionTier !== 'premium'}
+            >
+              <Download className="w-5 h-5" />
+            </button>
             
             <button
               onClick={() => setShowHistory(!showHistory)}
@@ -555,6 +599,21 @@ export default function IslamicChatApp() {
                       >
                         <X className="w-4 h-4" />
                       </button>
+                      
+                      {/* ✨ NOUVEAU: Bouton Export PDF dans l'historique */}
+                      {subscriptionTier === 'premium' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleExportHistoricalPDF(conv.id);
+                          }}
+                          className="text-emerald-500 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="تصدير PDF"
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
+                      )}
+
                       <div onClick={() => loadConversation(conv.id)} className="flex-1 text-right">
                         <p className="text-sm font-medium text-gray-900 dark:text-gray-100 line-clamp-2 mb-2">
                           {conv.title || 'محادثة جديدة'}
