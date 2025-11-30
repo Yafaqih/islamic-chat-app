@@ -1,5 +1,8 @@
+impimport { getServerSession } from 'next-auth/next';
+import { authOptions } from './auth/[...nextauth]';
 import Anthropic from '@anthropic-ai/sdk';
 import prisma from '../../lib/prisma';
+import { withRateLimit } from '../../lib/rateLimit';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -83,14 +86,30 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { message, subscriptionTier, userId } = req.body;
+  // ✨ VÉRIFIER L'AUTHENTIFICATION
+  const session = await getServerSession(req, res, authOptions);
+  if (!session) {
+    return res.status(401).json({ error: 'Non authentifié' });
+  }
+
+  // ✨ RATE LIMITING: 10 requêtes par minute par utilisateur
+  const rateLimitPassed = await withRateLimit(
+    req, 
+    res, 
+    'chat', 
+    10, 
+    () => session.user.id // Utiliser l'ID utilisateur comme clé
+  );
+  
+  if (!rateLimitPassed) {
+    return; // La réponse 429 a déjà été envoyée
+  }
+
+  const { message } = req.body;
+  const userId = session.user.id;
 
   if (!message) {
     return res.status(400).json({ error: 'Message requis' });
-  }
-
-  if (!userId) {
-    return res.status(400).json({ error: 'User ID requis' });
   }
 
   try {

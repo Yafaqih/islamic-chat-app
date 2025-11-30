@@ -1,9 +1,17 @@
 import prisma from '../../../lib/prisma';
 import bcrypt from 'bcryptjs';
+import { withRateLimit } from '../../../lib/rateLimit';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // ✨ RATE LIMITING: 5 inscriptions par heure par IP
+  const rateLimitPassed = await withRateLimit(req, res, 'signup', 5);
+  
+  if (!rateLimitPassed) {
+    return; // La réponse 429 a déjà été envoyée
   }
 
   try {
