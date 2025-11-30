@@ -36,10 +36,10 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }) {
 
       {/* Conteneur principal responsive avec max-width et padding safe */}
       <div className="min-h-screen">
-        <div className="mx-auto max-w-lg px-4 pt-2 pb-24 sm:px-6 lg:px-8">
-          <Component {...pageProps} />
-        </div>
-      </div>
+  <div className="w-full max-w-lg mx-auto px-4 pt-2 pb-28 sm:px-6 lg:px-8">
+    <Component {...pageProps} />
+  </div>
+</div>
     </SessionProvider>
   );
 }
