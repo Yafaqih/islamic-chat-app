@@ -396,6 +396,6 @@ export default function QiblaCompass() {
           </div>
         )}
       </div>
-    </div>
+    </div
   );
 }
