@@ -1,27 +1,29 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useRouter } from 'next/router';
-import { Send, BookOpen, Sparkles, Star, X, Crown, Check, Zap, LogOut, MessageSquare, Shield, AlertCircle, Moon, Sun, Download, User, Navigation, Menu } from 'lucide-react';
+import { Send, BookOpen, Sparkles, Star, X, Crown, Check, Zap, LogOut, MessageSquare, Shield, AlertCircle, Moon, Sun, Download, User, Navigation, Menu, Tag } from 'lucide-react';
 import { exportCurrentConversationToPDF, exportConversationToPDF } from '../lib/pdfExport';
 import QiblaCompass from '../components/QiblaCompass';
 import PrayerButton from '../components/PrayerButton';
-// ✨ NOUVEAU: Import du composant TTS
+// ✨ Import du composant TTS
 import ArabicTTS from '../components/ArabicTTS';
-// ✨ NOUVEAU: Import du composant de reconnaissance vocale
+// ✨ Import du composant de reconnaissance vocale
 import VoiceRecognition from '../components/VoiceRecognition';
 import AboutPage from '../components/AboutPage';
 
 import AdminDashboard from '../components/AdminDashboard'; // ✅ Dashboard Admin
+import SubscriptionModal from '../components/SubscriptionModal'; // ✅ NOUVEAU: Modal d'abonnement avec codes promo
+
 export default function IslamicChatApp() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const isAuthenticated = status === "authenticated";
   const user = session?.user;
 
-  // ✨ NOUVEAU: État pour le mode sombre
+  // ✨ État pour le mode sombre
   const [darkMode, setDarkMode] = useState(false);
   
-  // ✨ NOUVEAU: État pour le menu mobile
+  // ✨ État pour le menu mobile
   const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   const [messages, setMessages] = useState([
@@ -36,7 +38,7 @@ export default function IslamicChatApp() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showFavorites, setShowFavorites] = useState(false);
-  const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [showPremiumModal, setShowPremiumModal] = useState(false); // ✅ Utilisé pour le nouveau modal
   const [subscriptionTier, setSubscriptionTier] = useState('free');
   const [showAbout, setShowAbout] = useState(false)
   const [messageCount, setMessageCount] = useState(0);
@@ -50,7 +52,7 @@ export default function IslamicChatApp() {
   const FREE_MESSAGE_LIMIT = 10;
   const PRO_MESSAGE_LIMIT = 100;
 
-  // ✨ NOUVEAU: Initialiser le mode sombre depuis localStorage
+  // ✨ Initialiser le mode sombre depuis localStorage
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'dark') {
@@ -66,7 +68,7 @@ export default function IslamicChatApp() {
     }
   }, []);
 
-  // ✨ NOUVEAU: Toggle du mode sombre
+  // ✨ Toggle du mode sombre
   const toggleDarkMode = () => {
     const newMode = !darkMode;
     setDarkMode(newMode);
@@ -79,7 +81,7 @@ export default function IslamicChatApp() {
     }
   };
 
-  // ✨ NOUVEAU: Export PDF
+  // ✨ Export PDF
   const handleExportPDF = () => {
     if (subscriptionTier !== 'premium') {
       setShowPremiumModal(true);
@@ -135,17 +137,7 @@ export default function IslamicChatApp() {
     "ما أهمية يوم الجمعة؟"
   ];
 
-  const handleLemonSqueezyCheckout = () => {
-    const email = user?.email || '';
-    const checkoutUrl = `https://yafaqih.lemonsqueezy.com/buy/669f5834-1817-42d3-ab4a-a8441db40737?checkout[email]=${encodeURIComponent(email)}`;
-    window.open(checkoutUrl, '_blank');
-  };
-
-  const handleProCheckout = () => {
-    const email = user?.email || '';
-    const checkoutUrl = `https://yafaqih.lemonsqueezy.com/buy/c1fd514d-562d-45b0-8dff-c5f1ab34743f?checkout[email]=${encodeURIComponent(email)}`;
-    window.open(checkoutUrl, '_blank');
-  };
+  // ✅ SUPPRIMÉ: Les anciennes fonctions de checkout direct sont remplacées par le modal
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -357,7 +349,7 @@ export default function IslamicChatApp() {
             المتابعة مع Google
           </button>
 
-          {/* ✨ NOUVEAU: Divider */}
+          {/* Divider */}
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
@@ -369,7 +361,7 @@ export default function IslamicChatApp() {
             </div>
           </div>
 
-          {/* ✨ NOUVEAU: Lien vers authentification email/password */}
+          {/* Lien vers authentification email/password */}
           <button
             onClick={() => router.push('/auth')}
             className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold py-3 rounded-xl hover:from-emerald-600 hover:to-teal-700 transition-all"
@@ -393,142 +385,13 @@ export default function IslamicChatApp() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-200" dir="rtl">
-      {showPremiumModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-3xl max-w-4xl w-full p-8 shadow-2xl transform animate-scale-in max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-start mb-6 flex-row-reverse">
-              <div className="bg-gradient-to-br from-yellow-400 to-amber-500 p-3 rounded-2xl">
-                <Crown className="w-8 h-8 text-white" />
-              </div>
-              <button 
-                onClick={() => setShowPremiumModal(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2 text-right">
-              اختر خطتك المناسبة
-            </h2>
-            <p className="text-gray-600 dark:text-gray-300 mb-8 text-right">
-              {subscriptionTier === 'free' && `لقد وصلت إلى حد ${FREE_MESSAGE_LIMIT} رسائل مجانية`}
-              {subscriptionTier === 'pro' && `لقد وصلت إلى حد ${PRO_MESSAGE_LIMIT} رسائل للخطة الاحترافية`}
-            </p>
-
-            <div className="grid md:grid-cols-3 gap-4 mb-8">
-              <div className="border-2 border-gray-200 dark:border-gray-700 rounded-2xl p-6 bg-white dark:bg-gray-800/50">
-                <div className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 text-right">مجاني</div>
-                <div className="text-3xl font-bold text-gray-900 dark:text-white mb-4 text-right">0 درهم</div>
-                <ul className="space-y-2 mb-4">
-                  <li className="flex items-start gap-2 flex-row-reverse text-right">
-                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-gray-600 dark:text-gray-300">{FREE_MESSAGE_LIMIT} رسائل/جلسة</span>
-                  </li>
-                  <li className="flex items-start gap-2 flex-row-reverse text-right">
-                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-gray-600 dark:text-gray-300">إجابات أساسية</span>
-                  </li>
-                  <li className="flex items-start gap-2 flex-row-reverse text-right">
-                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-gray-600 dark:text-gray-300">مراجع محدودة</span>
-                  </li>
-                </ul>
-              </div>
-
-              <div className="border-2 border-blue-500 rounded-2xl p-6 relative bg-white dark:bg-gray-800/50">
-                <div className="absolute top-0 left-0 bg-blue-500 text-white px-3 py-1 text-xs font-bold rounded-br-lg rounded-tl-lg">
-                  جديد
-                </div>
-                <div className="text-sm font-semibold text-blue-600 dark:text-blue-400 mb-2 text-right">احترافي</div>
-                <div className="flex items-baseline gap-2 mb-4 flex-row-reverse justify-end">
-                  <span className="text-3xl font-bold text-gray-900 dark:text-white">15 درهم</span>
-                  <span className="text-gray-500 dark:text-gray-400">/شهر</span>
-                </div>
-                <ul className="space-y-2 mb-6">
-                  <li className="flex items-start gap-2 flex-row-reverse text-right">
-                    <Zap className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">{PRO_MESSAGE_LIMIT} رسالة/شهر</span>
-                  </li>
-                  <li className="flex items-start gap-2 flex-row-reverse text-right">
-                    <Zap className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">تفسير القرآن</span>
-                  </li>
-                  <li className="flex items-start gap-2 flex-row-reverse text-right">
-                    <Zap className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">شرح الأحاديث</span>
-                  </li>
-                  <li className="flex items-start gap-2 flex-row-reverse text-right">
-                    <Zap className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">مراجع موثقة</span>
-                  </li>
-                  <li className="flex items-start gap-2 flex-row-reverse text-right">
-                    <Zap className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">أسئلة فقهية</span>
-                  </li>
-                  <li className="flex items-start gap-2 flex-row-reverse text-right">
-                    <X className="w-4 h-4 text-gray-300 dark:text-gray-600 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm text-gray-400 dark:text-gray-500 line-through">إعداد الخطب</span>
-                  </li>
-                </ul>
-                <button
-                  onClick={handleProCheckout}
-                  className="w-full bg-blue-500 text-white font-semibold py-2.5 rounded-xl hover:bg-blue-600 transition-all"
-                >
-                  اشترك الآن
-                </button>
-              </div>
-
-              <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-6 text-white relative overflow-hidden">
-                <div className="absolute top-0 left-0 bg-yellow-400 text-emerald-900 px-3 py-1 text-xs font-bold rounded-br-lg rounded-tl-lg">
-                  الأكثر شعبية
-                </div>
-                <div className="text-sm font-semibold mb-2 text-emerald-100 text-right">مميز</div>
-                <div className="flex items-baseline gap-2 mb-4 flex-row-reverse justify-end">
-                  <span className="text-3xl font-bold">25 درهم</span>
-                  <span className="text-emerald-100">/شهر</span>
-                </div>
-                <ul className="space-y-2 mb-6">
-                  <li className="flex items-start gap-2 flex-row-reverse text-right">
-                    <Zap className="w-4 h-4 text-yellow-300 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm font-medium">رسائل غير محدودة</span>
-                  </li>
-                  <li className="flex items-start gap-2 flex-row-reverse text-right">
-                    <Zap className="w-4 h-4 text-yellow-300 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm">كل ميزات الخطة الاحترافية</span>
-                  </li>
-                  <li className="flex items-start gap-2 flex-row-reverse text-right">
-                    <Crown className="w-4 h-4 text-yellow-300 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm font-medium">إعداد الخطب</span>
-                  </li>
-                  <li className="flex items-start gap-2 flex-row-reverse text-right">
-                    <Zap className="w-4 h-4 text-yellow-300 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm">إجابات مفصلة</span>
-                  </li>
-                  <li className="flex items-start gap-2 flex-row-reverse text-right">
-                    <Zap className="w-4 h-4 text-yellow-300 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm">تصدير PDF</span>
-                  </li>
-                  <li className="flex items-start gap-2 flex-row-reverse text-right">
-                    <Zap className="w-4 h-4 text-yellow-300 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm">دعم ذو أولوية</span>
-                  </li>
-                </ul>
-                <button
-                  onClick={handleLemonSqueezyCheckout}
-                  className="w-full bg-yellow-400 text-gray-900 font-bold py-2.5 rounded-xl hover:bg-yellow-500 transition-all"
-                >
-                  اشترك الآن
-                </button>
-              </div>
-            </div>
-
-            <p className="text-center text-xs text-gray-500 dark:text-gray-400">
-              دفع آمن عبر Lemon Squeezy • إلغاء متى تشاء
-            </p>
-          </div>
-        </div>
-      )}
+      
+      {/* ✅ NOUVEAU MODAL D'ABONNEMENT AVEC CODES PROMO */}
+      <SubscriptionModal 
+        isOpen={showPremiumModal}
+        onClose={() => setShowPremiumModal(false)}
+        currentTier={subscriptionTier}
+      />
 
       {/* ✨ Header responsive avec menu mobile */}
       <div className="bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-gray-800 dark:to-gray-900 text-white shadow-lg transition-colors duration-200">
@@ -595,6 +458,7 @@ export default function IslamicChatApp() {
                 >
                   <Star className="w-5 h-5" />
                 </button>
+                
                 {/* ✅ MENU UTILISATEUR AVEC ADMIN */}
                 <div className="relative group">
                   <button className="flex items-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors">
@@ -624,6 +488,20 @@ export default function IslamicChatApp() {
                         <div className="border-t border-gray-200 dark:border-gray-700"></div>
                       </>
                     )}
+                    
+                    {/* ✅ NOUVEAU: Bouton abonnements */}
+                    <button
+                      onClick={() => setShowPremiumModal(true)}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all"
+                    >
+                      <div className="w-9 h-9 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Crown className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="text-left flex-1">
+                        <div className="font-semibold">الاشتراكات</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Abonnements & codes promo</div>
+                      </div>
+                    </button>
                     
                     <button
                       onClick={() => setShowAbout(true)}
@@ -727,6 +605,18 @@ export default function IslamicChatApp() {
                 </button>
               )}
 
+              {/* ✅ NOUVEAU: Bouton abonnements mobile */}
+              <button
+                onClick={() => {
+                  setShowPremiumModal(true);
+                  setShowMobileMenu(false);
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/10 rounded-lg transition-colors text-right"
+              >
+                <Tag className="w-5 h-5" />
+                <span>الاشتراكات وكود الخصم</span>
+              </button>
+
               <button
                 onClick={() => {
                   setShowAbout(true);
@@ -828,7 +718,7 @@ export default function IslamicChatApp() {
                         <X className="w-4 h-4" />
                       </button>
                       
-                      {/* ✨ NOUVEAU: Bouton Export PDF dans l'historique */}
+                      {/* Bouton Export PDF dans l'historique */}
                       {subscriptionTier === 'premium' && (
                         <button
                           onClick={(e) => {
@@ -948,7 +838,7 @@ export default function IslamicChatApp() {
                       {msg.role === 'user' ? 'أنت' : 'المساعد الإسلامي'}
                     </span>
                     <div className="flex items-center gap-2">
-                      {/* ✨ NOUVEAU: Bouton TTS pour les messages de l'assistant */}
+                      {/* Bouton TTS pour les messages de l'assistant */}
                       {msg.role === 'assistant' && (
                         <ArabicTTS text={msg.content} />
                       )}
@@ -1052,7 +942,7 @@ export default function IslamicChatApp() {
                 <Send className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
               
-              {/* ✨ NOUVEAU: Bouton de reconnaissance vocale */}
+              {/* Bouton de reconnaissance vocale */}
               <VoiceRecognition
                 onTranscript={(text) => setInput(text)}
                 language="ar-SA"
@@ -1072,7 +962,7 @@ export default function IslamicChatApp() {
                 rows={1}
                 style={{
                   height: 'auto',
-                  minHeight: window.innerWidth < 640 ? '40px' : '48px'
+                  minHeight: typeof window !== 'undefined' && window.innerWidth < 640 ? '40px' : '48px'
                 }}
                 onInput={(e) => {
                   e.target.style.height = 'auto';
@@ -1087,9 +977,10 @@ export default function IslamicChatApp() {
         </div>
       </div>
 
-      {/* ✨ Boussole Qibla (bouton flottant en bas) */}
+      {/* Boussole Qibla (bouton flottant en bas) */}
       {isAuthenticated && <QiblaCompass />}
-{/* Modal À propos */}
+      
+      {/* Modal À propos */}
       {showAbout && (
         <AboutPage onClose={() => setShowAbout(false)} />
       )}
@@ -1107,11 +998,6 @@ export default function IslamicChatApp() {
           />
         </div>
       )}
-
-      {/* ✨ DÉSACTIVÉ: Notifications Prière (déplacées dans header)
-      {isAuthenticated && <PrayerNotifications />}
-      */}
     </div>
   );
-  
 }
