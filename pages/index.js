@@ -11,6 +11,7 @@ import ArabicTTS from '../components/ArabicTTS';
 import VoiceRecognition from '../components/VoiceRecognition';
 import AboutPage from '../components/AboutPage';
 
+import AdminDashboard from '../components/AdminDashboard'; // ✅ Dashboard Admin
 export default function IslamicChatApp() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -40,6 +41,7 @@ export default function IslamicChatApp() {
   const [showAbout, setShowAbout] = useState(false)
   const [messageCount, setMessageCount] = useState(0);
   const [nextId, setNextId] = useState(2);
+  const [showAdminDashboard, setShowAdminDashboard] = useState(false); // ✅ Dashboard Admin
   const [conversations, setConversations] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState(null);
@@ -593,14 +595,65 @@ export default function IslamicChatApp() {
                 >
                   <Star className="w-5 h-5" />
                 </button>
-                <button
-                  onClick={() => setShowAbout(true)}
-                  className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-all text-sm font-medium flex items-center gap-2"
-                >
-                  <BookOpen className="w-4 h-4" />
-                  حول التطبيق
-                </button>
-                
+                {/* ✅ MENU UTILISATEUR AVEC ADMIN */}
+                <div className="relative group">
+                  <button className="flex items-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors">
+                    <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                      <span className="text-white font-bold text-sm">
+                        {user?.name?.[0]?.toUpperCase() || 'U'}
+                      </span>
+                    </div>
+                    <span className="text-sm font-medium hidden lg:inline">{user?.name || 'Utilisateur'}</span>
+                  </button>
+                  
+                  <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 overflow-hidden">
+                    {user?.isAdmin && (
+                      <>
+                        <button
+                          onClick={() => setShowAdminDashboard(true)}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all"
+                        >
+                          <div className="w-9 h-9 bg-gradient-to-r from-amber-500 to-orange-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <Shield className="w-5 h-5 text-white" />
+                          </div>
+                          <div className="text-left flex-1">
+                            <div className="font-semibold">Dashboard Admin</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">Gestion & statistiques</div>
+                          </div>
+                        </button>
+                        <div className="border-t border-gray-200 dark:border-gray-700"></div>
+                      </>
+                    )}
+                    
+                    <button
+                      onClick={() => setShowAbout(true)}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
+                    >
+                      <div className="w-9 h-9 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <BookOpen className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="text-left flex-1">
+                        <div className="font-semibold">حول التطبيق</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">À propos</div>
+                      </div>
+                    </button>
+                    
+                    <div className="border-t border-gray-200 dark:border-gray-700"></div>
+                    
+                    <button
+                      onClick={() => signOut()}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all rounded-b-xl"
+                    >
+                      <div className="w-9 h-9 bg-gradient-to-r from-red-500 to-red-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <LogOut className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="text-left flex-1">
+                        <div className="font-semibold">تسجيل الخروج</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Déconnexion</div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
 
                 {subscriptionTier === 'free' && (
                   <button
@@ -611,14 +664,6 @@ export default function IslamicChatApp() {
                     ترقية
                   </button>
                 )}
-
-                <button
-                  onClick={() => signOut()}
-                  className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                  title="تسجيل الخروج"
-                >
-                  <LogOut className="w-5 h-5" />
-                </button>
               </div>
 
               {/* Boutons essentiels mobile */}
@@ -667,6 +712,20 @@ export default function IslamicChatApp() {
                 <Star className="w-5 h-5" />
                 <span>المفضلة</span>
               </button>
+
+              {/* ✅ Admin Button Mobile */}
+              {user?.isAdmin && (
+                <button
+                  onClick={() => {
+                    setShowAdminDashboard(true);
+                    setShowMobileMenu(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/10 rounded-lg transition-colors text-right bg-amber-500/20"
+                >
+                  <Shield className="w-5 h-5 text-amber-300" />
+                  <span>Dashboard Admin</span>
+                </button>
+              )}
 
               <button
                 onClick={() => {
@@ -1034,6 +1093,21 @@ export default function IslamicChatApp() {
       {showAbout && (
         <AboutPage onClose={() => setShowAbout(false)} />
       )}
+
+      {/* ✅ MODAL DASHBOARD ADMIN */}
+      {showAdminDashboard && (
+        <div className="fixed inset-0 z-[9999] bg-gray-900/95">
+          <AdminDashboard 
+            user={user} 
+            onLogout={() => {
+              setShowAdminDashboard(false);
+              signOut();
+            }}
+            onClose={() => setShowAdminDashboard(false)}
+          />
+        </div>
+      )}
+
       {/* ✨ DÉSACTIVÉ: Notifications Prière (déplacées dans header)
       {isAuthenticated && <PrayerNotifications />}
       */}
