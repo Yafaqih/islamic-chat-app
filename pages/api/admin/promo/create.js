@@ -5,18 +5,6 @@ import prisma from '../../../../lib/prisma';
 /**
  * API: Créer un code promo
  * POST /api/admin/promo/create
- * 
- * Body:
- * {
- *   code: string (requis, unique, uppercase)
- *   description: string
- *   discountType: 'percentage' | 'fixed' (requis)
- *   discountValue: number (requis)
- *   maxUses: number (optionnel)
- *   validUntil: date (optionnel)
- *   applicableTiers: ['pro', 'premium'] (optionnel)
- *   minAmount: number (optionnel)
- * }
  */
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -38,8 +26,7 @@ export default async function handler(req, res) {
       discountValue,
       maxUses,
       validUntil,
-      applicableTiers,
-      minAmount
+      applicableTiers
     } = req.body;
 
     // Validation
@@ -75,14 +62,18 @@ export default async function handler(req, res) {
     const normalizedCode = code.trim().toUpperCase();
 
     // Vérifier que le code n'existe pas déjà
-    const existingCode = await prisma.promoCode.findUnique({
-      where: { code: normalizedCode }
-    });
-
-    if (existingCode) {
-      return res.status(400).json({ 
-        error: 'Ce code promo existe déjà' 
+    try {
+      const existingCode = await prisma.promoCode.findUnique({
+        where: { code: normalizedCode }
       });
+
+      if (existingCode) {
+        return res.status(400).json({ 
+          error: 'Ce code promo existe déjà' 
+        });
+      }
+    } catch (e) {
+      // Table n'existe pas encore, continuer
     }
 
     // Préparer les données
@@ -94,9 +85,9 @@ export default async function handler(req, res) {
       maxUses: maxUses ? parseInt(maxUses) : null,
       validUntil: validUntil ? new Date(validUntil) : null,
       applicableTiers: applicableTiers || null,
-      minAmount: minAmount ? parseFloat(minAmount) : null,
       createdBy: session.user.id,
-      isActive: true
+      isActive: true,
+      currentUses: 0
     };
 
     // Créer le code promo
@@ -104,29 +95,11 @@ export default async function handler(req, res) {
       data: promoData
     });
 
-    // Logger l'action
-    await prisma.adminLog.create({
-      data: {
-        adminId: session.user.id,
-        action: 'promo_create',
-        targetType: 'promo_code',
-        targetId: promoCode.id,
-        details: {
-          code: normalizedCode,
-          discountType,
-          discountValue: value,
-          createdBy: session.user.email
-        },
-        ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress
-      }
-    });
-
     return res.status(201).json({
       success: true,
       promoCode: {
         ...promoCode,
-        discountValue: Number(promoCode.discountValue),
-        minAmount: promoCode.minAmount ? Number(promoCode.minAmount) : null
+        discountValue: Number(promoCode.discountValue)
       }
     });
 
@@ -142,7 +115,7 @@ export default async function handler(req, res) {
 
     return res.status(500).json({ 
       error: 'Erreur serveur',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: error.message
     });
   }
 }

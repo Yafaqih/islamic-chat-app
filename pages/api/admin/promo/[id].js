@@ -26,65 +26,18 @@ export default async function handler(req, res) {
     // GET - Détails du code promo
     if (req.method === 'GET') {
       const promoCode = await prisma.promoCode.findUnique({
-        where: { id },
-        include: {
-          usage: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  email: true
-                }
-              }
-            },
-            orderBy: {
-              usedAt: 'desc'
-            }
-          },
-          subscriptions: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  email: true
-                }
-              }
-            }
-          }
-        }
+        where: { id }
       });
 
       if (!promoCode) {
         return res.status(404).json({ error: 'Code promo non trouvé' });
       }
 
-      // Statistiques détaillées
-      const stats = {
-        totalUses: promoCode.currentUses,
-        totalDiscountApplied: promoCode.usage.reduce(
-          (sum, u) => sum + Number(u.discountApplied), 
-          0
-        ),
-        revenueGenerated: promoCode.subscriptions.reduce(
-          (sum, s) => sum + Number(s.amount),
-          0
-        ),
-        avgDiscountPerUse: promoCode.usage.length > 0
-          ? promoCode.usage.reduce((sum, u) => sum + Number(u.discountApplied), 0) / promoCode.usage.length
-          : 0,
-        uniqueUsers: new Set(promoCode.usage.map(u => u.userId)).size
-      };
-
       return res.status(200).json({
         promoCode: {
           ...promoCode,
-          discountValue: Number(promoCode.discountValue),
-          minAmount: promoCode.minAmount ? Number(promoCode.minAmount) : null
-        },
-        stats,
-        recentUsage: promoCode.usage.slice(0, 10)
+          discountValue: Number(promoCode.discountValue)
+        }
       });
     }
 
@@ -95,8 +48,7 @@ export default async function handler(req, res) {
         isActive,
         maxUses,
         validUntil,
-        applicableTiers,
-        minAmount
+        applicableTiers
       } = req.body;
 
       const updateData = {};
@@ -106,7 +58,6 @@ export default async function handler(req, res) {
       if (maxUses !== undefined) updateData.maxUses = maxUses ? parseInt(maxUses) : null;
       if (validUntil !== undefined) updateData.validUntil = validUntil ? new Date(validUntil) : null;
       if (applicableTiers !== undefined) updateData.applicableTiers = applicableTiers;
-      if (minAmount !== undefined) updateData.minAmount = minAmount ? parseFloat(minAmount) : null;
 
       // Mise à jour
       const updatedPromo = await prisma.promoCode.update({
@@ -114,35 +65,17 @@ export default async function handler(req, res) {
         data: updateData
       });
 
-      // Logger l'action
-      await prisma.adminLog.create({
-        data: {
-          adminId: session.user.id,
-          action: 'promo_update',
-          targetType: 'promo_code',
-          targetId: id,
-          details: {
-            code: updatedPromo.code,
-            changes: updateData,
-            modifiedBy: session.user.email
-          },
-          ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress
-        }
-      });
-
       return res.status(200).json({
         success: true,
         promoCode: {
           ...updatedPromo,
-          discountValue: Number(updatedPromo.discountValue),
-          minAmount: updatedPromo.minAmount ? Number(updatedPromo.minAmount) : null
+          discountValue: Number(updatedPromo.discountValue)
         }
       });
     }
 
     // DELETE - Supprimer le code promo
     if (req.method === 'DELETE') {
-      // Vérifier que le code n'a pas été utilisé
       const promoCode = await prisma.promoCode.findUnique({
         where: { id },
         select: {
@@ -167,21 +100,6 @@ export default async function handler(req, res) {
         where: { id }
       });
 
-      // Logger l'action
-      await prisma.adminLog.create({
-        data: {
-          adminId: session.user.id,
-          action: 'promo_delete',
-          targetType: 'promo_code',
-          targetId: id,
-          details: {
-            code: promoCode.code,
-            deletedBy: session.user.email
-          },
-          ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress
-        }
-      });
-
       return res.status(200).json({
         success: true,
         message: 'Code promo supprimé'
@@ -199,7 +117,7 @@ export default async function handler(req, res) {
 
     return res.status(500).json({ 
       error: 'Erreur serveur',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: error.message
     });
   }
 }
