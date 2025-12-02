@@ -1,84 +1,102 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { X, MapPin, Volume2, VolumeX, Smartphone } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { X, MapPin, Volume2, VolumeX } from 'lucide-react';
 
 /**
- * QiblaModal - Boussole Qibla compatible iOS et Android
- * - Détection automatique de la plateforme
- * - Lissage adapté pour chaque OS
- * - Support des permissions iOS
+ * QiblaModal - Version Ultra-Stable
+ * - Aiguille très fluide sans vibration
+ * - Lissage agressif
+ * - Mouvement smooth
  */
 export default function QiblaModal({ isOpen, onClose }) {
-  const [smoothHeading, setSmoothHeading] = useState(0);
+  const [displayHeading, setDisplayHeading] = useState(0);
   const [qiblaDirection, setQiblaDirection] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
   const [error, setError] = useState(null);
   const [isPointingToQibla, setIsPointingToQibla] = useState(false);
-  const [lastVibrationTime, setLastVibrationTime] = useState(0);
   const [loading, setLoading] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [platform, setPlatform] = useState('unknown');
-  const [compassAccuracy, setCompassAccuracy] = useState('unknown');
+  const [permissionNeeded, setPermissionNeeded] = useState(false);
   
+  // Refs pour le lissage
   const headingBuffer = useRef([]);
+  const currentHeadingRef = useRef(0);
+  const targetHeadingRef = useRef(0);
+  const animationFrameRef = useRef(null);
+  const lastUpdateRef = useRef(0);
   const wasPointingRef = useRef(false);
   const lastSoundTimeRef = useRef(0);
   const audioContextRef = useRef(null);
-  const animatedHeadingRef = useRef(null);
   
-  // Paramètres de lissage
-  const BUFFER_SIZE = 15;
-  const MIN_CHANGE_THRESHOLD = 2;
-  const SMOOTHING_FACTOR = 0.12;
+  // Paramètres de lissage ULTRA-STABLE
+  const BUFFER_SIZE = 30;           // Grand buffer
+  const LERP_FACTOR = 0.03;         // Interpolation très lente (3%)
+  const MIN_UPDATE_INTERVAL = 50;   // Mise à jour max 20fps
+  const DEAD_ZONE = 0.5;            // Ignorer changements < 0.5°
 
-  const KAABA_LAT = 21.4225;
-  const KAABA_LNG = 39.8262;
+  const KAABA_LAT = 21.422487;
+  const KAABA_LNG = 39.826206;
 
   // ============================================
-  // DÉTECTION DE PLATEFORME
+  // ANIMATION FLUIDE
   // ============================================
   
-  useEffect(() => {
-    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+  const animate = useCallback(() => {
+    const current = currentHeadingRef.current;
+    const target = targetHeadingRef.current;
     
-    if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
-      setPlatform('ios');
-    } else if (/android/i.test(userAgent)) {
-      setPlatform('android');
-    } else {
-      setPlatform('other');
+    // Calculer la différence (chemin le plus court sur le cercle)
+    let diff = target - current;
+    if (diff > 180) diff -= 360;
+    if (diff < -180) diff += 360;
+    
+    // Appliquer seulement si le changement est significatif
+    if (Math.abs(diff) > DEAD_ZONE) {
+      // Interpolation linéaire très douce
+      const newHeading = current + diff * LERP_FACTOR;
+      currentHeadingRef.current = (newHeading + 360) % 360;
+      
+      // Mettre à jour l'affichage (throttled)
+      const now = Date.now();
+      if (now - lastUpdateRef.current > MIN_UPDATE_INTERVAL) {
+        setDisplayHeading(currentHeadingRef.current);
+        lastUpdateRef.current = now;
+      }
     }
+    
+    animationFrameRef.current = requestAnimationFrame(animate);
   }, []);
 
+  // Démarrer/arrêter l'animation
+  useEffect(() => {
+    if (isOpen && !loading && !error) {
+      animationFrameRef.current = requestAnimationFrame(animate);
+    }
+    
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [isOpen, loading, error, animate]);
+
   // ============================================
-  // SYSTÈME AUDIO
+  // AUDIO
   // ============================================
   
-  const initializeAudio = () => {
-    if (audioContextRef.current) return;
-    try {
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      audioContextRef.current = new AudioContext();
-    } catch (e) {
-      console.error('Audio init failed:', e);
-    }
-  };
-
-  const playSuccessSound = async () => {
+  const playSuccessSound = useCallback(async () => {
     if (!soundEnabled) return;
     
     const now = Date.now();
-    if (now - lastSoundTimeRef.current < 2000) return;
+    if (now - lastSoundTimeRef.current < 3000) return;
     lastSoundTimeRef.current = now;
 
     try {
-      if (!audioContextRef.current) initializeAudio();
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      }
       
       const ctx = audioContextRef.current;
-      if (!ctx) return;
-
-      if (ctx.state === 'suspended') {
-        await ctx.resume();
-      }
+      if (ctx.state === 'suspended') await ctx.resume();
 
       const notes = [
         { freq: 523.25, delay: 0, duration: 0.6 },
@@ -87,54 +105,32 @@ export default function QiblaModal({ isOpen, onClose }) {
         { freq: 1046.50, delay: 0.3, duration: 0.6 },
       ];
 
-      const currentTime = ctx.currentTime;
-
       notes.forEach(note => {
-        const oscillator = ctx.createOscillator();
-        const gainNode = ctx.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(ctx.destination);
-        
-        oscillator.type = 'sine';
-        oscillator.frequency.value = note.freq;
-        
-        const startTime = currentTime + note.delay;
-        
-        gainNode.gain.setValueAtTime(0, startTime);
-        gainNode.gain.linearRampToValueAtTime(0.4, startTime + 0.02);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + note.duration);
-        
-        oscillator.start(startTime);
-        oscillator.stop(startTime + note.duration);
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.value = note.freq;
+        const start = ctx.currentTime + note.delay;
+        gain.gain.setValueAtTime(0, start);
+        gain.gain.linearRampToValueAtTime(0.3, start + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.01, start + note.duration);
+        osc.start(start);
+        osc.stop(start + note.duration);
       });
-      
     } catch (e) {
-      console.error('Sound error:', e);
+      console.log('Audio error:', e);
     }
-  };
+  }, [soundEnabled]);
 
-  const handleTestSound = async () => {
-    initializeAudio();
+  const handleTestSound = () => {
     lastSoundTimeRef.current = 0;
-    await playSuccessSound();
-  };
-
-  const handleToggleSound = () => {
-    initializeAudio();
-    setSoundEnabled(!soundEnabled);
-  };
-
-  const testVibration = () => {
-    if ('vibrate' in navigator) {
-      try {
-        navigator.vibrate([200, 100, 200, 100, 200]);
-      } catch (e) {}
-    }
+    playSuccessSound();
   };
 
   // ============================================
-  // CALCULS QIBLA
+  // CALCUL QIBLA
   // ============================================
 
   const calculateQiblaDirection = (userLat, userLng) => {
@@ -142,84 +138,55 @@ export default function QiblaModal({ isOpen, onClose }) {
     const lng1 = userLng * Math.PI / 180;
     const lat2 = KAABA_LAT * Math.PI / 180;
     const lng2 = KAABA_LNG * Math.PI / 180;
-
     const dLng = lng2 - lng1;
 
     const y = Math.sin(dLng) * Math.cos(lat2);
-    const x = Math.cos(lat1) * Math.sin(lat2) - 
-              Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+    const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
     
-    let bearing = Math.atan2(y, x);
-    bearing = bearing * 180 / Math.PI;
-    bearing = (bearing + 360) % 360;
-    
-    return Math.round(bearing);
+    let bearing = Math.atan2(y, x) * 180 / Math.PI;
+    return Math.round((bearing + 360) % 360);
   };
 
   const calculateDistance = (lat, lng) => {
     const R = 6371;
     const dLat = ((KAABA_LAT - lat) * Math.PI) / 180;
     const dLng = ((KAABA_LNG - lng) * Math.PI) / 180;
-    const a = 
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos((lat * Math.PI) / 180) * Math.cos((KAABA_LAT * Math.PI) / 180) *
-      Math.sin(dLng / 2) * Math.sin(dLng / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return Math.round(R * c);
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat * Math.PI/180) * Math.cos(KAABA_LAT * Math.PI/180) *
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+    return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
   };
 
   // ============================================
-  // LISSAGE - Compatible iOS et Android
+  // LISSAGE DU COMPAS - Moyenne circulaire
   // ============================================
 
-  const smoothHeadingValue = (newHeading) => {
-    if (newHeading === null || isNaN(newHeading)) return animatedHeadingRef.current || 0;
+  const processHeading = useCallback((rawHeading) => {
+    if (rawHeading === null || isNaN(rawHeading)) return;
     
     // Ajouter au buffer
-    headingBuffer.current.push(newHeading);
-    
+    headingBuffer.current.push(rawHeading);
     if (headingBuffer.current.length > BUFFER_SIZE) {
       headingBuffer.current.shift();
     }
-
-    // Moyenne circulaire
-    let sinSum = 0;
-    let cosSum = 0;
     
+    // Calculer la moyenne circulaire
+    let sinSum = 0, cosSum = 0;
     headingBuffer.current.forEach(h => {
       const rad = h * Math.PI / 180;
       sinSum += Math.sin(rad);
       cosSum += Math.cos(rad);
     });
-
-    let targetHeading = Math.atan2(sinSum, cosSum) * 180 / Math.PI;
-    targetHeading = (targetHeading + 360) % 360;
-
-    // Initialiser si premier appel
-    if (animatedHeadingRef.current === null) {
-      animatedHeadingRef.current = targetHeading;
-      return targetHeading;
-    }
-
-    // Interpolation
-    let currentHeading = animatedHeadingRef.current;
     
-    let diff = targetHeading - currentHeading;
-    if (diff > 180) diff -= 360;
-    if (diff < -180) diff += 360;
-
-    if (Math.abs(diff) < MIN_CHANGE_THRESHOLD) {
-      return currentHeading;
-    }
-
-    const newAnimatedHeading = currentHeading + diff * SMOOTHING_FACTOR;
-    animatedHeadingRef.current = (newAnimatedHeading + 360) % 360;
+    let avgHeading = Math.atan2(sinSum, cosSum) * 180 / Math.PI;
+    avgHeading = (avgHeading + 360) % 360;
     
-    return animatedHeadingRef.current;
-  };
+    // Mettre à jour la cible (l'animation s'occupe du mouvement fluide)
+    targetHeadingRef.current = avgHeading;
+  }, []);
 
   // ============================================
-  // OBTENIR LA POSITION
+  // GÉOLOCALISATION
   // ============================================
 
   useEffect(() => {
@@ -228,402 +195,289 @@ export default function QiblaModal({ isOpen, onClose }) {
     setLoading(true);
     setError(null);
     headingBuffer.current = [];
+    currentHeadingRef.current = 0;
+    targetHeadingRef.current = 0;
     wasPointingRef.current = false;
-    lastSoundTimeRef.current = 0;
-    animatedHeadingRef.current = null;
 
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setUserLocation({ lat: latitude, lng: longitude });
-          const qibla = calculateQiblaDirection(latitude, longitude);
-          setQiblaDirection(qibla);
-          setLoading(false);
-        },
-        (err) => {
-          console.error('Geolocation error:', err);
-          setError('يرجى السماح بالوصول إلى موقعك');
-          setLoading(false);
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
-    } else {
-      setError('الموقع الجغرافي غير مدعوم');
-      setLoading(false);
-    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setUserLocation({ lat: latitude, lng: longitude });
+        setQiblaDirection(calculateQiblaDirection(latitude, longitude));
+        setLoading(false);
+      },
+      (err) => {
+        console.error('Geo error:', err);
+        setError('يرجى السماح بالوصول إلى موقعك');
+        setLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
   }, [isOpen]);
 
   // ============================================
-  // ORIENTATION - Compatible iOS et Android
+  // ORIENTATION DU COMPAS
   // ============================================
 
   useEffect(() => {
-    if (!isOpen || loading) return;
+    if (!isOpen || loading || error) return;
 
-    let orientationHandler = null;
-    let absoluteHandler = null;
-    let watchId = null;
-
-    const handleOrientationIOS = (event) => {
-      // iOS utilise webkitCompassHeading (0-360, 0 = Nord)
+    const handleOrientation = (event) => {
+      let heading = null;
+      
+      // iOS
       if (event.webkitCompassHeading !== undefined && event.webkitCompassHeading !== null) {
-        const heading = event.webkitCompassHeading;
-        const smoothed = smoothHeadingValue(heading);
-        setSmoothHeading(smoothed);
-        
-        // Précision du compas iOS
-        if (event.webkitCompassAccuracy !== undefined) {
-          if (event.webkitCompassAccuracy < 0) {
-            setCompassAccuracy('non calibré');
-          } else if (event.webkitCompassAccuracy <= 10) {
-            setCompassAccuracy('excellente');
-          } else if (event.webkitCompassAccuracy <= 25) {
-            setCompassAccuracy('bonne');
-          } else {
-            setCompassAccuracy('faible');
-          }
-        }
+        heading = event.webkitCompassHeading;
+      }
+      // Android
+      else if (event.alpha !== null) {
+        heading = (360 - event.alpha) % 360;
+      }
+      
+      if (heading !== null) {
+        processHeading(heading);
       }
     };
 
-    const handleOrientationAndroid = (event) => {
-      // Android: alpha est l'angle par rapport au nord magnétique
-      // alpha = 0 quand le haut du téléphone pointe vers le nord
-      // alpha augmente dans le sens antihoraire
-      if (event.alpha !== null && event.alpha !== undefined) {
-        // Sur Android, on doit inverser car alpha augmente dans le sens antihoraire
-        let heading = event.alpha;
-        
-        // Si absolute est true, c'est relatif au nord magnétique
-        if (event.absolute === true) {
-          heading = (360 - heading) % 360;
-        } else {
-          // Sinon, c'est relatif à l'orientation initiale du téléphone
-          heading = (360 - heading) % 360;
-        }
-        
-        const smoothed = smoothHeadingValue(heading);
-        setSmoothHeading(smoothed);
-      }
+    const startListening = () => {
+      window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+      window.addEventListener('deviceorientation', handleOrientation, true);
     };
 
-    const startTracking = () => {
-      if (platform === 'ios') {
-        // iOS
-        orientationHandler = handleOrientationIOS;
-        window.addEventListener('deviceorientation', orientationHandler, true);
-      } else {
-        // Android - préférer deviceorientationabsolute si disponible
-        absoluteHandler = (event) => {
-          if (event.absolute) {
-            handleOrientationAndroid(event);
-          }
-        };
-        
-        orientationHandler = handleOrientationAndroid;
-        
-        // Essayer d'abord absolute (plus précis sur Android)
-        window.addEventListener('deviceorientationabsolute', absoluteHandler, true);
-        window.addEventListener('deviceorientation', orientationHandler, true);
-      }
-    };
-
-    // Demander permission sur iOS 13+
-    if (typeof DeviceOrientationEvent !== 'undefined' && 
+    // iOS 13+ permission
+    if (typeof DeviceOrientationEvent !== 'undefined' &&
         typeof DeviceOrientationEvent.requestPermission === 'function') {
-      // iOS 13+
+      setPermissionNeeded(true);
       DeviceOrientationEvent.requestPermission()
         .then(response => {
+          setPermissionNeeded(false);
           if (response === 'granted') {
-            startTracking();
+            startListening();
           } else {
             setError('يرجى السماح بالوصول إلى البوصلة');
           }
         })
-        .catch(err => {
-          console.error('Permission error:', err);
-          setError('خطأ في طلب الإذن');
+        .catch(() => {
+          setPermissionNeeded(true);
         });
     } else {
-      // Android ou iOS < 13
-      startTracking();
+      startListening();
     }
 
     return () => {
-      if (orientationHandler) {
-        window.removeEventListener('deviceorientation', orientationHandler, true);
-      }
-      if (absoluteHandler) {
-        window.removeEventListener('deviceorientationabsolute', absoluteHandler, true);
-      }
+      window.removeEventListener('deviceorientationabsolute', handleOrientation, true);
+      window.removeEventListener('deviceorientation', handleOrientation, true);
     };
-  }, [isOpen, loading, platform]);
+  }, [isOpen, loading, error, processHeading]);
 
   // ============================================
-  // VÉRIFIER ALIGNEMENT + SON + VIBRATION
+  // DÉTECTION ALIGNEMENT QIBLA
   // ============================================
 
   useEffect(() => {
-    if (qiblaDirection !== null && smoothHeading !== null) {
-      const diff = Math.abs(smoothHeading - qiblaDirection);
-      const normalizedDiff = diff > 180 ? 360 - diff : diff;
-      
-      const isPointing = normalizedDiff < 15;
-      
-      if (isPointing && !wasPointingRef.current) {
-        playSuccessSound();
-      }
-      
-      wasPointingRef.current = isPointing;
-      setIsPointingToQibla(isPointing);
-
-      const now = Date.now();
-      const timeSinceLastVibration = now - lastVibrationTime;
-      
-      if ('vibrate' in navigator && timeSinceLastVibration > 1000) {
-        if (isPointing) {
-          try {
-            navigator.vibrate([200, 100, 200]);
-            setLastVibrationTime(now);
-          } catch (e) {}
-        } else if (normalizedDiff < 25 && timeSinceLastVibration > 2000) {
-          try {
-            navigator.vibrate(100);
-            setLastVibrationTime(now);
-          } catch (e) {}
-        }
+    if (qiblaDirection === null) return;
+    
+    let diff = qiblaDirection - displayHeading;
+    if (diff > 180) diff -= 360;
+    if (diff < -180) diff += 360;
+    
+    const isPointing = Math.abs(diff) < 15;
+    
+    if (isPointing && !wasPointingRef.current) {
+      playSuccessSound();
+      if ('vibrate' in navigator) {
+        try { navigator.vibrate([200, 100, 200]); } catch(e) {}
       }
     }
-  }, [smoothHeading, qiblaDirection, lastVibrationTime, soundEnabled]);
+    
+    wasPointingRef.current = isPointing;
+    setIsPointingToQibla(isPointing);
+  }, [displayHeading, qiblaDirection, playSuccessSound]);
 
   // ============================================
-  // PERMISSION iOS
+  // DEMANDER PERMISSION iOS
   // ============================================
 
   const requestPermission = async () => {
-    if (typeof DeviceOrientationEvent !== 'undefined' &&
-        typeof DeviceOrientationEvent.requestPermission === 'function') {
-      try {
-        const response = await DeviceOrientationEvent.requestPermission();
-        if (response === 'granted') {
-          setError(null);
-          window.location.reload();
-        } else {
-          setError('يرجى السماح بالوصول إلى البوصلة في إعدادات Safari');
-        }
-      } catch (err) {
-        setError('خطأ في طلب الإذن');
+    try {
+      const response = await DeviceOrientationEvent.requestPermission();
+      if (response === 'granted') {
+        window.location.reload();
       }
+    } catch (e) {
+      setError('خطأ في طلب الإذن');
     }
   };
 
   if (!isOpen) return null;
 
-  const arrowRotation = qiblaDirection !== null && smoothHeading !== null 
-    ? qiblaDirection - smoothHeading 
-    : 0;
-
-  const getPlatformName = () => {
-    switch (platform) {
-      case 'ios': return 'iOS';
-      case 'android': return 'Android';
-      default: return 'غير معروف';
-    }
-  };
+  const arrowRotation = qiblaDirection !== null ? qiblaDirection - displayHeading : 0;
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" dir="rtl">
-      <div className={`bg-white dark:bg-gray-800 rounded-3xl max-w-sm w-full overflow-hidden shadow-2xl relative transition-all duration-500 ${
+      <div className={`bg-white dark:bg-gray-800 rounded-3xl max-w-sm w-full overflow-hidden shadow-2xl transition-all duration-700 ${
         isPointingToQibla ? 'ring-4 ring-yellow-400 shadow-yellow-400/50' : ''
       }`}>
         
         {/* Header */}
-        <div className="relative h-40 overflow-hidden">
+        <div className="relative h-32 overflow-hidden">
           <img 
             src="/images/mecca-header.jpg"
             alt="المسجد الحرام"
             className="w-full h-full object-cover"
             onError={(e) => { e.target.style.display = 'none'; }}
           />
-          <div className={`absolute inset-0 transition-all duration-500 ${
+          <div className={`absolute inset-0 transition-all duration-700 ${
             isPointingToQibla 
-              ? 'bg-gradient-to-t from-yellow-900/80 via-amber-600/40 to-yellow-400/20' 
+              ? 'bg-gradient-to-t from-yellow-900/80 via-amber-600/40 to-transparent' 
               : 'bg-gradient-to-t from-black/70 via-black/30 to-transparent'
           }`} />
           
-          <div className={`absolute inset-0 -z-10 transition-all duration-500 ${
+          <div className={`absolute inset-0 -z-10 ${
             isPointingToQibla 
-              ? 'bg-gradient-to-br from-yellow-400 via-amber-500 to-orange-500' 
-              : 'bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-800'
+              ? 'bg-gradient-to-br from-yellow-400 to-orange-500' 
+              : 'bg-gradient-to-br from-emerald-600 to-teal-700'
           }`} />
 
-          <div className="absolute bottom-0 left-0 right-0 p-4 text-white text-right">
-            <h2 className="text-2xl font-bold mb-1">اتجاه القبلة</h2>
+          <div className="absolute bottom-3 right-4 text-white text-right">
+            <h2 className="text-xl font-bold">اتجاه القبلة</h2>
             {userLocation && (
               <div className="flex items-center justify-end gap-1 text-sm text-white/80">
-                <span>{calculateDistance(userLocation.lat, userLocation.lng).toLocaleString()} كم من مكة</span>
-                <MapPin className="w-4 h-4" />
+                <span>{calculateDistance(userLocation.lat, userLocation.lng).toLocaleString()} كم</span>
+                <MapPin className="w-3 h-3" />
               </div>
             )}
           </div>
           
-          <button
-            onClick={onClose}
-            className="absolute top-4 left-4 w-10 h-10 bg-black/30 hover:bg-black/50 rounded-full flex items-center justify-center text-white transition-colors"
-          >
+          <button onClick={onClose} className="absolute top-3 left-3 w-9 h-9 bg-black/30 hover:bg-black/50 rounded-full flex items-center justify-center text-white">
             <X className="w-5 h-5" />
           </button>
 
           <button
-            onClick={handleToggleSound}
-            className={`absolute top-4 left-16 w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
-              soundEnabled 
-                ? 'bg-emerald-500/80 hover:bg-emerald-500 text-white' 
-                : 'bg-black/30 hover:bg-black/50 text-white/60'
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            className={`absolute top-3 left-14 w-9 h-9 rounded-full flex items-center justify-center ${
+              soundEnabled ? 'bg-emerald-500/80 text-white' : 'bg-black/30 text-white/60'
             }`}
           >
-            {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+            {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
           </button>
         </div>
 
         {/* Contenu */}
-        <div className="p-6">
+        <div className="p-5">
           {loading ? (
             <div className="text-center py-8">
-              <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-600 dark:text-gray-400">جاري تحديد الموقع...</p>
+              <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+              <p className="text-gray-500 dark:text-gray-400">جاري تحديد الموقع...</p>
             </div>
-          ) : error ? (
+          ) : error || permissionNeeded ? (
             <div className="text-center py-6">
-              <p className="text-red-600 dark:text-red-400 mb-4 text-sm">{error}</p>
-              {typeof DeviceOrientationEvent !== 'undefined' && 
-               typeof DeviceOrientationEvent.requestPermission === 'function' && (
-                <button
-                  onClick={requestPermission}
-                  className="bg-emerald-500 text-white px-6 py-3 rounded-xl hover:bg-emerald-600 transition-colors font-semibold mb-3 w-full"
-                >
-                  السماح بالوصول إلى البوصلة
-                </button>
-              )}
+              <p className="text-red-500 mb-4 text-sm">{error || 'يرجى السماح بالوصول إلى البوصلة'}</p>
               <button
-                onClick={() => window.location.reload()}
-                className="bg-gray-500 text-white px-6 py-2 rounded-xl hover:bg-gray-600 transition-colors w-full"
+                onClick={requestPermission}
+                className="bg-emerald-500 text-white px-6 py-3 rounded-xl font-semibold w-full"
               >
-                إعادة المحاولة
+                السماح بالوصول
               </button>
             </div>
           ) : (
             <div className="space-y-4">
-              {/* Debug info */}
-              <div className="text-xs text-center text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 p-2 rounded-xl">
-                <div className="flex items-center justify-center gap-2 mb-1">
-                  <Smartphone className="w-3 h-3" />
-                  <span>{getPlatformName()}</span>
+              {/* Info direction */}
+              <div className="flex justify-between items-center text-sm bg-gray-100 dark:bg-gray-700 rounded-xl p-3">
+                <div className="text-center">
+                  <div className="text-gray-500 text-xs">اتجاهك</div>
+                  <div className="font-bold text-lg">{Math.round(displayHeading)}°</div>
                 </div>
-                <div>اتجاهك: {Math.round(smoothHeading)}° | القبلة: {qiblaDirection}°</div>
-                <div>الفرق: {Math.round(Math.abs(smoothHeading - qiblaDirection) > 180 ? 360 - Math.abs(smoothHeading - qiblaDirection) : Math.abs(smoothHeading - qiblaDirection))}°</div>
+                <div className="text-2xl">→</div>
+                <div className="text-center">
+                  <div className="text-gray-500 text-xs">القبلة</div>
+                  <div className="font-bold text-lg text-emerald-600">{qiblaDirection}°</div>
+                </div>
               </div>
 
               {/* Boussole */}
               <div className="relative w-56 h-56 mx-auto">
-                <div className={`absolute inset-0 rounded-full border-4 transition-all duration-300 ${
+                {/* Cercle de base */}
+                <div className={`absolute inset-0 rounded-full border-4 transition-colors duration-700 ${
                   isPointingToQibla 
-                    ? 'border-yellow-400 bg-gradient-to-br from-yellow-50 to-amber-100 dark:from-yellow-900/30 dark:to-amber-900/30' 
-                    : 'border-gray-200 dark:border-gray-700 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900'
+                    ? 'border-yellow-400 bg-gradient-to-br from-yellow-50 to-amber-100 dark:from-yellow-900/20 dark:to-amber-900/20' 
+                    : 'border-gray-200 dark:border-gray-600 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900'
                 }`}>
-                  <div className="absolute top-3 left-1/2 -translate-x-1/2 text-xs font-bold text-red-600">N</div>
-                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-xs font-bold text-gray-500">S</div>
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-500">W</div>
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-500">E</div>
+                  {/* Points cardinaux */}
+                  <span className="absolute top-2 left-1/2 -translate-x-1/2 text-xs font-bold text-red-500">N</span>
+                  <span className="absolute bottom-2 left-1/2 -translate-x-1/2 text-xs font-bold text-gray-400">S</span>
+                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">W</span>
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">E</span>
+                  
+                  {/* Graduations */}
+                  {[0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map(deg => (
+                    <div
+                      key={deg}
+                      className="absolute w-0.5 h-2 bg-gray-300 dark:bg-gray-600"
+                      style={{
+                        top: '8px',
+                        left: '50%',
+                        transformOrigin: '50% 104px',
+                        transform: `translateX(-50%) rotate(${deg}deg)`
+                      }}
+                    />
+                  ))}
                 </div>
 
-                {/* Kaaba quand aligné */}
-                <div className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ${
+                {/* Kaaba au centre quand aligné */}
+                <div className={`absolute inset-0 flex items-center justify-center transition-all duration-500 pointer-events-none ${
                   isPointingToQibla ? 'opacity-100 scale-100' : 'opacity-0 scale-50'
                 }`}>
-                  <div className="w-28 h-28 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center shadow-lg shadow-yellow-500/50 animate-pulse">
-                    <span className="text-4xl">🕋</span>
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center shadow-lg animate-pulse">
+                    <span className="text-3xl">🕋</span>
                   </div>
                 </div>
 
-                {/* Flèche */}
+                {/* AIGUILLE - Transition CSS très longue pour fluidité */}
                 <div
-                  className="absolute inset-0 flex items-center justify-center"
+                  className="absolute inset-0 flex items-center justify-center pointer-events-none"
                   style={{ 
                     transform: `rotate(${arrowRotation}deg)`,
-                    transition: 'transform 0.6s cubic-bezier(0.25, 0.1, 0.25, 1)'
+                    transition: 'transform 1.2s cubic-bezier(0.4, 0, 0.2, 1)'
                   }}
                 >
-                  <div className={`transition-colors duration-300 ${
-                    isPointingToQibla ? 'text-yellow-500' : 'text-emerald-600 dark:text-emerald-400'
-                  }`}>
-                    <svg className="w-20 h-20" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z" />
-                    </svg>
-                  </div>
+                  <svg 
+                    className={`w-20 h-20 drop-shadow-md transition-colors duration-500 ${
+                      isPointingToQibla ? 'text-yellow-500' : 'text-emerald-600'
+                    }`} 
+                    fill="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z" />
+                  </svg>
                 </div>
 
-                <div className={`absolute top-1/2 left-1/2 w-4 h-4 rounded-full -translate-x-1/2 -translate-y-1/2 shadow-lg transition-colors duration-300 ${
+                {/* Centre */}
+                <div className={`absolute top-1/2 left-1/2 w-4 h-4 rounded-full -translate-x-1/2 -translate-y-1/2 shadow-md transition-colors duration-500 ${
                   isPointingToQibla ? 'bg-yellow-500' : 'bg-emerald-600'
-                }`}></div>
+                }`} />
               </div>
 
-              {/* Infos */}
-              <div className="text-center space-y-3">
-                <div className={`rounded-xl p-4 transition-all duration-300 ${
-                  isPointingToQibla ? 'bg-yellow-50 dark:bg-yellow-900/20' : 'bg-emerald-50 dark:bg-emerald-900/20'
-                }`}>
-                  <div className={`text-sm mb-1 ${
-                    isPointingToQibla ? 'text-yellow-600 dark:text-yellow-400' : 'text-emerald-600 dark:text-emerald-400'
-                  }`}>اتجاه القبلة</div>
-                  <div className={`text-3xl font-bold ${
-                    isPointingToQibla ? 'text-yellow-700 dark:text-yellow-300' : 'text-emerald-700 dark:text-emerald-300'
-                  }`}>
-                    {qiblaDirection}°
-                  </div>
+              {/* Message alignement */}
+              {isPointingToQibla && (
+                <div className="bg-green-50 dark:bg-green-900/30 border-2 border-green-400 rounded-xl p-3 text-center">
+                  <p className="text-green-700 dark:text-green-300 font-bold text-lg">✅ القبلة</p>
+                  <p className="text-green-600 dark:text-green-400 text-sm">صلّ في هذا الاتجاه 🤲</p>
                 </div>
+              )}
 
-                {isPointingToQibla && (
-                  <div className="bg-green-50 dark:bg-green-900/20 border-2 border-green-500 rounded-xl p-3 animate-pulse">
-                    <p className="text-green-700 dark:text-green-300 font-bold text-lg">
-                      ✅ أنت تواجه القبلة الآن!
-                    </p>
-                    <p className="text-green-600 dark:text-green-400 text-sm mt-1">
-                      🤲 صلّ في هذا الاتجاه
-                    </p>
-                  </div>
-                )}
+              {/* Bouton test son */}
+              <button
+                onClick={handleTestSound}
+                className="w-full text-xs text-gray-400 hover:text-gray-600 py-2"
+              >
+                🔊 اختبار الصوت
+              </button>
 
-                <div className="flex items-center justify-center gap-4">
-                  <button
-                    onClick={testVibration}
-                    className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 underline"
-                  >
-                    اختبار الاهتزاز
-                  </button>
-                  <span className="text-gray-300">|</span>
-                  <button
-                    onClick={handleTestSound}
-                    className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 underline flex items-center gap-1"
-                  >
-                    <Volume2 className="w-3 h-3" />
-                    اختبار الصوت
-                  </button>
-                </div>
-
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {isPointingToQibla 
-                    ? '✨ ثبّت هاتفك في هذا الاتجاه' 
-                    : 'حرّك جهازك ببطء حتى تظهر الكعبة 🕋'
-                  }
-                </p>
-                
-                {/* Conseil de calibration */}
-                <p className="text-xs text-gray-400 dark:text-gray-500">
-                  💡 لتحسين الدقة: حرّك الهاتف على شكل رقم 8
-                </p>
-              </div>
+              {/* Conseil */}
+              <p className="text-xs text-gray-400 text-center">
+                💡 حرّك الهاتف على شكل ∞ لتحسين الدقة
+              </p>
             </div>
           )}
         </div>
