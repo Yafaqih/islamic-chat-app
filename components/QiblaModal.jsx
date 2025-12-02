@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, MapPin } from 'lucide-react';
+import { X, MapPin, Volume2, VolumeX } from 'lucide-react';
 
 /**
- * QiblaModal - Boussole Qibla (modèle préféré)
+ * QiblaModal - Boussole Qibla avec effet sonore
  */
 export default function QiblaModal({ isOpen, onClose }) {
   const [heading, setHeading] = useState(0);
@@ -14,13 +14,85 @@ export default function QiblaModal({ isOpen, onClose }) {
   const [compassSupported, setCompassSupported] = useState(true);
   const [lastVibrationTime, setLastVibrationTime] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [lastSoundTime, setLastSoundTime] = useState(0);
   
   const headingBuffer = useRef([]);
+  const audioContextRef = useRef(null);
   const BUFFER_SIZE = 5;
 
   // Coordonnées de la Kaaba
   const KAABA_LAT = 21.4225;
   const KAABA_LNG = 39.8262;
+
+  // ============================================
+  // EFFET SONORE - Son de cloche islamique
+  // ============================================
+  
+  const playQiblaSound = () => {
+    if (!soundEnabled) return;
+    
+    const now = Date.now();
+    if (now - lastSoundTime < 3000) return; // Max une fois toutes les 3 secondes
+    setLastSoundTime(now);
+
+    try {
+      // Créer le contexte audio si nécessaire
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      
+      const audioContext = audioContextRef.current;
+      
+      // Créer un son de cloche harmonieux
+      const playTone = (frequency, startTime, duration, volume = 0.3) => {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(frequency, startTime);
+        oscillator.type = 'sine';
+        
+        // Envelope ADSR pour un son de cloche
+        gainNode.gain.setValueAtTime(0, startTime);
+        gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.01);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+        
+        oscillator.start(startTime);
+        oscillator.stop(startTime + duration);
+      };
+      
+      const now = audioContext.currentTime;
+      
+      // Jouer une série de notes harmonieuses (accord de célébration)
+      // Do - Mi - Sol - Do (octave supérieure)
+      playTone(523.25, now, 0.8, 0.25);        // Do5
+      playTone(659.25, now + 0.1, 0.7, 0.2);   // Mi5
+      playTone(783.99, now + 0.2, 0.6, 0.15);  // Sol5
+      playTone(1046.50, now + 0.3, 0.8, 0.2);  // Do6
+      
+      // Ajouter une résonance
+      playTone(261.63, now, 1.2, 0.1);         // Do4 (basse)
+      
+    } catch (e) {
+      console.log('Audio playback failed:', e);
+    }
+  };
+
+  // Son de test
+  const testSound = () => {
+    // Forcer le son même si désactivé pour le test
+    const wasEnabled = soundEnabled;
+    setSoundEnabled(true);
+    setLastSoundTime(0);
+    
+    setTimeout(() => {
+      playQiblaSound();
+      setSoundEnabled(wasEnabled);
+    }, 100);
+  };
 
   // Calculer la direction de la Qibla
   const calculateQiblaDirection = (userLat, userLng) => {
@@ -187,14 +259,20 @@ export default function QiblaModal({ isOpen, onClose }) {
     };
   }, [isOpen]);
 
-  // Vérifier si on pointe vers la Qibla avec vibration
+  // Vérifier si on pointe vers la Qibla avec vibration et son
   useEffect(() => {
     if (qiblaDirection !== null && smoothHeading !== null) {
       const diff = Math.abs(smoothHeading - qiblaDirection);
       const normalizedDiff = diff > 180 ? 360 - diff : diff;
       
       const isPointing = normalizedDiff < 15;
+      const wasPointing = isPointingToQibla;
       setIsPointingToQibla(isPointing);
+
+      // Jouer le son quand on atteint la Qibla (seulement à la transition)
+      if (isPointing && !wasPointing) {
+        playQiblaSound();
+      }
 
       const now = Date.now();
       const timeSinceLastVibration = now - lastVibrationTime;
@@ -224,7 +302,7 @@ export default function QiblaModal({ isOpen, onClose }) {
         }
       }
     }
-  }, [smoothHeading, qiblaDirection, lastVibrationTime]);
+  }, [smoothHeading, qiblaDirection, lastVibrationTime, isPointingToQibla, soundEnabled]);
 
   // Test de vibration
   const testVibration = () => {
@@ -309,6 +387,19 @@ export default function QiblaModal({ isOpen, onClose }) {
               rounded-full flex items-center justify-center text-white transition-colors"
           >
             <X className="w-5 h-5" />
+          </button>
+
+          {/* Bouton son */}
+          <button
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            className={`absolute top-4 left-16 w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+              soundEnabled 
+                ? 'bg-emerald-500/80 hover:bg-emerald-500 text-white' 
+                : 'bg-black/30 hover:bg-black/50 text-white/60'
+            }`}
+            title={soundEnabled ? 'إيقاف الصوت' : 'تشغيل الصوت'}
+          >
+            {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
           </button>
         </div>
 
@@ -433,12 +524,22 @@ export default function QiblaModal({ isOpen, onClose }) {
                   </div>
                 )}
 
-                <button
-                  onClick={testVibration}
-                  className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 underline"
-                >
-                  اختبار الاهتزاز
-                </button>
+                <div className="flex items-center justify-center gap-4">
+                  <button
+                    onClick={testVibration}
+                    className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 underline"
+                  >
+                    اختبار الاهتزاز
+                  </button>
+                  <span className="text-gray-300 dark:text-gray-600">|</span>
+                  <button
+                    onClick={testSound}
+                    className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 underline flex items-center gap-1"
+                  >
+                    <Volume2 className="w-3 h-3" />
+                    اختبار الصوت
+                  </button>
+                </div>
 
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   {isPointingToQibla 
