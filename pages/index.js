@@ -446,12 +446,6 @@ export default function IslamicChatApp() {
                   </div>
                 </div>
 
-                {subscriptionTier === 'free' && (
-                  <button onClick={() => setShowPremiumModal(true)} className="bg-yellow-400 text-gray-900 px-4 py-2 rounded-lg font-semibold hover:bg-yellow-300 transition-colors flex items-center gap-2">
-                    <Crown className="w-4 h-4" />
-                    ترقية
-                  </button>
-                )}
               </div>
 
               {/* Mobile actions */}
@@ -493,11 +487,6 @@ export default function IslamicChatApp() {
               <button onClick={() => { router.push('/dashboard'); setShowMobileMenu(false); }} className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/10 rounded-lg transition-colors text-right">
                 <User className="w-5 h-5" /><span>لوحة التحكم</span>
               </button>
-              {subscriptionTier === 'free' && (
-                <button onClick={() => { setShowPremiumModal(true); setShowMobileMenu(false); }} className="w-full bg-yellow-400 text-gray-900 px-3 py-2 rounded-lg font-semibold hover:bg-yellow-300 transition-colors flex items-center gap-2 justify-center">
-                  <Crown className="w-4 h-4" /><span>ترقية الحساب</span>
-                </button>
-              )}
               <button onClick={() => { signOut(); setShowMobileMenu(false); }} className="w-full flex items-center gap-3 px-3 py-2 hover:bg-red-500/20 rounded-lg transition-colors text-right text-red-200">
                 <LogOut className="w-5 h-5" /><span>تسجيل الخروج</span>
               </button>
