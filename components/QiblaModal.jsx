@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X, MapPin, Volume2, VolumeX } from 'lucide-react';
 
 /**
@@ -15,10 +15,13 @@ export default function QiblaModal({ isOpen, onClose }) {
   const [lastVibrationTime, setLastVibrationTime] = useState(0);
   const [loading, setLoading] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [lastSoundTime, setLastSoundTime] = useState(0);
+  const [audioReady, setAudioReady] = useState(false);
   
   const headingBuffer = useRef([]);
   const audioContextRef = useRef(null);
+  const wasPointingRef = useRef(false);
+  const lastSoundTimeRef = useRef(0);
+  const audioInitialized = useRef(false);
   const BUFFER_SIZE = 5;
 
   // Coordonnées de la Kaaba
@@ -26,15 +29,57 @@ export default function QiblaModal({ isOpen, onClose }) {
   const KAABA_LNG = 39.8262;
 
   // ============================================
+  // INITIALISER AUDIO AU PREMIER CLIC
+  // ============================================
+  
+  const initAudio = useCallback(() => {
+    if (audioInitialized.current) return;
+    
+    try {
+      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      audioInitialized.current = true;
+      setAudioReady(true);
+      console.log('Audio initialized');
+    } catch (e) {
+      console.log('Audio init failed:', e);
+    }
+  }, []);
+
+  // Initialiser l'audio au premier clic sur le modal
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const handleFirstInteraction = () => {
+      initAudio();
+      document.removeEventListener('click', handleFirstInteraction);
+      document.removeEventListener('touchstart', handleFirstInteraction);
+    };
+    
+    document.addEventListener('click', handleFirstInteraction);
+    document.addEventListener('touchstart', handleFirstInteraction);
+    
+    return () => {
+      document.removeEventListener('click', handleFirstInteraction);
+      document.removeEventListener('touchstart', handleFirstInteraction);
+    };
+  }, [isOpen, initAudio]);
+
+  // ============================================
   // EFFET SONORE - Son de cloche islamique
   // ============================================
   
-  const playQiblaSound = () => {
-    if (!soundEnabled) return;
+  const playQiblaSound = useCallback(() => {
+    if (!soundEnabled) {
+      console.log('Sound disabled');
+      return;
+    }
     
     const now = Date.now();
-    if (now - lastSoundTime < 3000) return; // Max une fois toutes les 3 secondes
-    setLastSoundTime(now);
+    if (now - lastSoundTimeRef.current < 3000) {
+      console.log('Sound throttled');
+      return;
+    }
+    lastSoundTimeRef.current = now;
 
     try {
       // Créer le contexte audio si nécessaire
@@ -43,6 +88,13 @@ export default function QiblaModal({ isOpen, onClose }) {
       }
       
       const audioContext = audioContextRef.current;
+      
+      // Reprendre si suspendu (politique navigateur)
+      if (audioContext.state === 'suspended') {
+        audioContext.resume();
+      }
+      
+      console.log('Playing Qibla sound...');
       
       // Créer un son de cloche harmonieux
       const playTone = (frequency, startTime, duration, volume = 0.3) => {
@@ -64,35 +116,69 @@ export default function QiblaModal({ isOpen, onClose }) {
         oscillator.stop(startTime + duration);
       };
       
-      const now = audioContext.currentTime;
+      const currentTime = audioContext.currentTime;
       
       // Jouer une série de notes harmonieuses (accord de célébration)
-      // Do - Mi - Sol - Do (octave supérieure)
-      playTone(523.25, now, 0.8, 0.25);        // Do5
-      playTone(659.25, now + 0.1, 0.7, 0.2);   // Mi5
-      playTone(783.99, now + 0.2, 0.6, 0.15);  // Sol5
-      playTone(1046.50, now + 0.3, 0.8, 0.2);  // Do6
+      playTone(523.25, currentTime, 0.8, 0.3);        // Do5
+      playTone(659.25, currentTime + 0.1, 0.7, 0.25); // Mi5
+      playTone(783.99, currentTime + 0.2, 0.6, 0.2);  // Sol5
+      playTone(1046.50, currentTime + 0.3, 0.8, 0.25);// Do6
+      playTone(261.63, currentTime, 1.2, 0.15);       // Do4 (basse)
       
-      // Ajouter une résonance
-      playTone(261.63, now, 1.2, 0.1);         // Do4 (basse)
+      console.log('Sound played successfully');
       
     } catch (e) {
       console.log('Audio playback failed:', e);
     }
-  };
+  }, [soundEnabled]);
 
   // Son de test
-  const testSound = () => {
-    // Forcer le son même si désactivé pour le test
-    const wasEnabled = soundEnabled;
-    setSoundEnabled(true);
-    setLastSoundTime(0);
+  const testSound = useCallback(() => {
+    // Initialiser l'audio si pas encore fait
+    initAudio();
+    setAudioReady(true);
+    
+    // Forcer le son
+    lastSoundTimeRef.current = 0;
     
     setTimeout(() => {
-      playQiblaSound();
-      setSoundEnabled(wasEnabled);
+      try {
+        if (!audioContextRef.current) {
+          audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        
+        const audioContext = audioContextRef.current;
+        if (audioContext.state === 'suspended') {
+          audioContext.resume();
+        }
+        
+        const playTone = (frequency, startTime, duration, volume = 0.3) => {
+          const oscillator = audioContext.createOscillator();
+          const gainNode = audioContext.createGain();
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+          oscillator.frequency.setValueAtTime(frequency, startTime);
+          oscillator.type = 'sine';
+          gainNode.gain.setValueAtTime(0, startTime);
+          gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.01);
+          gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+          oscillator.start(startTime);
+          oscillator.stop(startTime + duration);
+        };
+        
+        const currentTime = audioContext.currentTime;
+        playTone(523.25, currentTime, 0.8, 0.3);
+        playTone(659.25, currentTime + 0.1, 0.7, 0.25);
+        playTone(783.99, currentTime + 0.2, 0.6, 0.2);
+        playTone(1046.50, currentTime + 0.3, 0.8, 0.25);
+        playTone(261.63, currentTime, 1.2, 0.15);
+        
+        console.log('Test sound played');
+      } catch (e) {
+        console.log('Test sound failed:', e);
+      }
     }, 100);
-  };
+  }, [initAudio]);
 
   // Calculer la direction de la Qibla
   const calculateQiblaDirection = (userLat, userLng) => {
@@ -162,6 +248,8 @@ export default function QiblaModal({ isOpen, onClose }) {
     setLoading(true);
     setError(null);
     headingBuffer.current = [];
+    wasPointingRef.current = false; // Réinitialiser pour permettre le son
+    lastSoundTimeRef.current = 0;   // Réinitialiser le throttle du son
 
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -266,13 +354,16 @@ export default function QiblaModal({ isOpen, onClose }) {
       const normalizedDiff = diff > 180 ? 360 - diff : diff;
       
       const isPointing = normalizedDiff < 15;
-      const wasPointing = isPointingToQibla;
-      setIsPointingToQibla(isPointing);
-
+      
       // Jouer le son quand on atteint la Qibla (seulement à la transition)
-      if (isPointing && !wasPointing) {
+      if (isPointing && !wasPointingRef.current) {
+        console.log('Transition to Qibla detected! Playing sound...');
         playQiblaSound();
       }
+      
+      // Mettre à jour la référence
+      wasPointingRef.current = isPointing;
+      setIsPointingToQibla(isPointing);
 
       const now = Date.now();
       const timeSinceLastVibration = now - lastVibrationTime;
@@ -302,7 +393,7 @@ export default function QiblaModal({ isOpen, onClose }) {
         }
       }
     }
-  }, [smoothHeading, qiblaDirection, lastVibrationTime, isPointingToQibla, soundEnabled]);
+  }, [smoothHeading, qiblaDirection, lastVibrationTime, playQiblaSound]);
 
   // Test de vibration
   const testVibration = () => {
@@ -391,7 +482,10 @@ export default function QiblaModal({ isOpen, onClose }) {
 
           {/* Bouton son */}
           <button
-            onClick={() => setSoundEnabled(!soundEnabled)}
+            onClick={() => {
+              initAudio(); // Initialiser l'audio au clic
+              setSoundEnabled(!soundEnabled);
+            }}
             className={`absolute top-4 left-16 w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
               soundEnabled 
                 ? 'bg-emerald-500/80 hover:bg-emerald-500 text-white' 
@@ -401,6 +495,16 @@ export default function QiblaModal({ isOpen, onClose }) {
           >
             {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
           </button>
+
+          {/* Badge pour activer le son */}
+          {soundEnabled && !audioReady && !loading && !error && (
+            <div 
+              onClick={initAudio}
+              className="absolute bottom-4 left-4 right-4 bg-amber-500/90 text-white text-xs px-3 py-2 rounded-lg text-center cursor-pointer animate-pulse"
+            >
+              👆 اضغط هنا لتفعيل الصوت
+            </div>
+          )}
         </div>
 
         {/* Contenu */}
