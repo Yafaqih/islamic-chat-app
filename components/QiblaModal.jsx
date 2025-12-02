@@ -2,10 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X, MapPin, Volume2, VolumeX } from 'lucide-react';
 
 /**
- * QiblaModal - Version Ultra-Stable
- * - Aiguille très fluide sans vibration
- * - Lissage agressif
- * - Mouvement smooth
+ * QiblaModal - Version avec flèche corrigée
  */
 export default function QiblaModal({ isOpen, onClose }) {
   const [displayHeading, setDisplayHeading] = useState(0);
@@ -16,8 +13,8 @@ export default function QiblaModal({ isOpen, onClose }) {
   const [loading, setLoading] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [permissionNeeded, setPermissionNeeded] = useState(false);
+  const [debugRotation, setDebugRotation] = useState(0);
   
-  // Refs pour le lissage
   const headingBuffer = useRef([]);
   const currentHeadingRef = useRef(0);
   const targetHeadingRef = useRef(0);
@@ -27,11 +24,10 @@ export default function QiblaModal({ isOpen, onClose }) {
   const lastSoundTimeRef = useRef(0);
   const audioContextRef = useRef(null);
   
-  // Paramètres de lissage ULTRA-STABLE
-  const BUFFER_SIZE = 30;           // Grand buffer
-  const LERP_FACTOR = 0.03;         // Interpolation très lente (3%)
-  const MIN_UPDATE_INTERVAL = 50;   // Mise à jour max 20fps
-  const DEAD_ZONE = 0.5;            // Ignorer changements < 0.5°
+  const BUFFER_SIZE = 25;
+  const LERP_FACTOR = 0.05;
+  const MIN_UPDATE_INTERVAL = 50;
+  const DEAD_ZONE = 0.3;
 
   const KAABA_LAT = 21.422487;
   const KAABA_LNG = 39.826206;
@@ -44,18 +40,14 @@ export default function QiblaModal({ isOpen, onClose }) {
     const current = currentHeadingRef.current;
     const target = targetHeadingRef.current;
     
-    // Calculer la différence (chemin le plus court sur le cercle)
     let diff = target - current;
     if (diff > 180) diff -= 360;
     if (diff < -180) diff += 360;
     
-    // Appliquer seulement si le changement est significatif
     if (Math.abs(diff) > DEAD_ZONE) {
-      // Interpolation linéaire très douce
       const newHeading = current + diff * LERP_FACTOR;
       currentHeadingRef.current = (newHeading + 360) % 360;
       
-      // Mettre à jour l'affichage (throttled)
       const now = Date.now();
       if (now - lastUpdateRef.current > MIN_UPDATE_INTERVAL) {
         setDisplayHeading(currentHeadingRef.current);
@@ -66,12 +58,10 @@ export default function QiblaModal({ isOpen, onClose }) {
     animationFrameRef.current = requestAnimationFrame(animate);
   }, []);
 
-  // Démarrer/arrêter l'animation
   useEffect(() => {
     if (isOpen && !loading && !error) {
       animationFrameRef.current = requestAnimationFrame(animate);
     }
-    
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
@@ -119,9 +109,7 @@ export default function QiblaModal({ isOpen, onClose }) {
         osc.start(start);
         osc.stop(start + note.duration);
       });
-    } catch (e) {
-      console.log('Audio error:', e);
-    }
+    } catch (e) {}
   }, [soundEnabled]);
 
   const handleTestSound = () => {
@@ -158,19 +146,17 @@ export default function QiblaModal({ isOpen, onClose }) {
   };
 
   // ============================================
-  // LISSAGE DU COMPAS - Moyenne circulaire
+  // LISSAGE DU COMPAS
   // ============================================
 
   const processHeading = useCallback((rawHeading) => {
     if (rawHeading === null || isNaN(rawHeading)) return;
     
-    // Ajouter au buffer
     headingBuffer.current.push(rawHeading);
     if (headingBuffer.current.length > BUFFER_SIZE) {
       headingBuffer.current.shift();
     }
     
-    // Calculer la moyenne circulaire
     let sinSum = 0, cosSum = 0;
     headingBuffer.current.forEach(h => {
       const rad = h * Math.PI / 180;
@@ -179,10 +165,7 @@ export default function QiblaModal({ isOpen, onClose }) {
     });
     
     let avgHeading = Math.atan2(sinSum, cosSum) * 180 / Math.PI;
-    avgHeading = (avgHeading + 360) % 360;
-    
-    // Mettre à jour la cible (l'animation s'occupe du mouvement fluide)
-    targetHeadingRef.current = avgHeading;
+    targetHeadingRef.current = (avgHeading + 360) % 360;
   }, []);
 
   // ============================================
@@ -207,7 +190,6 @@ export default function QiblaModal({ isOpen, onClose }) {
         setLoading(false);
       },
       (err) => {
-        console.error('Geo error:', err);
         setError('يرجى السماح بالوصول إلى موقعك');
         setLoading(false);
       },
@@ -216,7 +198,7 @@ export default function QiblaModal({ isOpen, onClose }) {
   }, [isOpen]);
 
   // ============================================
-  // ORIENTATION DU COMPAS
+  // ORIENTATION
   // ============================================
 
   useEffect(() => {
@@ -225,7 +207,7 @@ export default function QiblaModal({ isOpen, onClose }) {
     const handleOrientation = (event) => {
       let heading = null;
       
-      // iOS
+      // iOS - webkitCompassHeading donne directement le cap magnétique
       if (event.webkitCompassHeading !== undefined && event.webkitCompassHeading !== null) {
         heading = event.webkitCompassHeading;
       }
@@ -244,7 +226,6 @@ export default function QiblaModal({ isOpen, onClose }) {
       window.addEventListener('deviceorientation', handleOrientation, true);
     };
 
-    // iOS 13+ permission
     if (typeof DeviceOrientationEvent !== 'undefined' &&
         typeof DeviceOrientationEvent.requestPermission === 'function') {
       setPermissionNeeded(true);
@@ -257,9 +238,7 @@ export default function QiblaModal({ isOpen, onClose }) {
             setError('يرجى السماح بالوصول إلى البوصلة');
           }
         })
-        .catch(() => {
-          setPermissionNeeded(true);
-        });
+        .catch(() => setPermissionNeeded(true));
     } else {
       startListening();
     }
@@ -271,15 +250,18 @@ export default function QiblaModal({ isOpen, onClose }) {
   }, [isOpen, loading, error, processHeading]);
 
   // ============================================
-  // DÉTECTION ALIGNEMENT QIBLA
+  // DÉTECTION ALIGNEMENT
   // ============================================
 
   useEffect(() => {
     if (qiblaDirection === null) return;
     
+    // Calculer la différence pour détection
     let diff = qiblaDirection - displayHeading;
     if (diff > 180) diff -= 360;
     if (diff < -180) diff += 360;
+    
+    setDebugRotation(diff);
     
     const isPointing = Math.abs(diff) < 15;
     
@@ -295,7 +277,7 @@ export default function QiblaModal({ isOpen, onClose }) {
   }, [displayHeading, qiblaDirection, playSuccessSound]);
 
   // ============================================
-  // DEMANDER PERMISSION iOS
+  // PERMISSION iOS
   // ============================================
 
   const requestPermission = async () => {
@@ -311,7 +293,14 @@ export default function QiblaModal({ isOpen, onClose }) {
 
   if (!isOpen) return null;
 
-  const arrowRotation = qiblaDirection !== null ? qiblaDirection - displayHeading : 0;
+  // CORRECTION: La flèche doit pointer vers la Qibla
+  // Quand displayHeading = qiblaDirection, la flèche doit pointer vers le HAUT (rotation = 0)
+  // La flèche indique "où aller" donc on calcule qiblaDirection - displayHeading
+  let arrowRotation = qiblaDirection !== null ? qiblaDirection - displayHeading : 0;
+  
+  // Normaliser entre -180 et 180
+  if (arrowRotation > 180) arrowRotation -= 360;
+  if (arrowRotation < -180) arrowRotation += 360;
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" dir="rtl">
@@ -368,37 +357,39 @@ export default function QiblaModal({ isOpen, onClose }) {
           {loading ? (
             <div className="text-center py-8">
               <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-              <p className="text-gray-500 dark:text-gray-400">جاري تحديد الموقع...</p>
+              <p className="text-gray-500">جاري تحديد الموقع...</p>
             </div>
           ) : error || permissionNeeded ? (
             <div className="text-center py-6">
               <p className="text-red-500 mb-4 text-sm">{error || 'يرجى السماح بالوصول إلى البوصلة'}</p>
-              <button
-                onClick={requestPermission}
-                className="bg-emerald-500 text-white px-6 py-3 rounded-xl font-semibold w-full"
-              >
+              <button onClick={requestPermission} className="bg-emerald-500 text-white px-6 py-3 rounded-xl font-semibold w-full">
                 السماح بالوصول
               </button>
             </div>
           ) : (
             <div className="space-y-4">
-              {/* Info direction */}
-              <div className="flex justify-between items-center text-sm bg-gray-100 dark:bg-gray-700 rounded-xl p-3">
-                <div className="text-center">
+              {/* Debug Info */}
+              <div className="grid grid-cols-3 gap-2 text-center text-sm bg-gray-100 dark:bg-gray-700 rounded-xl p-3">
+                <div>
                   <div className="text-gray-500 text-xs">اتجاهك</div>
-                  <div className="font-bold text-lg">{Math.round(displayHeading)}°</div>
+                  <div className="font-bold">{Math.round(displayHeading)}°</div>
                 </div>
-                <div className="text-2xl">→</div>
-                <div className="text-center">
+                <div>
                   <div className="text-gray-500 text-xs">القبلة</div>
-                  <div className="font-bold text-lg text-emerald-600">{qiblaDirection}°</div>
+                  <div className="font-bold text-emerald-600">{qiblaDirection}°</div>
+                </div>
+                <div>
+                  <div className="text-gray-500 text-xs">الفرق</div>
+                  <div className={`font-bold ${Math.abs(debugRotation) < 15 ? 'text-green-500' : 'text-orange-500'}`}>
+                    {Math.round(debugRotation)}°
+                  </div>
                 </div>
               </div>
 
               {/* Boussole */}
               <div className="relative w-56 h-56 mx-auto">
-                {/* Cercle de base */}
-                <div className={`absolute inset-0 rounded-full border-4 transition-colors duration-700 ${
+                {/* Cercle */}
+                <div className={`absolute inset-0 rounded-full border-4 transition-colors duration-500 ${
                   isPointingToQibla 
                     ? 'border-yellow-400 bg-gradient-to-br from-yellow-50 to-amber-100 dark:from-yellow-900/20 dark:to-amber-900/20' 
                     : 'border-gray-200 dark:border-gray-600 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900'
@@ -410,19 +401,30 @@ export default function QiblaModal({ isOpen, onClose }) {
                   <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">E</span>
                   
                   {/* Graduations */}
-                  {[0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map(deg => (
+                  {[0, 45, 90, 135, 180, 225, 270, 315].map(deg => (
                     <div
                       key={deg}
-                      className="absolute w-0.5 h-2 bg-gray-300 dark:bg-gray-600"
+                      className="absolute w-0.5 h-3 bg-gray-300 dark:bg-gray-500"
                       style={{
-                        top: '8px',
+                        top: '6px',
                         left: '50%',
-                        transformOrigin: '50% 104px',
+                        transformOrigin: '50% 106px',
                         transform: `translateX(-50%) rotate(${deg}deg)`
                       }}
                     />
                   ))}
                 </div>
+
+                {/* Indicateur Qibla sur le cercle (point fixe) */}
+                <div
+                  className="absolute w-3 h-3 bg-emerald-500 rounded-full shadow-lg"
+                  style={{
+                    top: '4px',
+                    left: '50%',
+                    transformOrigin: '50% 108px',
+                    transform: `translateX(-50%) rotate(${qiblaDirection - displayHeading}deg)`
+                  }}
+                />
 
                 {/* Kaaba au centre quand aligné */}
                 <div className={`absolute inset-0 flex items-center justify-center transition-all duration-500 pointer-events-none ${
@@ -433,16 +435,11 @@ export default function QiblaModal({ isOpen, onClose }) {
                   </div>
                 </div>
 
-                {/* AIGUILLE - Transition CSS très longue pour fluidité */}
-                <div
-                  className="absolute inset-0 flex items-center justify-center pointer-events-none"
-                  style={{ 
-                    transform: `rotate(${arrowRotation}deg)`,
-                    transition: 'transform 1.2s cubic-bezier(0.4, 0, 0.2, 1)'
-                  }}
-                >
+                {/* AIGUILLE FIXE - Pointe toujours vers le haut */}
+                {/* L'utilisateur doit tourner pour aligner le point vert avec l'aiguille */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <svg 
-                    className={`w-20 h-20 drop-shadow-md transition-colors duration-500 ${
+                    className={`w-20 h-20 drop-shadow-lg transition-colors duration-500 ${
                       isPointingToQibla ? 'text-yellow-500' : 'text-emerald-600'
                     }`} 
                     fill="currentColor" 
@@ -458,19 +455,31 @@ export default function QiblaModal({ isOpen, onClose }) {
                 }`} />
               </div>
 
-              {/* Message alignement */}
-              {isPointingToQibla && (
-                <div className="bg-green-50 dark:bg-green-900/30 border-2 border-green-400 rounded-xl p-3 text-center">
-                  <p className="text-green-700 dark:text-green-300 font-bold text-lg">✅ القبلة</p>
-                  <p className="text-green-600 dark:text-green-400 text-sm">صلّ في هذا الاتجاه 🤲</p>
-                </div>
-              )}
+              {/* Instructions */}
+              <div className={`text-center p-3 rounded-xl transition-all duration-500 ${
+                isPointingToQibla 
+                  ? 'bg-green-50 dark:bg-green-900/30 border-2 border-green-400' 
+                  : 'bg-gray-50 dark:bg-gray-700/50'
+              }`}>
+                {isPointingToQibla ? (
+                  <>
+                    <p className="text-green-700 dark:text-green-300 font-bold text-lg">✅ القبلة</p>
+                    <p className="text-green-600 dark:text-green-400 text-sm">صلّ في هذا الاتجاه 🤲</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-gray-600 dark:text-gray-300 font-medium">
+                      🔄 أدر هاتفك حتى يتوافق النقطة الخضراء مع السهم
+                    </p>
+                    <p className="text-gray-500 text-xs mt-1">
+                      {debugRotation > 0 ? '← أدر لليسار' : '→ أدر لليمين'}
+                    </p>
+                  </>
+                )}
+              </div>
 
-              {/* Bouton test son */}
-              <button
-                onClick={handleTestSound}
-                className="w-full text-xs text-gray-400 hover:text-gray-600 py-2"
-              >
+              {/* Test son */}
+              <button onClick={handleTestSound} className="w-full text-xs text-gray-400 hover:text-gray-600 py-2">
                 🔊 اختبار الصوت
               </button>
 
