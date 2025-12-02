@@ -670,6 +670,18 @@ export default function IslamicChatApp() {
 
               <button
                 onClick={() => {
+                  setShowAbout(true);
+                  setShowMobileMenu(false);
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/10 rounded-lg transition-colors text-right"
+              >
+                <BookOpen className="w-5 h-5" />
+                <span>حول التطبيق</span>
+              </button>
+
+
+              <button
+                onClick={() => {
                   handleExportPDF();
                   setShowMobileMenu(false);
                 }}
