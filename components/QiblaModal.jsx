@@ -1,186 +1,123 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, MapPin, Volume2, VolumeX } from 'lucide-react';
 
 /**
- * QiblaModal - Boussole Qibla avec effet sonore
+ * QiblaModal - Boussole Qibla avec lissage amélioré
  */
 export default function QiblaModal({ isOpen, onClose }) {
-  const [heading, setHeading] = useState(0);
   const [smoothHeading, setSmoothHeading] = useState(0);
   const [qiblaDirection, setQiblaDirection] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
   const [error, setError] = useState(null);
   const [isPointingToQibla, setIsPointingToQibla] = useState(false);
-  const [compassSupported, setCompassSupported] = useState(true);
   const [lastVibrationTime, setLastVibrationTime] = useState(0);
   const [loading, setLoading] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [audioReady, setAudioReady] = useState(false);
   
   const headingBuffer = useRef([]);
-  const audioContextRef = useRef(null);
   const wasPointingRef = useRef(false);
   const lastSoundTimeRef = useRef(0);
-  const audioInitialized = useRef(false);
-  const BUFFER_SIZE = 5;
+  const audioContextRef = useRef(null);
+  const lastHeadingRef = useRef(0);
+  
+  // Augmenter le buffer pour plus de stabilité
+  const BUFFER_SIZE = 12;
+  // Seuil de changement minimum (évite les micro-mouvements)
+  const MIN_CHANGE_THRESHOLD = 2;
 
-  // Coordonnées de la Kaaba
   const KAABA_LAT = 21.4225;
   const KAABA_LNG = 39.8262;
 
   // ============================================
-  // INITIALISER AUDIO AU PREMIER CLIC
+  // SYSTÈME AUDIO
   // ============================================
   
-  const initAudio = useCallback(() => {
-    if (audioInitialized.current) return;
-    
+  const initializeAudio = () => {
+    if (audioContextRef.current) return;
     try {
-      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-      audioInitialized.current = true;
-      setAudioReady(true);
-      console.log('Audio initialized');
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      audioContextRef.current = new AudioContext();
     } catch (e) {
-      console.log('Audio init failed:', e);
+      console.error('Audio init failed:', e);
     }
-  }, []);
+  };
 
-  // Initialiser l'audio au premier clic sur le modal
-  useEffect(() => {
-    if (!isOpen) return;
-    
-    const handleFirstInteraction = () => {
-      initAudio();
-      document.removeEventListener('click', handleFirstInteraction);
-      document.removeEventListener('touchstart', handleFirstInteraction);
-    };
-    
-    document.addEventListener('click', handleFirstInteraction);
-    document.addEventListener('touchstart', handleFirstInteraction);
-    
-    return () => {
-      document.removeEventListener('click', handleFirstInteraction);
-      document.removeEventListener('touchstart', handleFirstInteraction);
-    };
-  }, [isOpen, initAudio]);
-
-  // ============================================
-  // EFFET SONORE - Son de cloche islamique
-  // ============================================
-  
-  const playQiblaSound = useCallback(() => {
-    if (!soundEnabled) {
-      console.log('Sound disabled');
-      return;
-    }
+  const playSuccessSound = async () => {
+    if (!soundEnabled) return;
     
     const now = Date.now();
-    if (now - lastSoundTimeRef.current < 3000) {
-      console.log('Sound throttled');
-      return;
-    }
+    if (now - lastSoundTimeRef.current < 2000) return;
     lastSoundTimeRef.current = now;
 
     try {
-      // Créer le contexte audio si nécessaire
-      if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      if (!audioContextRef.current) initializeAudio();
+      
+      const ctx = audioContextRef.current;
+      if (!ctx) return;
+
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
       }
-      
-      const audioContext = audioContextRef.current;
-      
-      // Reprendre si suspendu (politique navigateur)
-      if (audioContext.state === 'suspended') {
-        audioContext.resume();
-      }
-      
-      console.log('Playing Qibla sound...');
-      
-      // Créer un son de cloche harmonieux
-      const playTone = (frequency, startTime, duration, volume = 0.3) => {
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
+
+      const notes = [
+        { freq: 523.25, delay: 0, duration: 0.6 },
+        { freq: 659.25, delay: 0.1, duration: 0.5 },
+        { freq: 783.99, delay: 0.2, duration: 0.4 },
+        { freq: 1046.50, delay: 0.3, duration: 0.6 },
+      ];
+
+      const currentTime = ctx.currentTime;
+
+      notes.forEach(note => {
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
         
         oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
+        gainNode.connect(ctx.destination);
         
-        oscillator.frequency.setValueAtTime(frequency, startTime);
         oscillator.type = 'sine';
+        oscillator.frequency.value = note.freq;
         
-        // Envelope ADSR pour un son de cloche
+        const startTime = currentTime + note.delay;
+        
         gainNode.gain.setValueAtTime(0, startTime);
-        gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.01);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+        gainNode.gain.linearRampToValueAtTime(0.4, startTime + 0.02);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + note.duration);
         
         oscillator.start(startTime);
-        oscillator.stop(startTime + duration);
-      };
-      
-      const currentTime = audioContext.currentTime;
-      
-      // Jouer une série de notes harmonieuses (accord de célébration)
-      playTone(523.25, currentTime, 0.8, 0.3);        // Do5
-      playTone(659.25, currentTime + 0.1, 0.7, 0.25); // Mi5
-      playTone(783.99, currentTime + 0.2, 0.6, 0.2);  // Sol5
-      playTone(1046.50, currentTime + 0.3, 0.8, 0.25);// Do6
-      playTone(261.63, currentTime, 1.2, 0.15);       // Do4 (basse)
-      
-      console.log('Sound played successfully');
+        oscillator.stop(startTime + note.duration);
+      });
       
     } catch (e) {
-      console.log('Audio playback failed:', e);
+      console.error('Sound error:', e);
     }
-  }, [soundEnabled]);
+  };
 
-  // Son de test
-  const testSound = useCallback(() => {
-    // Initialiser l'audio si pas encore fait
-    initAudio();
-    setAudioReady(true);
-    
-    // Forcer le son
+  const handleTestSound = async () => {
+    initializeAudio();
     lastSoundTimeRef.current = 0;
-    
-    setTimeout(() => {
-      try {
-        if (!audioContextRef.current) {
-          audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-        }
-        
-        const audioContext = audioContextRef.current;
-        if (audioContext.state === 'suspended') {
-          audioContext.resume();
-        }
-        
-        const playTone = (frequency, startTime, duration, volume = 0.3) => {
-          const oscillator = audioContext.createOscillator();
-          const gainNode = audioContext.createGain();
-          oscillator.connect(gainNode);
-          gainNode.connect(audioContext.destination);
-          oscillator.frequency.setValueAtTime(frequency, startTime);
-          oscillator.type = 'sine';
-          gainNode.gain.setValueAtTime(0, startTime);
-          gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.01);
-          gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-          oscillator.start(startTime);
-          oscillator.stop(startTime + duration);
-        };
-        
-        const currentTime = audioContext.currentTime;
-        playTone(523.25, currentTime, 0.8, 0.3);
-        playTone(659.25, currentTime + 0.1, 0.7, 0.25);
-        playTone(783.99, currentTime + 0.2, 0.6, 0.2);
-        playTone(1046.50, currentTime + 0.3, 0.8, 0.25);
-        playTone(261.63, currentTime, 1.2, 0.15);
-        
-        console.log('Test sound played');
-      } catch (e) {
-        console.log('Test sound failed:', e);
-      }
-    }, 100);
-  }, [initAudio]);
+    await playSuccessSound();
+  };
 
-  // Calculer la direction de la Qibla
+  const handleToggleSound = () => {
+    initializeAudio();
+    setSoundEnabled(!soundEnabled);
+  };
+
+  const testVibration = () => {
+    if ('vibrate' in navigator) {
+      try {
+        navigator.vibrate([200, 100, 200, 100, 200]);
+      } catch (e) {
+        console.log('Vibration error:', e);
+      }
+    }
+  };
+
+  // ============================================
+  // CALCULS QIBLA
+  // ============================================
+
   const calculateQiblaDirection = (userLat, userLng) => {
     const lat1 = userLat * Math.PI / 180;
     const lng1 = userLng * Math.PI / 180;
@@ -200,7 +137,6 @@ export default function QiblaModal({ isOpen, onClose }) {
     return Math.round(bearing);
   };
 
-  // Calculer la distance jusqu'à la Mecque
   const calculateDistance = (lat, lng) => {
     const R = 6371;
     const dLat = ((KAABA_LAT - lat) * Math.PI) / 180;
@@ -213,43 +149,59 @@ export default function QiblaModal({ isOpen, onClose }) {
     return Math.round(R * c);
   };
 
-  // Lisser les valeurs du heading pour stabiliser la flèche
+  // ============================================
+  // LISSAGE AMÉLIORÉ - Moyenne circulaire
+  // ============================================
+
   const smoothHeadingValue = (newHeading) => {
+    // Ajouter au buffer
     headingBuffer.current.push(newHeading);
     
+    // Garder seulement les N dernières valeurs
     if (headingBuffer.current.length > BUFFER_SIZE) {
       headingBuffer.current.shift();
     }
 
-    // Gérer le problème du 0°/360° (nord)
-    let sum = 0;
-    let count = headingBuffer.current.length;
+    // Moyenne circulaire (pour gérer le passage 359° -> 0°)
+    let sinSum = 0;
+    let cosSum = 0;
     
-    const hasLowValues = headingBuffer.current.some(h => h < 90);
-    const hasHighValues = headingBuffer.current.some(h => h > 270);
-    
-    if (hasLowValues && hasHighValues) {
-      sum = headingBuffer.current.reduce((acc, h) => {
-        return acc + (h < 180 ? h + 360 : h);
-      }, 0);
-      let avg = sum / count;
-      if (avg >= 360) avg -= 360;
-      return avg;
-    } else {
-      sum = headingBuffer.current.reduce((acc, h) => acc + h, 0);
-      return sum / count;
+    headingBuffer.current.forEach(h => {
+      const rad = h * Math.PI / 180;
+      sinSum += Math.sin(rad);
+      cosSum += Math.cos(rad);
+    });
+
+    let avgHeading = Math.atan2(sinSum, cosSum) * 180 / Math.PI;
+    avgHeading = (avgHeading + 360) % 360;
+
+    // Appliquer un seuil minimum de changement pour éviter les tremblements
+    const lastHeading = lastHeadingRef.current;
+    let diff = Math.abs(avgHeading - lastHeading);
+    if (diff > 180) diff = 360 - diff;
+
+    if (diff < MIN_CHANGE_THRESHOLD) {
+      return lastHeading; // Pas assez de changement, garder l'ancienne valeur
     }
+
+    lastHeadingRef.current = avgHeading;
+    return avgHeading;
   };
 
-  // Obtenir la position de l'utilisateur
+  // ============================================
+  // EFFETS
+  // ============================================
+
+  // Obtenir la position
   useEffect(() => {
     if (!isOpen) return;
 
     setLoading(true);
     setError(null);
     headingBuffer.current = [];
-    wasPointingRef.current = false; // Réinitialiser pour permettre le son
-    lastSoundTimeRef.current = 0;   // Réinitialiser le throttle du son
+    wasPointingRef.current = false;
+    lastSoundTimeRef.current = 0;
+    lastHeadingRef.current = 0;
 
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -265,11 +217,7 @@ export default function QiblaModal({ isOpen, onClose }) {
           setError('يرجى السماح بالوصول إلى موقعك');
           setLoading(false);
         },
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
-        }
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
     } else {
       setError('الموقع الجغرافي غير مدعوم');
@@ -277,49 +225,59 @@ export default function QiblaModal({ isOpen, onClose }) {
     }
   }, [isOpen]);
 
-  // Gérer l'orientation du téléphone
+  // Orientation du téléphone - AMÉLIORÉ
   useEffect(() => {
     if (!isOpen) return;
 
     let orientationHandler;
-    let hasReceivedData = false;
+    let isAbsoluteOrientation = false;
 
     if (!('DeviceOrientationEvent' in window)) {
-      setCompassSupported(false);
       setError('البوصلة غير مدعومة على هذا الجهاز');
       return;
     }
 
-    const startOrientationTracking = () => {
-      orientationHandler = (event) => {
-        let compassHeading = null;
+    const handleOrientation = (event) => {
+      let compassHeading = null;
 
-        if (event.webkitCompassHeading !== undefined && event.webkitCompassHeading !== null) {
-          compassHeading = event.webkitCompassHeading;
-          hasReceivedData = true;
-        }
-        else if (event.alpha !== null && event.alpha !== undefined) {
-          compassHeading = event.alpha;
-          hasReceivedData = true;
-        }
+      // iOS - webkitCompassHeading est le cap magnétique réel
+      if (event.webkitCompassHeading !== undefined && event.webkitCompassHeading !== null) {
+        compassHeading = event.webkitCompassHeading;
+      }
+      // Android avec deviceorientationabsolute - alpha est relatif au nord
+      else if (event.absolute === true && event.alpha !== null) {
+        // Sur Android, alpha = 0 signifie que le haut de l'écran pointe vers le nord
+        // Mais alpha augmente dans le sens antihoraire, donc on inverse
+        compassHeading = (360 - event.alpha) % 360;
+      }
+      // Fallback - deviceorientation standard
+      else if (event.alpha !== null && event.alpha !== undefined) {
+        // Peut ne pas être calibré par rapport au nord magnétique
+        compassHeading = (360 - event.alpha) % 360;
+      }
 
-        if (compassHeading !== null) {
-          setHeading(compassHeading);
-          const smoothed = smoothHeadingValue(compassHeading);
-          setSmoothHeading(smoothed);
-        }
-      };
-
-      window.addEventListener('deviceorientationabsolute', orientationHandler, true);
-      window.addEventListener('deviceorientation', orientationHandler, true);
-
-      setTimeout(() => {
-        if (!hasReceivedData) {
-          setError('لم يتم استلام بيانات البوصلة. تأكد من أن جهازك يحتوي على مستشعر بوصلة.');
-        }
-      }, 3000);
+      if (compassHeading !== null && !isNaN(compassHeading)) {
+        const smoothed = smoothHeadingValue(compassHeading);
+        setSmoothHeading(smoothed);
+      }
     };
 
+    const startOrientationTracking = () => {
+      // Essayer d'abord deviceorientationabsolute (plus précis sur Android)
+      const absoluteHandler = (event) => {
+        if (event.absolute === true) {
+          isAbsoluteOrientation = true;
+        }
+        handleOrientation(event);
+      };
+
+      window.addEventListener('deviceorientationabsolute', absoluteHandler, true);
+      window.addEventListener('deviceorientation', handleOrientation, true);
+      
+      orientationHandler = { absolute: absoluteHandler, standard: handleOrientation };
+    };
+
+    // Demander permission sur iOS 13+
     if (typeof DeviceOrientationEvent.requestPermission === 'function') {
       DeviceOrientationEvent.requestPermission()
         .then(permissionState => {
@@ -327,13 +285,11 @@ export default function QiblaModal({ isOpen, onClose }) {
             startOrientationTracking();
           } else {
             setError('يرجى السماح بالوصول إلى البوصلة');
-            setCompassSupported(false);
           }
         })
         .catch(err => {
           console.error('Permission error:', err);
           setError('خطأ في طلب الإذن');
-          setCompassSupported(false);
         });
     } else {
       startOrientationTracking();
@@ -341,13 +297,13 @@ export default function QiblaModal({ isOpen, onClose }) {
 
     return () => {
       if (orientationHandler) {
-        window.removeEventListener('deviceorientationabsolute', orientationHandler, true);
-        window.removeEventListener('deviceorientation', orientationHandler, true);
+        window.removeEventListener('deviceorientationabsolute', orientationHandler.absolute, true);
+        window.removeEventListener('deviceorientation', orientationHandler.standard, true);
       }
     };
   }, [isOpen]);
 
-  // Vérifier si on pointe vers la Qibla avec vibration et son
+  // Vérifier alignement + son + vibration
   useEffect(() => {
     if (qiblaDirection !== null && smoothHeading !== null) {
       const diff = Math.abs(smoothHeading - qiblaDirection);
@@ -355,16 +311,15 @@ export default function QiblaModal({ isOpen, onClose }) {
       
       const isPointing = normalizedDiff < 15;
       
-      // Jouer le son quand on atteint la Qibla (seulement à la transition)
+      // Son quand on atteint la Qibla
       if (isPointing && !wasPointingRef.current) {
-        console.log('Transition to Qibla detected! Playing sound...');
-        playQiblaSound();
+        playSuccessSound();
       }
       
-      // Mettre à jour la référence
       wasPointingRef.current = isPointing;
       setIsPointingToQibla(isPointing);
 
+      // Vibration
       const now = Date.now();
       const timeSinceLastVibration = now - lastVibrationTime;
       
@@ -373,47 +328,24 @@ export default function QiblaModal({ isOpen, onClose }) {
           try {
             navigator.vibrate([200, 100, 200]);
             setLastVibrationTime(now);
-          } catch (e) {
-            console.log('Vibration failed:', e);
-          }
+          } catch (e) {}
         } else if (normalizedDiff < 25 && timeSinceLastVibration > 2000) {
           try {
             navigator.vibrate(100);
             setLastVibrationTime(now);
-          } catch (e) {
-            console.log('Vibration failed:', e);
-          }
-        } else if (normalizedDiff < 35 && timeSinceLastVibration > 3000) {
-          try {
-            navigator.vibrate(50);
-            setLastVibrationTime(now);
-          } catch (e) {
-            console.log('Vibration failed:', e);
-          }
+          } catch (e) {}
         }
       }
     }
-  }, [smoothHeading, qiblaDirection, lastVibrationTime, playQiblaSound]);
+  }, [smoothHeading, qiblaDirection, lastVibrationTime, soundEnabled]);
 
-  // Test de vibration
-  const testVibration = () => {
-    if ('vibrate' in navigator) {
-      try {
-        navigator.vibrate([200, 100, 200, 100, 200]);
-      } catch (e) {
-        console.log('Vibration error:', e);
-      }
-    }
-  };
-
-  // Demander permission iOS
+  // Permission iOS
   const requestPermission = async () => {
     if (typeof DeviceOrientationEvent.requestPermission === 'function') {
       try {
         const permissionState = await DeviceOrientationEvent.requestPermission();
         if (permissionState === 'granted') {
           setError(null);
-          setCompassSupported(true);
           window.location.reload();
         } else {
           setError('يرجى السماح بالوصول إلى البوصلة في إعدادات Safari');
@@ -436,31 +368,26 @@ export default function QiblaModal({ isOpen, onClose }) {
         isPointingToQibla ? 'ring-4 ring-yellow-400 shadow-yellow-400/50' : ''
       }`}>
         
-        {/* Header avec image */}
+        {/* Header */}
         <div className="relative h-40 overflow-hidden">
           <img 
             src="/images/mecca-header.jpg"
             alt="المسجد الحرام"
             className="w-full h-full object-cover"
-            onError={(e) => {
-              e.target.style.display = 'none';
-            }}
+            onError={(e) => { e.target.style.display = 'none'; }}
           />
-          {/* Overlay */}
           <div className={`absolute inset-0 transition-all duration-500 ${
             isPointingToQibla 
               ? 'bg-gradient-to-t from-yellow-900/80 via-amber-600/40 to-yellow-400/20' 
               : 'bg-gradient-to-t from-black/70 via-black/30 to-transparent'
           }`} />
           
-          {/* Fallback */}
           <div className={`absolute inset-0 -z-10 transition-all duration-500 ${
             isPointingToQibla 
               ? 'bg-gradient-to-br from-yellow-400 via-amber-500 to-orange-500' 
               : 'bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-800'
           }`} />
 
-          {/* Titre */}
           <div className="absolute bottom-0 left-0 right-0 p-4 text-white text-right">
             <h2 className="text-2xl font-bold mb-1">اتجاه القبلة</h2>
             {userLocation && (
@@ -471,40 +398,23 @@ export default function QiblaModal({ isOpen, onClose }) {
             )}
           </div>
           
-          {/* Bouton fermer */}
           <button
             onClick={onClose}
-            className="absolute top-4 left-4 w-10 h-10 bg-black/30 hover:bg-black/50 
-              rounded-full flex items-center justify-center text-white transition-colors"
+            className="absolute top-4 left-4 w-10 h-10 bg-black/30 hover:bg-black/50 rounded-full flex items-center justify-center text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
 
-          {/* Bouton son */}
           <button
-            onClick={() => {
-              initAudio(); // Initialiser l'audio au clic
-              setSoundEnabled(!soundEnabled);
-            }}
+            onClick={handleToggleSound}
             className={`absolute top-4 left-16 w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
               soundEnabled 
                 ? 'bg-emerald-500/80 hover:bg-emerald-500 text-white' 
                 : 'bg-black/30 hover:bg-black/50 text-white/60'
             }`}
-            title={soundEnabled ? 'إيقاف الصوت' : 'تشغيل الصوت'}
           >
             {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
           </button>
-
-          {/* Badge pour activer le son */}
-          {soundEnabled && !audioReady && !loading && !error && (
-            <div 
-              onClick={initAudio}
-              className="absolute bottom-4 left-4 right-4 bg-amber-500/90 text-white text-xs px-3 py-2 rounded-lg text-center cursor-pointer animate-pulse"
-            >
-              👆 اضغط هنا لتفعيل الصوت
-            </div>
-          )}
         </div>
 
         {/* Contenu */}
@@ -527,20 +437,14 @@ export default function QiblaModal({ isOpen, onClose }) {
               )}
               <button
                 onClick={() => window.location.reload()}
-                className="bg-gray-500 text-white px-6 py-2 rounded-xl hover:bg-gray-600 transition-colors w-full mb-2"
+                className="bg-gray-500 text-white px-6 py-2 rounded-xl hover:bg-gray-600 transition-colors w-full"
               >
                 إعادة المحاولة
-              </button>
-              <button
-                onClick={testVibration}
-                className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 underline"
-              >
-                اختبار الاهتزاز
               </button>
             </div>
           ) : (
             <div className="space-y-4">
-              {/* Debug info */}
+              {/* Debug */}
               <div className="text-xs text-center text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 p-2 rounded-xl">
                 <div>اتجاهك: {Math.round(smoothHeading)}° | القبلة: {qiblaDirection}°</div>
                 <div>الفرق: {Math.round(Math.abs(smoothHeading - qiblaDirection) > 180 ? 360 - Math.abs(smoothHeading - qiblaDirection) : Math.abs(smoothHeading - qiblaDirection))}°</div>
@@ -548,36 +452,32 @@ export default function QiblaModal({ isOpen, onClose }) {
 
               {/* Boussole */}
               <div className="relative w-56 h-56 mx-auto">
-                {/* Cercle de fond */}
                 <div className={`absolute inset-0 rounded-full border-4 transition-all duration-300 ${
                   isPointingToQibla 
                     ? 'border-yellow-400 bg-gradient-to-br from-yellow-50 to-amber-100 dark:from-yellow-900/30 dark:to-amber-900/30' 
                     : 'border-gray-200 dark:border-gray-700 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900'
                 }`}>
-                  {/* Points cardinaux */}
                   <div className="absolute top-3 left-1/2 -translate-x-1/2 text-xs font-bold text-red-600">N</div>
-                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-xs font-bold text-gray-500 dark:text-gray-400">S</div>
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-500 dark:text-gray-400">W</div>
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-500 dark:text-gray-400">E</div>
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-xs font-bold text-gray-500">S</div>
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-500">W</div>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-500">E</div>
                 </div>
 
-                {/* Effet Kaaba quand aligné */}
-                <div
-                  className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ${
-                    isPointingToQibla ? 'opacity-100 scale-100' : 'opacity-0 scale-50'
-                  }`}
-                >
+                {/* Kaaba quand aligné */}
+                <div className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ${
+                  isPointingToQibla ? 'opacity-100 scale-100' : 'opacity-0 scale-50'
+                }`}>
                   <div className="w-28 h-28 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center shadow-lg shadow-yellow-500/50 animate-pulse">
                     <span className="text-4xl">🕋</span>
                   </div>
                 </div>
 
-                {/* Flèche */}
+                {/* Flèche - transition plus longue pour moins de vibration */}
                 <div
                   className="absolute inset-0 flex items-center justify-center"
                   style={{ 
                     transform: `rotate(${arrowRotation}deg)`,
-                    transition: 'transform 0.3s ease-out'
+                    transition: 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
                   }}
                 >
                   <div className={`transition-colors duration-300 ${
@@ -589,34 +489,26 @@ export default function QiblaModal({ isOpen, onClose }) {
                   </div>
                 </div>
 
-                {/* Centre */}
                 <div className={`absolute top-1/2 left-1/2 w-4 h-4 rounded-full -translate-x-1/2 -translate-y-1/2 shadow-lg transition-colors duration-300 ${
-                  isPointingToQibla ? 'bg-yellow-500' : 'bg-emerald-600 dark:bg-emerald-400'
+                  isPointingToQibla ? 'bg-yellow-500' : 'bg-emerald-600'
                 }`}></div>
               </div>
 
               {/* Infos */}
               <div className="text-center space-y-3">
                 <div className={`rounded-xl p-4 transition-all duration-300 ${
-                  isPointingToQibla 
-                    ? 'bg-yellow-50 dark:bg-yellow-900/20' 
-                    : 'bg-emerald-50 dark:bg-emerald-900/20'
+                  isPointingToQibla ? 'bg-yellow-50 dark:bg-yellow-900/20' : 'bg-emerald-50 dark:bg-emerald-900/20'
                 }`}>
                   <div className={`text-sm mb-1 ${
-                    isPointingToQibla 
-                      ? 'text-yellow-600 dark:text-yellow-400' 
-                      : 'text-emerald-600 dark:text-emerald-400'
+                    isPointingToQibla ? 'text-yellow-600 dark:text-yellow-400' : 'text-emerald-600 dark:text-emerald-400'
                   }`}>اتجاه القبلة</div>
                   <div className={`text-3xl font-bold ${
-                    isPointingToQibla 
-                      ? 'text-yellow-700 dark:text-yellow-300' 
-                      : 'text-emerald-700 dark:text-emerald-300'
+                    isPointingToQibla ? 'text-yellow-700 dark:text-yellow-300' : 'text-emerald-700 dark:text-emerald-300'
                   }`}>
                     {qiblaDirection}°
                   </div>
                 </div>
 
-                {/* Message de succès */}
                 {isPointingToQibla && (
                   <div className="bg-green-50 dark:bg-green-900/20 border-2 border-green-500 rounded-xl p-3 animate-pulse">
                     <p className="text-green-700 dark:text-green-300 font-bold text-lg">
@@ -631,14 +523,14 @@ export default function QiblaModal({ isOpen, onClose }) {
                 <div className="flex items-center justify-center gap-4">
                   <button
                     onClick={testVibration}
-                    className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 underline"
+                    className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 underline"
                   >
                     اختبار الاهتزاز
                   </button>
-                  <span className="text-gray-300 dark:text-gray-600">|</span>
+                  <span className="text-gray-300">|</span>
                   <button
-                    onClick={testSound}
-                    className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 underline flex items-center gap-1"
+                    onClick={handleTestSound}
+                    className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 underline flex items-center gap-1"
                   >
                     <Volume2 className="w-3 h-3" />
                     اختبار الصوت
