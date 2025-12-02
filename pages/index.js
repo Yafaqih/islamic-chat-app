@@ -455,7 +455,9 @@ export default function IslamicChatApp() {
               </div>
 
               {/* Mobile actions */}
-              <PrayerButton />
+              <div className="md:hidden">
+                <PrayerButton />
+              </div>
               <button onClick={toggleDarkMode} className="md:hidden p-2 hover:bg-white/10 rounded-lg transition-colors">
                 {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
