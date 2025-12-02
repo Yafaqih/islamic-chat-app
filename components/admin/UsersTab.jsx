@@ -7,6 +7,7 @@ import {
 
 /**
  * Onglet de gestion des utilisateurs
+ * URLs API corrigées
  */
 export default function UsersTab() {
   const [users, setUsers] = useState([]);
@@ -14,7 +15,7 @@ export default function UsersTab() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTier, setFilterTier] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [pagination, setPagination] = useState({ total: 0, pages: 1 });
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
   const [selectedUser, setSelectedUser] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
@@ -25,12 +26,13 @@ export default function UsersTab() {
   const loadUsers = async () => {
     setLoading(true);
     try {
+      // ✅ URL CORRIGÉE: /api/admin/users/list
       const response = await fetch(
-        `/api/admin/users?page=${currentPage}&limit=20&search=${searchTerm}&tier=${filterTier}`
+        `/api/admin/users/list?page=${currentPage}&limit=20&search=${searchTerm}&tier=${filterTier}`
       );
       const data = await response.json();
-      setUsers(data.users);
-      setPagination(data.pagination);
+      setUsers(data.users || []);
+      setPagination(data.pagination || { total: 0, totalPages: 1 });
     } catch (error) {
       console.error('Erreur chargement users:', error);
     } finally {
@@ -46,10 +48,11 @@ export default function UsersTab() {
 
   const handleUpdateUser = async (userId, updates) => {
     try {
-      await fetch('/api/admin/users', {
+      // ✅ URL CORRIGÉE: /api/admin/users/[id]
+      await fetch(`/api/admin/users/${userId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, updates })
+        body: JSON.stringify(updates)
       });
       loadUsers();
       setShowEditModal(false);
@@ -58,24 +61,13 @@ export default function UsersTab() {
     }
   };
 
-  const exportUsers = () => {
-    const csv = [
-      ['Nom', 'Email', 'Abonnement', 'Messages', 'Date inscription'].join(','),
-      ...users.map(u => [
-        u.name,
-        u.email,
-        u.subscriptionTier,
-        u.messageCount || 0,
-        new Date(u.createdAt).toLocaleDateString()
-      ].join(','))
-    ].join('\n');
-
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'utilisateurs.csv';
-    a.click();
+  const exportUsers = async () => {
+    try {
+      // ✅ URL CORRIGÉE: /api/admin/users/export
+      window.open(`/api/admin/users/export?tier=${filterTier}&search=${searchTerm}`, '_blank');
+    } catch (error) {
+      console.error('Erreur export:', error);
+    }
   };
 
   const getTierBadge = (tier) => {
@@ -115,7 +107,7 @@ export default function UsersTab() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Rechercher..."
-                  className="w-full md:w-64 pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
+                  className="w-full md:w-64 pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 text-gray-800 dark:text-gray-200"
                 />
               </div>
             </form>
@@ -123,7 +115,7 @@ export default function UsersTab() {
             <select
               value={filterTier}
               onChange={(e) => setFilterTier(e.target.value)}
-              className="px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm"
+              className="px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-800 dark:text-gray-200"
             >
               <option value="all">Tous</option>
               <option value="free">Free</option>
@@ -185,7 +177,7 @@ export default function UsersTab() {
                 </tr>
               ) : (
                 users.map((user) => (
-                  <tr key={user._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                  <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-full flex items-center justify-center">
@@ -195,7 +187,7 @@ export default function UsersTab() {
                         </div>
                         <div>
                           <div className="font-medium text-gray-800 dark:text-gray-200">
-                            {user.name}
+                            {user.name || 'Sans nom'}
                           </div>
                           {user.isAdmin && (
                             <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
@@ -246,10 +238,10 @@ export default function UsersTab() {
         </div>
 
         {/* Pagination */}
-        {pagination.pages > 1 && (
+        {pagination.totalPages > 1 && (
           <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
             <div className="text-sm text-gray-600 dark:text-gray-400">
-              Page {currentPage} sur {pagination.pages}
+              Page {currentPage} sur {pagination.totalPages}
             </div>
             <div className="flex gap-2">
               <button
@@ -257,14 +249,14 @@ export default function UsersTab() {
                 disabled={currentPage === 1}
                 className="px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
-                <ChevronLeft className="w-4 h-4" />
+                <ChevronLeft className="w-4 h-4 text-gray-600 dark:text-gray-300" />
               </button>
               <button
-                onClick={() => setCurrentPage(p => Math.min(pagination.pages, p + 1))}
-                disabled={currentPage === pagination.pages}
+                onClick={() => setCurrentPage(p => Math.min(pagination.totalPages, p + 1))}
+                disabled={currentPage === pagination.totalPages}
                 className="px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-300" />
               </button>
             </div>
           </div>
@@ -296,7 +288,8 @@ function EditUserModal({ user, onClose, onSave }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave(user._id, formData);
+    // ✅ Utilise user.id (pas user._id)
+    onSave(user.id, formData);
   };
 
   return (
@@ -316,9 +309,21 @@ function EditUserModal({ user, onClose, onSave }) {
             </label>
             <input
               type="text"
-              value={user.name}
+              value={user.name || ''}
               disabled
-              className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500"
+              className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Email
+            </label>
+            <input
+              type="text"
+              value={user.email || ''}
+              disabled
+              className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400"
             />
           </div>
 
@@ -329,7 +334,7 @@ function EditUserModal({ user, onClose, onSave }) {
             <select
               value={formData.subscriptionTier}
               onChange={(e) => setFormData({ ...formData, subscriptionTier: e.target.value })}
-              className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg"
+              className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-800 dark:text-gray-200"
             >
               <option value="free">Free</option>
               <option value="pro">Pro</option>
@@ -344,8 +349,8 @@ function EditUserModal({ user, onClose, onSave }) {
             <input
               type="number"
               value={formData.messageCount}
-              onChange={(e) => setFormData({ ...formData, messageCount: parseInt(e.target.value) })}
-              className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg"
+              onChange={(e) => setFormData({ ...formData, messageCount: parseInt(e.target.value) || 0 })}
+              className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-800 dark:text-gray-200"
             />
           </div>
 

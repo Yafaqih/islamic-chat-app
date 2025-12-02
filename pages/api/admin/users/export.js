@@ -4,9 +4,7 @@ import prisma from '../../../../lib/prisma';
 
 /**
  * API: Export CSV des utilisateurs
- * GET /api/admin/users/export?tier=pro&status=active
- * 
- * Retourne un fichier CSV téléchargeable
+ * GET /api/admin/users/export?tier=pro
  */
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -21,12 +19,13 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'Accès refusé' });
     }
 
-    const { tier, status, search } = req.query;
+    const { tier, search } = req.query;
 
     // Construction des filtres
     const where = {};
-    if (tier) where.subscriptionTier = tier;
-    if (status) where.subscriptionStatus = status;
+    if (tier && tier !== 'all') {
+      where.subscriptionTier = tier;
+    }
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
@@ -43,13 +42,8 @@ export default async function handler(req, res) {
         name: true,
         email: true,
         subscriptionTier: true,
-        subscriptionStatus: true,
         messageCount: true,
-        totalMessages: true,
-        revenue: true,
-        lastActivity: true,
         isAdmin: true,
-        isBlocked: true,
         createdAt: true
       }
     });
@@ -60,46 +54,22 @@ export default async function handler(req, res) {
       'Nom',
       'Email',
       'Abonnement',
-      'Statut',
-      'Messages (Mois)',
-      'Messages (Total)',
-      'Revenu',
-      'Dernière Activité',
+      'Messages',
       'Admin',
-      'Bloqué',
       'Date Inscription'
     ].join(',');
 
     const csvRows = users.map(user => [
       user.id,
-      `"${user.name || ''}"`,
-      user.email,
-      user.subscriptionTier,
-      user.subscriptionStatus,
-      user.messageCount,
-      user.totalMessages,
-      Number(user.revenue).toFixed(2),
-      user.lastActivity ? new Date(user.lastActivity).toISOString() : '',
+      `"${(user.name || '').replace(/"/g, '""')}"`,
+      user.email || '',
+      user.subscriptionTier || 'free',
+      user.messageCount || 0,
       user.isAdmin ? 'Oui' : 'Non',
-      user.isBlocked ? 'Oui' : 'Non',
-      new Date(user.createdAt).toISOString()
+      new Date(user.createdAt).toISOString().split('T')[0]
     ].join(','));
 
     const csv = [csvHeader, ...csvRows].join('\n');
-
-    // Logger l'export
-    await prisma.adminLog.create({
-      data: {
-        adminId: session.user.id,
-        action: 'users_export',
-        details: {
-          count: users.length,
-          filters: { tier, status, search },
-          exportedBy: session.user.email
-        },
-        ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress
-      }
-    });
 
     // Définir les headers pour le téléchargement
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -117,7 +87,7 @@ export default async function handler(req, res) {
     console.error('❌ Erreur export utilisateurs:', error);
     return res.status(500).json({ 
       error: 'Erreur serveur',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: error.message
     });
   }
 }

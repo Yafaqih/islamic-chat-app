@@ -6,12 +6,14 @@ import {
 
 /**
  * Onglet de gestion des codes promo
+ * URLs API corrigées
  */
 export default function PromoCodesTab() {
   const [promoCodes, setPromoCodes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [notification, setNotification] = useState(null);
+  const [stats, setStats] = useState({ total: 0, active: 0, totalUses: 0 });
 
   useEffect(() => {
     loadPromoCodes();
@@ -20,9 +22,11 @@ export default function PromoCodesTab() {
   const loadPromoCodes = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/admin/promo-codes');
+      // ✅ URL CORRIGÉE: /api/admin/promo/list
+      const response = await fetch('/api/admin/promo/list');
       const data = await response.json();
-      setPromoCodes(data.promoCodes);
+      setPromoCodes(data.promoCodes || []);
+      setStats(data.stats || { total: 0, active: 0, totalUses: 0 });
     } catch (error) {
       console.error('Erreur chargement codes promo:', error);
       showNotification('Erreur de chargement', 'error');
@@ -33,7 +37,8 @@ export default function PromoCodesTab() {
 
   const handleCreatePromoCode = async (codeData) => {
     try {
-      const response = await fetch('/api/admin/promo-codes', {
+      // ✅ URL CORRIGÉE: /api/admin/promo/create
+      const response = await fetch('/api/admin/promo/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(codeData)
@@ -44,7 +49,8 @@ export default function PromoCodesTab() {
         loadPromoCodes();
         setShowCreateModal(false);
       } else {
-        showNotification('Erreur lors de la création', 'error');
+        const error = await response.json();
+        showNotification(error.error || 'Erreur lors de la création', 'error');
       }
     } catch (error) {
       console.error('Erreur création code promo:', error);
@@ -54,10 +60,11 @@ export default function PromoCodesTab() {
 
   const handleToggleActive = async (codeId, isActive) => {
     try {
-      await fetch('/api/admin/promo-codes', {
+      // ✅ URL CORRIGÉE: /api/admin/promo/[id]
+      await fetch(`/api/admin/promo/${codeId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ codeId, isActive })
+        body: JSON.stringify({ isActive })
       });
       showNotification(`Code ${isActive ? 'activé' : 'désactivé'}`, 'success');
       loadPromoCodes();
@@ -78,20 +85,23 @@ export default function PromoCodesTab() {
   };
 
   const getDiscountDisplay = (code) => {
-    if (code.type === 'percentage') {
-      return `${code.discount}%`;
+    // ✅ Utilise discountType et discountValue (noms corrects de l'API)
+    if (code.discountType === 'percentage') {
+      return `${code.discountValue}%`;
     }
-    return `$${code.discount}`;
+    return `$${code.discountValue}`;
   };
 
   const getUsageDisplay = (code) => {
+    // ✅ Utilise currentUses (nom correct de l'API)
     if (!code.maxUses) return 'Illimité';
-    return `${code.usedCount} / ${code.maxUses}`;
+    return `${code.currentUses || 0} / ${code.maxUses}`;
   };
 
   const isExpired = (code) => {
-    if (!code.expiresAt) return false;
-    return new Date(code.expiresAt) < new Date();
+    // ✅ Utilise validUntil (nom correct de l'API)
+    if (!code.validUntil) return false;
+    return new Date(code.validUntil) < new Date();
   };
 
   return (
@@ -120,7 +130,7 @@ export default function PromoCodesTab() {
               Codes Promotionnels
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              {promoCodes.length} codes créés
+              {stats.total} codes créés
             </p>
           </div>
           <button
@@ -143,7 +153,7 @@ export default function PromoCodesTab() {
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Codes Actifs</p>
               <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">
-                {promoCodes.filter(c => c.isActive && !isExpired(c)).length}
+                {stats.active}
               </p>
             </div>
           </div>
@@ -157,7 +167,7 @@ export default function PromoCodesTab() {
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Utilisations</p>
               <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">
-                {promoCodes.reduce((sum, c) => sum + (c.usedCount || 0), 0)}
+                {stats.totalUses}
               </p>
             </div>
           </div>
@@ -172,7 +182,7 @@ export default function PromoCodesTab() {
               <p className="text-sm text-gray-600 dark:text-gray-400">Taux d'utilisation</p>
               <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">
                 {promoCodes.length > 0 
-                  ? Math.round((promoCodes.filter(c => c.usedCount > 0).length / promoCodes.length) * 100) 
+                  ? Math.round((promoCodes.filter(c => (c.currentUses || 0) > 0).length / promoCodes.length) * 100) 
                   : 0}%
               </p>
             </div>
@@ -209,7 +219,7 @@ export default function PromoCodesTab() {
                     Réduction
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">
-                    Utilisation
+                    Utilisations
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">
                     Expiration
@@ -224,42 +234,38 @@ export default function PromoCodesTab() {
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {promoCodes.map((code) => (
-                  <tr key={code._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                  <tr key={code.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <code className="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded font-mono text-sm font-bold text-gray-800 dark:text-gray-200">
+                        <code className="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-lg font-mono text-sm text-gray-800 dark:text-gray-200">
                           {code.code}
                         </code>
                         <button
                           onClick={() => copyToClipboard(code.code)}
-                          className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-all"
+                          className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                           title="Copier"
                         >
-                          <Copy className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                          <Copy className="w-4 h-4" />
                         </button>
                       </div>
+                      {code.description && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          {code.description}
+                        </p>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
                         {getDiscountDisplay(code)}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm">
-                        <div className="font-medium text-gray-800 dark:text-gray-200">
-                          {getUsageDisplay(code)}
-                        </div>
-                        {code.maxUses && (
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            {Math.round((code.usedCount / code.maxUses) * 100)}% utilisé
-                          </div>
-                        )}
-                      </div>
+                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                      {getUsageDisplay(code)}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
-                      {code.expiresAt ? (
+                      {code.validUntil ? (
                         <div className={isExpired(code) ? 'text-red-500' : ''}>
-                          {new Date(code.expiresAt).toLocaleDateString('fr-FR')}
+                          {new Date(code.validUntil).toLocaleDateString('fr-FR')}
                           {isExpired(code) && <div className="text-xs">Expiré</div>}
                         </div>
                       ) : (
@@ -282,7 +288,7 @@ export default function PromoCodesTab() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => handleToggleActive(code._id, !code.isActive)}
+                          onClick={() => handleToggleActive(code.id, !code.isActive)}
                           className={`p-2 rounded-lg transition-all ${
                             code.isActive
                               ? 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
@@ -317,26 +323,29 @@ export default function PromoCodesTab() {
 function CreatePromoCodeModal({ onClose, onCreate }) {
   const [formData, setFormData] = useState({
     code: '',
-    discount: '',
-    type: 'percentage',
+    description: '',
+    discountValue: '',
+    discountType: 'percentage',
     maxUses: '',
-    expiresAt: ''
+    validUntil: ''
   });
 
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    if (!formData.code || !formData.discount) {
+    if (!formData.code || !formData.discountValue) {
       alert('Veuillez remplir tous les champs obligatoires');
       return;
     }
 
+    // ✅ Utilise les noms de champs corrects pour l'API
     const data = {
       code: formData.code.toUpperCase(),
-      discount: parseFloat(formData.discount),
-      type: formData.type,
+      description: formData.description || null,
+      discountValue: parseFloat(formData.discountValue),
+      discountType: formData.discountType,
       maxUses: formData.maxUses ? parseInt(formData.maxUses) : null,
-      expiresAt: formData.expiresAt || null
+      validUntil: formData.validUntil || null
     };
 
     onCreate(data);
@@ -372,7 +381,7 @@ function CreatePromoCodeModal({ onClose, onCreate }) {
                 value={formData.code}
                 onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
                 placeholder="PROMO2024"
-                className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg font-mono"
+                className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg font-mono text-gray-800 dark:text-gray-200"
                 required
               />
               <button
@@ -385,15 +394,28 @@ function CreatePromoCodeModal({ onClose, onCreate }) {
             </div>
           </div>
 
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Description (optionnel)
+            </label>
+            <input
+              type="text"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              placeholder="Code de bienvenue"
+              className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-800 dark:text-gray-200"
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Type *
               </label>
               <select
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg"
+                value={formData.discountType}
+                onChange={(e) => setFormData({ ...formData, discountType: e.target.value })}
+                className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-800 dark:text-gray-200"
               >
                 <option value="percentage">Pourcentage (%)</option>
                 <option value="fixed">Montant fixe ($)</option>
@@ -406,13 +428,13 @@ function CreatePromoCodeModal({ onClose, onCreate }) {
               </label>
               <input
                 type="number"
-                value={formData.discount}
-                onChange={(e) => setFormData({ ...formData, discount: e.target.value })}
-                placeholder={formData.type === 'percentage' ? '10' : '5'}
+                value={formData.discountValue}
+                onChange={(e) => setFormData({ ...formData, discountValue: e.target.value })}
+                placeholder={formData.discountType === 'percentage' ? '10' : '5'}
                 min="0"
-                max={formData.type === 'percentage' ? '100' : undefined}
+                max={formData.discountType === 'percentage' ? '100' : undefined}
                 step="0.01"
-                className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg"
+                className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-800 dark:text-gray-200"
                 required
               />
             </div>
@@ -428,7 +450,7 @@ function CreatePromoCodeModal({ onClose, onCreate }) {
               onChange={(e) => setFormData({ ...formData, maxUses: e.target.value })}
               placeholder="Illimité si vide"
               min="1"
-              className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg"
+              className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-800 dark:text-gray-200"
             />
           </div>
 
@@ -438,10 +460,10 @@ function CreatePromoCodeModal({ onClose, onCreate }) {
             </label>
             <input
               type="date"
-              value={formData.expiresAt}
-              onChange={(e) => setFormData({ ...formData, expiresAt: e.target.value })}
+              value={formData.validUntil}
+              onChange={(e) => setFormData({ ...formData, validUntil: e.target.value })}
               min={new Date().toISOString().split('T')[0]}
-              className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg"
+              className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-800 dark:text-gray-200"
             />
           </div>
 
