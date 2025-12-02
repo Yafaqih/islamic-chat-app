@@ -9,21 +9,13 @@ import {
   X, 
   Loader2, 
   FileText,
-  Plus
+  Plus,
+  ExternalLink
 } from 'lucide-react';
+import useGoogleDrivePicker from '../hooks/useGoogleDrivePicker';
 
 /**
- * InputBar - Barre de saisie style Claude
- * 
- * Props:
- * - value: string - Valeur du textarea
- * - onChange: (value) => void - Callback changement
- * - onSend: () => void - Callback envoi
- * - onFileUpload: (files) => void - Callback upload fichiers
- * - isLoading: boolean - État de chargement
- * - disabled: boolean - Désactivé
- * - placeholder: string - Placeholder
- * - onQiblaClick: () => void - Callback pour ouvrir la boussole Qibla
+ * InputBar - Barre de saisie style Claude avec Google Drive
  */
 export default function InputBar({
   value,
@@ -43,6 +35,47 @@ export default function InputBar({
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
   const imageInputRef = useRef(null);
+
+  // ============================================
+  // GOOGLE DRIVE PICKER
+  // ============================================
+
+  const { 
+    openPicker: openGoogleDrive, 
+    isLoading: isDriveLoading,
+    isReady: isDriveReady,
+    hasCredentials: hasDriveCredentials
+  } = useGoogleDrivePicker({
+    onSelect: (files, accessToken) => {
+      console.log('Files selected from Google Drive:', files);
+      
+      // Ajouter les fichiers à la liste
+      const newFiles = files.map(file => ({
+        id: file.id,
+        name: file.name,
+        type: file.mimeType,
+        size: file.size || 0,
+        preview: file.thumbnailUrl || null,
+        source: 'google-drive',
+        driveId: file.id,
+        driveUrl: file.url,
+        downloadUrl: file.downloadUrl,
+        accessToken: accessToken
+      }));
+      
+      setUploadedFiles(prev => [...prev, ...newFiles]);
+      setShowAttachMenu(false);
+
+      // Callback pour le parent
+      if (onFileUpload) {
+        onFileUpload(newFiles);
+      }
+    },
+    onError: (error) => {
+      console.error('Google Drive error:', error);
+      alert('خطأ في الاتصال بـ Google Drive');
+    }
+  });
 
   // ============================================
   // RECONNAISSANCE VOCALE
@@ -70,13 +103,8 @@ export default function InputBar({
         setIsRecording(false);
       };
 
-      recognition.onerror = () => {
-        setIsRecording(false);
-      };
-
-      recognition.onend = () => {
-        setIsRecording(false);
-      };
+      recognition.onerror = () => setIsRecording(false);
+      recognition.onend = () => setIsRecording(false);
 
       window.recognition = recognition;
       recognition.start();
@@ -85,7 +113,7 @@ export default function InputBar({
   };
 
   // ============================================
-  // GESTION DES FICHIERS
+  // GESTION DES FICHIERS LOCAUX
   // ============================================
 
   const handleFileSelect = (e, type = 'file') => {
@@ -97,7 +125,8 @@ export default function InputBar({
         name: file.name,
         type: file.type,
         size: file.size,
-        preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : null
+        preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
+        source: 'local'
       }));
       
       setUploadedFiles(prev => [...prev, ...newFiles]);
@@ -107,14 +136,13 @@ export default function InputBar({
       }
     }
     setShowAttachMenu(false);
-    // Reset input pour permettre de sélectionner le même fichier
     e.target.value = '';
   };
 
   const removeFile = (fileId) => {
     setUploadedFiles(prev => {
       const file = prev.find(f => f.id === fileId);
-      if (file?.preview) {
+      if (file?.preview && file.source === 'local') {
         URL.revokeObjectURL(file.preview);
       }
       return prev.filter(f => f.id !== fileId);
@@ -147,7 +175,8 @@ export default function InputBar({
             name: file.name,
             type: 'image/png',
             size: file.size,
-            preview: URL.createObjectURL(blob)
+            preview: URL.createObjectURL(blob),
+            source: 'screenshot'
           };
           setUploadedFiles(prev => [...prev, newFile]);
         });
@@ -159,19 +188,12 @@ export default function InputBar({
     }
   };
 
-  // Google Drive (placeholder)
-  const handleGoogleDrive = () => {
-    alert('قريباً: التكامل مع Google Drive');
-    setShowAttachMenu(false);
-  };
-
   // ============================================
-  // TEXTAREA
+  // TEXTAREA & ENVOI
   // ============================================
 
   const handleTextareaChange = (e) => {
     onChange(e.target.value);
-    // Auto-resize
     e.target.style.height = 'auto';
     e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
   };
@@ -189,7 +211,6 @@ export default function InputBar({
     if (value.trim() && !isLoading && !disabled) {
       onSend();
       setUploadedFiles([]);
-      // Reset textarea height
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
       }
@@ -222,7 +243,8 @@ export default function InputBar({
         name: file.name,
         type: file.type,
         size: file.size,
-        preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : null
+        preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
+        source: 'local'
       }));
       
       setUploadedFiles(prev => [...prev, ...newFiles]);
@@ -238,9 +260,44 @@ export default function InputBar({
   // ============================================
 
   const formatFileSize = (bytes) => {
+    if (!bytes) return '';
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
+  const getFileIcon = (file) => {
+    if (file.source === 'google-drive') {
+      return (
+        <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 rounded-lg flex items-center justify-center relative">
+          {file.preview ? (
+            <img src={file.preview} alt="" className="w-full h-full object-cover rounded-lg" />
+          ) : (
+            <FileText className="w-6 h-6 text-blue-500" />
+          )}
+          {/* Badge Google Drive */}
+          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center shadow-sm">
+            <svg className="w-3 h-3" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M12 11.79L7.21 3.21H16.79L12 11.79Z"/>
+              <path fill="#FBBC05" d="M3 20.79L7.79 12H17.21L12.42 20.79H3Z"/>
+              <path fill="#34A853" d="M16.79 3.21L21 11.79L16.21 20.79L12 12.21L16.79 3.21Z"/>
+            </svg>
+          </div>
+        </div>
+      );
+    }
+    
+    if (file.preview) {
+      return (
+        <img src={file.preview} alt={file.name} className="w-12 h-12 object-cover rounded-lg" />
+      );
+    }
+    
+    return (
+      <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+        <FileText className="w-6 h-6 text-gray-500 dark:text-gray-400" />
+      </div>
+    );
   };
 
   // ============================================
@@ -255,9 +312,7 @@ export default function InputBar({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={`relative transition-all duration-200 ${
-          isDragging 
-            ? 'ring-2 ring-emerald-500 ring-offset-2 rounded-2xl' 
-            : ''
+          isDragging ? 'ring-2 ring-emerald-500 ring-offset-2 rounded-2xl' : ''
         }`}
       >
         {/* Fichiers uploadés */}
@@ -266,27 +321,38 @@ export default function InputBar({
             {uploadedFiles.map((file) => (
               <div 
                 key={file.id}
-                className="relative group bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-2 flex items-center gap-2 shadow-sm"
+                className="relative group bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-2 flex items-center gap-2 shadow-sm hover:shadow-md transition-shadow"
               >
-                {file.preview ? (
-                  <img 
-                    src={file.preview} 
-                    alt={file.name}
-                    className="w-12 h-12 object-cover rounded-lg"
-                  />
-                ) : (
-                  <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                    <FileText className="w-6 h-6 text-gray-500 dark:text-gray-400" />
-                  </div>
-                )}
+                {getFileIcon(file)}
+                
                 <div className="max-w-[120px]">
                   <p className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">
                     {file.name}
                   </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {formatFileSize(file.size)}
-                  </p>
+                  <div className="flex items-center gap-1">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {formatFileSize(file.size)}
+                    </p>
+                    {file.source === 'google-drive' && (
+                      <span className="text-xs text-blue-500">• Drive</span>
+                    )}
+                  </div>
                 </div>
+
+                {/* Bouton ouvrir dans Drive */}
+                {file.driveUrl && (
+                  <a
+                    href={file.driveUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <ExternalLink className="w-3 h-3 text-gray-400" />
+                  </a>
+                )}
+
+                {/* Bouton supprimer */}
                 <button
                   onClick={() => removeFile(file.id)}
                   className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-600"
@@ -321,25 +387,18 @@ export default function InputBar({
 
           {/* Barre d'actions */}
           <div className="flex items-center justify-between px-3 py-2 border-t border-gray-100 dark:border-gray-700/50 bg-gray-50/50 dark:bg-gray-800/50 rounded-b-2xl">
-            {/* Actions gauche - Envoyer & Micro */}
+            {/* Actions gauche */}
             <div className="flex items-center gap-1">
-              {/* Bouton Envoyer */}
               <button
                 onClick={handleSend}
                 disabled={!value.trim() || isLoading || disabled}
                 className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl 
                   hover:from-emerald-600 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed 
-                  transition-all flex items-center justify-center shadow-lg hover:shadow-xl
-                  disabled:shadow-none"
+                  transition-all flex items-center justify-center shadow-lg hover:shadow-xl disabled:shadow-none"
               >
-                {isLoading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Send className="w-5 h-5" />
-                )}
+                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
               </button>
 
-              {/* Bouton Micro */}
               <button
                 onClick={toggleRecording}
                 disabled={disabled}
@@ -349,15 +408,11 @@ export default function InputBar({
                     : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
                   }`}
               >
-                {isRecording ? (
-                  <MicOff className="w-5 h-5" />
-                ) : (
-                  <Mic className="w-5 h-5" />
-                )}
+                {isRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
               </button>
             </div>
 
-            {/* Actions droite - Qibla & Attachments */}
+            {/* Actions droite */}
             <div className="flex items-center gap-1">
               {/* Bouton Qibla */}
               {onQiblaClick && (
@@ -372,7 +427,7 @@ export default function InputBar({
                 </button>
               )}
 
-              {/* Bouton Attachments avec Menu */}
+              {/* Menu Attachments */}
               <div className="relative">
                 <button
                   onClick={() => setShowAttachMenu(!showAttachMenu)}
@@ -390,46 +445,33 @@ export default function InputBar({
                 {/* Menu déroulant */}
                 {showAttachMenu && (
                   <>
-                    {/* Backdrop pour fermer le menu */}
-                    <div 
-                      className="fixed inset-0 z-40"
-                      onClick={() => setShowAttachMenu(false)}
-                    />
+                    <div className="fixed inset-0 z-40" onClick={() => setShowAttachMenu(false)} />
                     
-                    {/* Menu */}
                     <div 
-                      className="absolute z-50 bottom-full right-0 mb-2 w-64 
+                      className="absolute z-50 bottom-full right-0 mb-2 w-72 
                         bg-white dark:bg-gray-800 rounded-2xl shadow-2xl 
-                        border border-gray-200 dark:border-gray-700 
-                        overflow-hidden"
-                      style={{ 
-                        animation: 'fadeInUp 0.2s ease-out'
-                      }}
+                        border border-gray-200 dark:border-gray-700 overflow-hidden"
+                      style={{ animation: 'fadeInUp 0.2s ease-out' }}
                     >
-                      {/* Header du menu */}
+                      {/* Header */}
                       <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80">
                         <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 text-right">
                           إضافة مرفق
                         </p>
                       </div>
 
-                      {/* Options */}
                       <div className="py-2">
-                        {/* Upload fichier */}
+                        {/* Upload fichier local */}
                         <button
                           onClick={() => fileInputRef.current?.click()}
                           className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                         >
-                          <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center flex-shrink-0">
+                          <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
                             <Paperclip className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                           </div>
                           <div className="flex-1 text-right">
-                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                              رفع ملف
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              PDF, Word, Excel...
-                            </p>
+                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">رفع ملف</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">من جهازك</p>
                           </div>
                         </button>
 
@@ -438,16 +480,12 @@ export default function InputBar({
                           onClick={() => imageInputRef.current?.click()}
                           className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                         >
-                          <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center flex-shrink-0">
+                          <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center">
                             <Image className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                           </div>
                           <div className="flex-1 text-right">
-                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                              رفع صورة
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              PNG, JPG, GIF...
-                            </p>
+                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">رفع صورة</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">PNG, JPG, GIF</p>
                           </div>
                         </button>
 
@@ -456,16 +494,12 @@ export default function InputBar({
                           onClick={handleScreenshot}
                           className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                         >
-                          <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center flex-shrink-0">
+                          <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center">
                             <Camera className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                           </div>
                           <div className="flex-1 text-right">
-                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                              التقاط شاشة
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              Screenshot
-                            </p>
+                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">التقاط شاشة</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Screenshot</p>
                           </div>
                         </button>
 
@@ -474,24 +508,41 @@ export default function InputBar({
 
                         {/* Google Drive */}
                         <button
-                          onClick={handleGoogleDrive}
-                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                          onClick={() => {
+                            if (hasDriveCredentials) {
+                              openGoogleDrive();
+                            } else {
+                              alert('Google Drive غير مُفعّل. يرجى إضافة مفاتيح API.');
+                            }
+                          }}
+                          disabled={isDriveLoading}
+                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors disabled:opacity-50"
                         >
-                          <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center flex-shrink-0">
-                            <svg className="w-5 h-5" viewBox="0 0 24 24">
-                              <path fill="#4285F4" d="M12 11.79L7.21 3.21H16.79L12 11.79Z"/>
-                              <path fill="#FBBC05" d="M3 20.79L7.79 12H17.21L12.42 20.79H3Z"/>
-                              <path fill="#34A853" d="M16.79 3.21L21 11.79L16.21 20.79L12 12.21L16.79 3.21Z"/>
-                            </svg>
+                          <div className="w-10 h-10 bg-white dark:bg-gray-700 rounded-xl flex items-center justify-center shadow-sm border border-gray-200 dark:border-gray-600">
+                            {isDriveLoading ? (
+                              <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+                            ) : (
+                              <svg className="w-6 h-6" viewBox="0 0 24 24">
+                                <path fill="#4285F4" d="M12 11.79L7.21 3.21H16.79L12 11.79Z"/>
+                                <path fill="#FBBC05" d="M3 20.79L7.79 12H17.21L12.42 20.79H3Z"/>
+                                <path fill="#34A853" d="M16.79 3.21L21 11.79L16.21 20.79L12 12.21L16.79 3.21Z"/>
+                              </svg>
+                            )}
                           </div>
                           <div className="flex-1 text-right">
                             <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                               Google Drive
                             </p>
                             <p className="text-xs text-gray-500 dark:text-gray-400">
-                              قريباً...
+                              {hasDriveCredentials 
+                                ? (isDriveReady ? 'اختر من حسابك' : 'جاري التحميل...') 
+                                : 'غير مُفعّل'
+                              }
                             </p>
                           </div>
+                          {hasDriveCredentials && (
+                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                          )}
                         </button>
                       </div>
                     </div>
@@ -502,13 +553,13 @@ export default function InputBar({
           </div>
         </div>
 
-        {/* Hint text */}
+        {/* Hint */}
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center hidden sm:block">
           اضغط Enter للإرسال • Shift+Enter لسطر جديد • اسحب الملفات هنا
         </p>
       </div>
 
-      {/* Hidden file inputs */}
+      {/* Hidden inputs */}
       <input
         ref={fileInputRef}
         type="file"
@@ -526,17 +577,10 @@ export default function InputBar({
         multiple
       />
 
-      {/* CSS Animation */}
       <style jsx>{`
         @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
     </div>
