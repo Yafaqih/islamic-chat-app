@@ -1,8 +1,15 @@
 import React, { useState, useRef } from 'react';
 import { 
-  Send, Mic, MicOff, Paperclip, Camera, 
-  Image, X, Loader2, FileText, File,
-  Plus, Globe
+  Send, 
+  Mic, 
+  MicOff, 
+  Paperclip, 
+  Camera, 
+  Image, 
+  X, 
+  Loader2, 
+  FileText,
+  Plus
 } from 'lucide-react';
 
 /**
@@ -37,7 +44,10 @@ export default function InputBar({
   const fileInputRef = useRef(null);
   const imageInputRef = useRef(null);
 
-  // Gestion de la reconnaissance vocale
+  // ============================================
+  // RECONNAISSANCE VOCALE
+  // ============================================
+
   const toggleRecording = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
       alert('التعرف على الصوت غير مدعوم في هذا المتصفح');
@@ -74,7 +84,10 @@ export default function InputBar({
     }
   };
 
-  // Gestion du fichier uploadé
+  // ============================================
+  // GESTION DES FICHIERS
+  // ============================================
+
   const handleFileSelect = (e, type = 'file') => {
     const files = Array.from(e.target.files);
     if (files.length > 0) {
@@ -94,9 +107,10 @@ export default function InputBar({
       }
     }
     setShowAttachMenu(false);
+    // Reset input pour permettre de sélectionner le même fichier
+    e.target.value = '';
   };
 
-  // Supprimer un fichier
   const removeFile = (fileId) => {
     setUploadedFiles(prev => {
       const file = prev.find(f => f.id === fileId);
@@ -107,8 +121,10 @@ export default function InputBar({
     });
   };
 
-  // Capture d'écran (simulated - needs browser extension in real app)
+  // Capture d'écran
   const handleScreenshot = async () => {
+    setShowAttachMenu(false);
+    
     try {
       if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
         const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
@@ -141,35 +157,49 @@ export default function InputBar({
     } catch (error) {
       console.log('Screenshot cancelled or failed');
     }
-    setShowAttachMenu(false);
   };
 
-  // Google Drive (placeholder - needs Google API integration)
+  // Google Drive (placeholder)
   const handleGoogleDrive = () => {
-    // TODO: Integrate with Google Drive Picker API
     alert('قريباً: التكامل مع Google Drive');
     setShowAttachMenu(false);
   };
 
-  // Auto-resize textarea
+  // ============================================
+  // TEXTAREA
+  // ============================================
+
   const handleTextareaChange = (e) => {
     onChange(e.target.value);
+    // Auto-resize
     e.target.style.height = 'auto';
     e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
   };
 
-  // Handle Enter key
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (value.trim() && !isLoading && !disabled) {
-        onSend();
-        setUploadedFiles([]);
+        handleSend();
       }
     }
   };
 
-  // Drag and drop
+  const handleSend = () => {
+    if (value.trim() && !isLoading && !disabled) {
+      onSend();
+      setUploadedFiles([]);
+      // Reset textarea height
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+      }
+    }
+  };
+
+  // ============================================
+  // DRAG & DROP
+  // ============================================
+
   const handleDragOver = (e) => {
     e.preventDefault();
     setIsDragging(true);
@@ -203,12 +233,19 @@ export default function InputBar({
     }
   };
 
-  // Format file size
+  // ============================================
+  // HELPERS
+  // ============================================
+
   const formatFileSize = (bytes) => {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
+
+  // ============================================
+  // RENDER
+  // ============================================
 
   return (
     <div className="w-full">
@@ -252,7 +289,7 @@ export default function InputBar({
                 </div>
                 <button
                   onClick={() => removeFile(file.id)}
-                  className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                  className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-600"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -262,7 +299,7 @@ export default function InputBar({
         )}
 
         {/* Barre principale */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-visible">
           {/* Textarea */}
           <div className="relative">
             <textarea
@@ -273,7 +310,7 @@ export default function InputBar({
               placeholder={placeholder}
               disabled={disabled || isLoading}
               rows={1}
-              className="w-full px-4 py-4 pr-4 pl-4 text-right text-gray-900 dark:text-gray-100 
+              className="w-full px-4 py-4 text-right text-gray-900 dark:text-gray-100 
                 placeholder-gray-500 dark:placeholder-gray-400 bg-transparent
                 focus:outline-none resize-none text-base leading-relaxed
                 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -283,17 +320,12 @@ export default function InputBar({
           </div>
 
           {/* Barre d'actions */}
-          <div className="flex items-center justify-between px-3 py-2 border-t border-gray-100 dark:border-gray-700/50 bg-gray-50/50 dark:bg-gray-800/50">
-            {/* Actions gauche */}
+          <div className="flex items-center justify-between px-3 py-2 border-t border-gray-100 dark:border-gray-700/50 bg-gray-50/50 dark:bg-gray-800/50 rounded-b-2xl">
+            {/* Actions gauche - Envoyer & Micro */}
             <div className="flex items-center gap-1">
               {/* Bouton Envoyer */}
               <button
-                onClick={() => {
-                  if (value.trim() && !isLoading && !disabled) {
-                    onSend();
-                    setUploadedFiles([]);
-                  }
-                }}
+                onClick={handleSend}
                 disabled={!value.trim() || isLoading || disabled}
                 className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl 
                   hover:from-emerald-600 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed 
@@ -325,123 +357,143 @@ export default function InputBar({
               </button>
             </div>
 
-            {/* Actions droite */}
+            {/* Actions droite - Qibla & Attachments */}
             <div className="flex items-center gap-1">
-              {/* Bouton Qibla avec image de la Mecque */}
+              {/* Bouton Qibla */}
               {onQiblaClick && (
                 <button
                   onClick={onQiblaClick}
                   className="w-10 h-10 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 
-                    transition-all flex items-center justify-center overflow-hidden
-                    border-2 border-transparent hover:border-emerald-500 group"
+                    transition-all flex items-center justify-center
+                    border-2 border-transparent hover:border-emerald-500/50"
                   title="اتجاه القبلة"
                 >
-                  <div className="w-8 h-8 rounded-lg overflow-hidden shadow-sm group-hover:shadow-md transition-shadow">
-                    <img 
-                      src="/images/kaaba.png" 
-                      alt="القبلة"
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        // Fallback si l'image n'existe pas
-                        e.target.style.display = 'none';
-                        e.target.nextSibling.style.display = 'flex';
-                      }}
-                    />
-                    {/* Fallback emoji */}
-                    <div 
-                      className="w-full h-full bg-gradient-to-br from-amber-100 to-amber-200 dark:from-amber-900/30 dark:to-amber-800/30 items-center justify-center text-lg hidden"
-                    >
-                      🕋
-                    </div>
-                  </div>
+                  <span className="text-2xl">🕋</span>
                 </button>
               )}
 
-              {/* Menu Attachments */}
+              {/* Bouton Attachments avec Menu */}
               <div className="relative">
                 <button
                   onClick={() => setShowAttachMenu(!showAttachMenu)}
                   disabled={disabled}
-                  className="w-10 h-10 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 
-                    text-gray-600 dark:text-gray-400 transition-all flex items-center justify-center"
+                  className={`w-10 h-10 rounded-xl transition-all flex items-center justify-center
+                    ${showAttachMenu 
+                      ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' 
+                      : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
+                    }`}
                   title="إرفاق ملف"
                 >
-                  <Plus className={`w-5 h-5 transition-transform ${showAttachMenu ? 'rotate-45' : ''}`} />
+                  <Plus className={`w-5 h-5 transition-transform duration-200 ${showAttachMenu ? 'rotate-45' : ''}`} />
                 </button>
 
                 {/* Menu déroulant */}
                 {showAttachMenu && (
                   <>
-                    {/* Backdrop */}
+                    {/* Backdrop pour fermer le menu */}
                     <div 
-                      className="fixed inset-0 z-10"
+                      className="fixed inset-0 z-40"
                       onClick={() => setShowAttachMenu(false)}
                     />
                     
                     {/* Menu */}
-                    <div className="absolute bottom-full right-0 mb-2 w-56 bg-white dark:bg-gray-800 
-                      rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 
-                      overflow-hidden z-20 animate-in fade-in slide-in-from-bottom-2 duration-200">
-                      
-                      {/* Upload fichier */}
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-right"
-                      >
-                        <div className="w-9 h-9 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                          <Paperclip className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">رفع ملف</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">PDF, Word, etc.</p>
-                        </div>
-                      </button>
+                    <div 
+                      className="absolute z-50 bottom-full right-0 mb-2 w-64 
+                        bg-white dark:bg-gray-800 rounded-2xl shadow-2xl 
+                        border border-gray-200 dark:border-gray-700 
+                        overflow-hidden"
+                      style={{ 
+                        animation: 'fadeInUp 0.2s ease-out'
+                      }}
+                    >
+                      {/* Header du menu */}
+                      <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80">
+                        <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 text-right">
+                          إضافة مرفق
+                        </p>
+                      </div>
 
-                      {/* Upload image */}
-                      <button
-                        onClick={() => imageInputRef.current?.click()}
-                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-right"
-                      >
-                        <div className="w-9 h-9 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
-                          <Image className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">رفع صورة</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">PNG, JPG, GIF</p>
-                        </div>
-                      </button>
+                      {/* Options */}
+                      <div className="py-2">
+                        {/* Upload fichier */}
+                        <button
+                          onClick={() => fileInputRef.current?.click()}
+                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                        >
+                          <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <Paperclip className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                          </div>
+                          <div className="flex-1 text-right">
+                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                              رفع ملف
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              PDF, Word, Excel...
+                            </p>
+                          </div>
+                        </button>
 
-                      {/* Capture d'écran */}
-                      <button
-                        onClick={handleScreenshot}
-                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-right"
-                      >
-                        <div className="w-9 h-9 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center">
-                          <Camera className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">التقاط شاشة</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">Screenshot</p>
-                        </div>
-                      </button>
+                        {/* Upload image */}
+                        <button
+                          onClick={() => imageInputRef.current?.click()}
+                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                        >
+                          <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <Image className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                          </div>
+                          <div className="flex-1 text-right">
+                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                              رفع صورة
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              PNG, JPG, GIF...
+                            </p>
+                          </div>
+                        </button>
 
-                      {/* Google Drive */}
-                      <button
-                        onClick={handleGoogleDrive}
-                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-right border-t border-gray-100 dark:border-gray-700"
-                      >
-                        <div className="w-9 h-9 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center">
-                          <svg className="w-5 h-5" viewBox="0 0 24 24">
-                            <path fill="#4285F4" d="M12 11.79L7.21 3.21H16.79L12 11.79Z"/>
-                            <path fill="#FBBC05" d="M3 20.79L7.79 12H17.21L12.42 20.79H3Z"/>
-                            <path fill="#34A853" d="M16.79 3.21L21 11.79L16.21 20.79L12 12.21L16.79 3.21Z"/>
-                          </svg>
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Google Drive</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">قريباً</p>
-                        </div>
-                      </button>
+                        {/* Capture d'écran */}
+                        <button
+                          onClick={handleScreenshot}
+                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                        >
+                          <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <Camera className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                          </div>
+                          <div className="flex-1 text-right">
+                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                              التقاط شاشة
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              Screenshot
+                            </p>
+                          </div>
+                        </button>
+
+                        {/* Divider */}
+                        <div className="my-2 border-t border-gray-100 dark:border-gray-700"></div>
+
+                        {/* Google Drive */}
+                        <button
+                          onClick={handleGoogleDrive}
+                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                        >
+                          <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <svg className="w-5 h-5" viewBox="0 0 24 24">
+                              <path fill="#4285F4" d="M12 11.79L7.21 3.21H16.79L12 11.79Z"/>
+                              <path fill="#FBBC05" d="M3 20.79L7.79 12H17.21L12.42 20.79H3Z"/>
+                              <path fill="#34A853" d="M16.79 3.21L21 11.79L16.21 20.79L12 12.21L16.79 3.21Z"/>
+                            </svg>
+                          </div>
+                          <div className="flex-1 text-right">
+                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                              Google Drive
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              قريباً...
+                            </p>
+                          </div>
+                        </button>
+                      </div>
                     </div>
                   </>
                 )}
@@ -473,6 +525,20 @@ export default function InputBar({
         accept="image/*"
         multiple
       />
+
+      {/* CSS Animation */}
+      <style jsx>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 }
