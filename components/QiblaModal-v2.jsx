@@ -1,0 +1,473 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { X, MapPin, Loader2, RefreshCw, Check } from 'lucide-react';
+
+/**
+ * QiblaModal - Modal de la boussole Qibla améliorée
+ * - Lissage pour éviter les tremblements
+ * - Effet de lumière quand on pointe vers la Qibla
+ * - Feedback visuel et textuel
+ */
+export default function QiblaModal({ isOpen, onClose }) {
+  const [qiblaDirection, setQiblaDirection] = useState(null);
+  const [userLocation, setUserLocation] = useState(null);
+  const [smoothedHeading, setSmoothedHeading] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [permissionDenied, setPermissionDenied] = useState(false);
+  const [isAligned, setIsAligned] = useState(false);
+  
+  // Refs pour le lissage
+  const headingHistory = useRef([]);
+  const lastVibration = useRef(0);
+  const animationRef = useRef(null);
+
+  // Coordonnées de la Kaaba
+  const KAABA_LAT = 21.4225;
+  const KAABA_LNG = 39.8262;
+  
+  // Seuil d'alignement (en degrés)
+  const ALIGNMENT_THRESHOLD = 10;
+  
+  // Nombre de valeurs pour le lissage
+  const SMOOTHING_FACTOR = 15;
+
+  // Calculer la direction de la Qibla
+  const calculateQiblaDirection = (lat, lng) => {
+    const latRad = (lat * Math.PI) / 180;
+    const lngRad = (lng * Math.PI) / 180;
+    const kaabaLatRad = (KAABA_LAT * Math.PI) / 180;
+    const kaabaLngRad = (KAABA_LNG * Math.PI) / 180;
+
+    const y = Math.sin(kaabaLngRad - lngRad);
+    const x = Math.cos(latRad) * Math.tan(kaabaLatRad) - 
+              Math.sin(latRad) * Math.cos(kaabaLngRad - lngRad);
+
+    let qibla = Math.atan2(y, x) * (180 / Math.PI);
+    qibla = (qibla + 360) % 360;
+
+    return qibla;
+  };
+
+  // Calculer la distance jusqu'à la Mecque
+  const calculateDistance = (lat, lng) => {
+    const R = 6371;
+    const dLat = ((KAABA_LAT - lat) * Math.PI) / 180;
+    const dLng = ((KAABA_LNG - lng) * Math.PI) / 180;
+    const a = 
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat * Math.PI) / 180) * Math.cos((KAABA_LAT * Math.PI) / 180) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return Math.round(R * c);
+  };
+
+  // Fonction de lissage avec moyenne circulaire (pour les angles)
+  const smoothHeading = useCallback((newHeading) => {
+    headingHistory.current.push(newHeading);
+    
+    // Garder seulement les N dernières valeurs
+    if (headingHistory.current.length > SMOOTHING_FACTOR) {
+      headingHistory.current.shift();
+    }
+    
+    // Moyenne circulaire pour les angles
+    let sinSum = 0;
+    let cosSum = 0;
+    
+    headingHistory.current.forEach(h => {
+      sinSum += Math.sin(h * Math.PI / 180);
+      cosSum += Math.cos(h * Math.PI / 180);
+    });
+    
+    let avgHeading = Math.atan2(sinSum, cosSum) * 180 / Math.PI;
+    avgHeading = (avgHeading + 360) % 360;
+    
+    return avgHeading;
+  }, []);
+
+  // Vérifier si on est aligné avec la Qibla
+  const checkAlignment = useCallback((heading) => {
+    if (qiblaDirection === null) return false;
+    
+    // Calculer la différence angulaire
+    let diff = Math.abs(qiblaDirection - heading);
+    if (diff > 180) diff = 360 - diff;
+    
+    return diff <= ALIGNMENT_THRESHOLD;
+  }, [qiblaDirection]);
+
+  // Vibrer quand aligné (throttled)
+  const vibrateIfAligned = useCallback((aligned) => {
+    if (aligned && navigator.vibrate) {
+      const now = Date.now();
+      if (now - lastVibration.current > 1000) { // Max une fois par seconde
+        navigator.vibrate(100);
+        lastVibration.current = now;
+      }
+    }
+  }, []);
+
+  // Obtenir la position de l'utilisateur
+  const getLocation = () => {
+    setLoading(true);
+    setError(null);
+    setPermissionDenied(false);
+
+    if (!navigator.geolocation) {
+      setError('الموقع الجغرافي غير مدعوم');
+      setLoading(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setUserLocation({ lat: latitude, lng: longitude });
+        const direction = calculateQiblaDirection(latitude, longitude);
+        setQiblaDirection(direction);
+        setLoading(false);
+      },
+      (err) => {
+        if (err.code === 1) {
+          setPermissionDenied(true);
+          setError('يرجى السماح بالوصول إلى موقعك');
+        } else {
+          setError('تعذر الحصول على الموقع');
+        }
+        setLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  // Écouter l'orientation de l'appareil avec lissage
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleOrientation = (event) => {
+      let heading = event.alpha;
+      
+      if (heading === null) return;
+      
+      // Ajuster pour iOS
+      if (typeof event.webkitCompassHeading === 'number') {
+        heading = event.webkitCompassHeading;
+      } else {
+        // Sur Android, alpha est inversé
+        heading = (360 - heading) % 360;
+      }
+      
+      // Appliquer le lissage
+      const smoothed = smoothHeading(heading);
+      setSmoothedHeading(smoothed);
+      
+      // Vérifier l'alignement
+      const aligned = checkAlignment(smoothed);
+      setIsAligned(aligned);
+      vibrateIfAligned(aligned);
+    };
+
+    // Demander la permission sur iOS 13+
+    if (typeof DeviceOrientationEvent !== 'undefined' && 
+        typeof DeviceOrientationEvent.requestPermission === 'function') {
+      DeviceOrientationEvent.requestPermission()
+        .then(response => {
+          if (response === 'granted') {
+            window.addEventListener('deviceorientation', handleOrientation, true);
+          }
+        })
+        .catch(console.error);
+    } else {
+      window.addEventListener('deviceorientation', handleOrientation, true);
+    }
+
+    return () => {
+      window.removeEventListener('deviceorientation', handleOrientation, true);
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [isOpen, smoothHeading, checkAlignment, vibrateIfAligned]);
+
+  // Charger la position au montage
+  useEffect(() => {
+    if (isOpen) {
+      getLocation();
+      headingHistory.current = [];
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  // Calculer la rotation de la boussole
+  const compassRotation = qiblaDirection !== null 
+    ? qiblaDirection - smoothedHeading 
+    : 0;
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className={`bg-white dark:bg-gray-900 rounded-3xl max-w-md w-full overflow-hidden shadow-2xl transition-all duration-500 ${
+        isAligned ? 'ring-4 ring-emerald-400 ring-opacity-75' : ''
+      }`}>
+        {/* Header avec image de la Mecque */}
+        <div className="relative h-48 overflow-hidden">
+          <img 
+            src="/images/mecca-header.jpg"
+            alt="المسجد الحرام"
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              e.target.style.display = 'none';
+            }}
+          />
+          {/* Overlay gradient - vert quand aligné */}
+          <div className={`absolute inset-0 transition-all duration-500 ${
+            isAligned 
+              ? 'bg-gradient-to-t from-emerald-900/80 via-emerald-600/40 to-emerald-400/20' 
+              : 'bg-gradient-to-t from-black/70 via-black/30 to-transparent'
+          }`} />
+          
+          {/* Fallback background */}
+          <div className={`absolute inset-0 -z-10 transition-all duration-500 ${
+            isAligned 
+              ? 'bg-gradient-to-br from-emerald-400 via-teal-500 to-emerald-600' 
+              : 'bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-800'
+          }`} />
+          
+          {/* Effet de lumière quand aligné */}
+          {isAligned && (
+            <div className="absolute inset-0 overflow-hidden">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-emerald-400/30 rounded-full blur-3xl animate-pulse" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-yellow-300/20 rounded-full blur-2xl animate-ping" style={{ animationDuration: '2s' }} />
+            </div>
+          )}
+          
+          {/* Titre sur l'image */}
+          <div className="absolute bottom-0 left-0 right-0 p-6 text-white text-right">
+            <h2 className="text-2xl font-bold mb-1">اتجاه القبلة</h2>
+            <p className="text-white/80 text-sm">المسجد الحرام - مكة المكرمة</p>
+          </div>
+          
+          {/* Bouton fermer */}
+          <button
+            onClick={onClose}
+            className="absolute top-4 left-4 w-10 h-10 bg-black/30 hover:bg-black/50 
+              rounded-full flex items-center justify-center text-white transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          {/* Badge aligné */}
+          {isAligned && !loading && !error && (
+            <div className="absolute top-4 right-4 bg-emerald-500 text-white px-4 py-2 rounded-full flex items-center gap-2 animate-bounce shadow-lg">
+              <Check className="w-5 h-5" />
+              <span className="font-bold">اتجاه صحيح!</span>
+            </div>
+          )}
+        </div>
+
+        {/* Contenu */}
+        <div className="p-6">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <Loader2 className="w-12 h-12 text-emerald-500 animate-spin mb-4" />
+              <p className="text-gray-600 dark:text-gray-400">جاري تحديد موقعك...</p>
+            </div>
+          ) : error ? (
+            <div className="text-center py-8">
+              <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                <MapPin className="w-8 h-8 text-red-500" />
+              </div>
+              <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
+              <button
+                onClick={getLocation}
+                className="px-6 py-3 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 
+                  transition-colors flex items-center gap-2 mx-auto"
+              >
+                <RefreshCw className="w-4 h-4" />
+                إعادة المحاولة
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Boussole */}
+              <div className={`relative w-64 h-64 mx-auto mb-6 transition-all duration-500 ${
+                isAligned ? 'scale-105' : ''
+              }`}>
+                {/* Effet de glow quand aligné */}
+                {isAligned && (
+                  <div className="absolute inset-0 rounded-full bg-emerald-400/30 blur-xl animate-pulse" />
+                )}
+                
+                {/* Cercle extérieur */}
+                <div className={`absolute inset-0 rounded-full border-4 transition-all duration-500 ${
+                  isAligned 
+                    ? 'border-emerald-400 shadow-lg shadow-emerald-400/50' 
+                    : 'border-gray-200 dark:border-gray-700'
+                }`} />
+                
+                {/* Cercle lumineux quand aligné */}
+                {isAligned && (
+                  <div className="absolute inset-2 rounded-full bg-gradient-to-br from-emerald-100/50 to-teal-100/50 dark:from-emerald-900/30 dark:to-teal-900/30" />
+                )}
+                
+                {/* Graduations */}
+                <div className="absolute inset-2 rounded-full">
+                  {[...Array(72)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="absolute top-1/2 left-1/2 origin-bottom"
+                      style={{
+                        transform: `translateX(-50%) rotate(${i * 5}deg)`,
+                        height: i % 9 === 0 ? '10px' : '5px',
+                        width: i % 9 === 0 ? '2px' : '1px',
+                        marginTop: '-118px',
+                        backgroundColor: isAligned 
+                          ? (i % 9 === 0 ? '#34d399' : '#6ee7b7')
+                          : (i % 9 === 0 ? '#10b981' : '#d1d5db'),
+                        transition: 'background-color 0.5s'
+                      }}
+                    />
+                  ))}
+                </div>
+
+                {/* Points cardinaux */}
+                <div className="absolute inset-0">
+                  <span className={`absolute top-4 left-1/2 -translate-x-1/2 text-sm font-bold transition-colors duration-500 ${
+                    isAligned ? 'text-emerald-400' : 'text-emerald-600 dark:text-emerald-400'
+                  }`}>N</span>
+                  <span className="absolute bottom-4 left-1/2 -translate-x-1/2 text-sm font-bold text-gray-400">S</span>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold text-gray-400">W</span>
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-gray-400">E</span>
+                </div>
+
+                {/* Aiguille de la Qibla - avec transition fluide */}
+                <div 
+                  className="absolute inset-0"
+                  style={{ 
+                    transform: `rotate(${compassRotation}deg)`,
+                    transition: 'transform 0.15s ease-out'
+                  }}
+                >
+                  {/* Flèche vers la Qibla */}
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                    <div className="relative">
+                      {/* Ligne de la flèche */}
+                      <div className={`w-1 h-24 rounded-full mx-auto transition-all duration-500 ${
+                        isAligned 
+                          ? 'bg-gradient-to-t from-emerald-300 to-emerald-400 shadow-lg shadow-emerald-400/50' 
+                          : 'bg-gradient-to-t from-emerald-300 to-emerald-600'
+                      }`}
+                        style={{ marginTop: '-96px' }} 
+                      />
+                      {/* Pointe de la flèche */}
+                      <div className="absolute -top-28 left-1/2 -translate-x-1/2">
+                        <div className={`w-0 h-0 border-l-[12px] border-r-[12px] border-b-[20px] 
+                          border-l-transparent border-r-transparent transition-colors duration-500 ${
+                          isAligned ? 'border-b-emerald-400' : 'border-b-emerald-600'
+                        }`} />
+                      </div>
+                      {/* Icône Kaaba avec effet */}
+                      <div className={`absolute -top-36 left-1/2 -translate-x-1/2 text-2xl transition-all duration-500 ${
+                        isAligned ? 'scale-125 drop-shadow-lg' : ''
+                      }`}>
+                        🕋
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Centre */}
+                <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 
+                  w-8 h-8 bg-white dark:bg-gray-800 rounded-full shadow-lg border-4 
+                  flex items-center justify-center transition-all duration-500 ${
+                  isAligned 
+                    ? 'border-emerald-400 shadow-emerald-400/50' 
+                    : 'border-emerald-500'
+                }`}>
+                  <div className={`w-2 h-2 rounded-full transition-all duration-500 ${
+                    isAligned ? 'bg-emerald-400 scale-125' : 'bg-emerald-500'
+                  }`} />
+                </div>
+              </div>
+
+              {/* Message d'état */}
+              <div className={`text-center mb-4 py-3 px-4 rounded-xl transition-all duration-500 ${
+                isAligned 
+                  ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300' 
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+              }`}>
+                {isAligned ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <Check className="w-5 h-5" />
+                    <span className="font-bold">أنت تواجه القبلة الآن! ✨</span>
+                  </div>
+                ) : (
+                  <span>أدر هاتفك حتى يشير السهم إلى الأعلى</span>
+                )}
+              </div>
+
+              {/* Informations */}
+              <div className={`rounded-2xl p-4 space-y-3 transition-all duration-500 ${
+                isAligned 
+                  ? 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800' 
+                  : 'bg-gray-50 dark:bg-gray-800'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-2xl font-bold transition-colors duration-500 ${
+                    isAligned ? 'text-emerald-500' : 'text-emerald-600 dark:text-emerald-400'
+                  }`}>
+                    {Math.round(qiblaDirection)}°
+                  </span>
+                  <span className="text-gray-600 dark:text-gray-400 text-right">اتجاه القبلة</span>
+                </div>
+                
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-3 flex items-center justify-between">
+                  <span className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                    {userLocation && calculateDistance(userLocation.lat, userLocation.lng).toLocaleString()} كم
+                  </span>
+                  <span className="text-gray-600 dark:text-gray-400 text-right">المسافة إلى مكة</span>
+                </div>
+
+                {/* Indicateur de précision */}
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">الدقة</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400 text-right">مستوى الاستقرار</span>
+                  </div>
+                  <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        isAligned 
+                          ? 'bg-emerald-500 w-full' 
+                          : 'bg-amber-500'
+                      }`}
+                      style={{ 
+                        width: isAligned ? '100%' : `${Math.min(headingHistory.current.length / SMOOTHING_FACTOR * 100, 80)}%` 
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Instructions */}
+              <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-4">
+                {isAligned 
+                  ? '🤲 صلّ في هذا الاتجاه' 
+                  : 'وجّه هاتفك نحو الشمال للحصول على اتجاه دقيق'
+                }
+              </p>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Styles pour les animations */}
+      <style jsx>{`
+        @keyframes glow {
+          0%, 100% { opacity: 0.5; }
+          50% { opacity: 1; }
+        }
+      `}</style>
+    </div>
+  );
+}
