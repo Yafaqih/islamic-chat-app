@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, MapPin, Volume2, VolumeX } from 'lucide-react';
+import { X, MapPin, Volume2, VolumeX, Smartphone } from 'lucide-react';
 
 /**
- * QiblaModal - Boussole Qibla avec lissage amélioré
+ * QiblaModal - Boussole Qibla compatible iOS et Android
+ * - Détection automatique de la plateforme
+ * - Lissage adapté pour chaque OS
+ * - Support des permissions iOS
  */
 export default function QiblaModal({ isOpen, onClose }) {
   const [smoothHeading, setSmoothHeading] = useState(0);
@@ -13,20 +16,38 @@ export default function QiblaModal({ isOpen, onClose }) {
   const [lastVibrationTime, setLastVibrationTime] = useState(0);
   const [loading, setLoading] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [platform, setPlatform] = useState('unknown');
+  const [compassAccuracy, setCompassAccuracy] = useState('unknown');
   
   const headingBuffer = useRef([]);
   const wasPointingRef = useRef(false);
   const lastSoundTimeRef = useRef(0);
   const audioContextRef = useRef(null);
-  const lastHeadingRef = useRef(0);
+  const animatedHeadingRef = useRef(null);
   
-  // Augmenter le buffer pour plus de stabilité
-  const BUFFER_SIZE = 12;
-  // Seuil de changement minimum (évite les micro-mouvements)
+  // Paramètres de lissage
+  const BUFFER_SIZE = 15;
   const MIN_CHANGE_THRESHOLD = 2;
+  const SMOOTHING_FACTOR = 0.12;
 
   const KAABA_LAT = 21.4225;
   const KAABA_LNG = 39.8262;
+
+  // ============================================
+  // DÉTECTION DE PLATEFORME
+  // ============================================
+  
+  useEffect(() => {
+    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+    
+    if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
+      setPlatform('ios');
+    } else if (/android/i.test(userAgent)) {
+      setPlatform('android');
+    } else {
+      setPlatform('other');
+    }
+  }, []);
 
   // ============================================
   // SYSTÈME AUDIO
@@ -108,9 +129,7 @@ export default function QiblaModal({ isOpen, onClose }) {
     if ('vibrate' in navigator) {
       try {
         navigator.vibrate([200, 100, 200, 100, 200]);
-      } catch (e) {
-        console.log('Vibration error:', e);
-      }
+      } catch (e) {}
     }
   };
 
@@ -150,19 +169,20 @@ export default function QiblaModal({ isOpen, onClose }) {
   };
 
   // ============================================
-  // LISSAGE AMÉLIORÉ - Moyenne circulaire
+  // LISSAGE - Compatible iOS et Android
   // ============================================
 
   const smoothHeadingValue = (newHeading) => {
+    if (newHeading === null || isNaN(newHeading)) return animatedHeadingRef.current || 0;
+    
     // Ajouter au buffer
     headingBuffer.current.push(newHeading);
     
-    // Garder seulement les N dernières valeurs
     if (headingBuffer.current.length > BUFFER_SIZE) {
       headingBuffer.current.shift();
     }
 
-    // Moyenne circulaire (pour gérer le passage 359° -> 0°)
+    // Moyenne circulaire
     let sinSum = 0;
     let cosSum = 0;
     
@@ -172,27 +192,36 @@ export default function QiblaModal({ isOpen, onClose }) {
       cosSum += Math.cos(rad);
     });
 
-    let avgHeading = Math.atan2(sinSum, cosSum) * 180 / Math.PI;
-    avgHeading = (avgHeading + 360) % 360;
+    let targetHeading = Math.atan2(sinSum, cosSum) * 180 / Math.PI;
+    targetHeading = (targetHeading + 360) % 360;
 
-    // Appliquer un seuil minimum de changement pour éviter les tremblements
-    const lastHeading = lastHeadingRef.current;
-    let diff = Math.abs(avgHeading - lastHeading);
-    if (diff > 180) diff = 360 - diff;
-
-    if (diff < MIN_CHANGE_THRESHOLD) {
-      return lastHeading; // Pas assez de changement, garder l'ancienne valeur
+    // Initialiser si premier appel
+    if (animatedHeadingRef.current === null) {
+      animatedHeadingRef.current = targetHeading;
+      return targetHeading;
     }
 
-    lastHeadingRef.current = avgHeading;
-    return avgHeading;
+    // Interpolation
+    let currentHeading = animatedHeadingRef.current;
+    
+    let diff = targetHeading - currentHeading;
+    if (diff > 180) diff -= 360;
+    if (diff < -180) diff += 360;
+
+    if (Math.abs(diff) < MIN_CHANGE_THRESHOLD) {
+      return currentHeading;
+    }
+
+    const newAnimatedHeading = currentHeading + diff * SMOOTHING_FACTOR;
+    animatedHeadingRef.current = (newAnimatedHeading + 360) % 360;
+    
+    return animatedHeadingRef.current;
   };
 
   // ============================================
-  // EFFETS
+  // OBTENIR LA POSITION
   // ============================================
 
-  // Obtenir la position
   useEffect(() => {
     if (!isOpen) return;
 
@@ -201,7 +230,7 @@ export default function QiblaModal({ isOpen, onClose }) {
     headingBuffer.current = [];
     wasPointingRef.current = false;
     lastSoundTimeRef.current = 0;
-    lastHeadingRef.current = 0;
+    animatedHeadingRef.current = null;
 
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
@@ -225,64 +254,89 @@ export default function QiblaModal({ isOpen, onClose }) {
     }
   }, [isOpen]);
 
-  // Orientation du téléphone - AMÉLIORÉ
+  // ============================================
+  // ORIENTATION - Compatible iOS et Android
+  // ============================================
+
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || loading) return;
 
-    let orientationHandler;
-    let isAbsoluteOrientation = false;
+    let orientationHandler = null;
+    let absoluteHandler = null;
+    let watchId = null;
 
-    if (!('DeviceOrientationEvent' in window)) {
-      setError('البوصلة غير مدعومة على هذا الجهاز');
-      return;
-    }
-
-    const handleOrientation = (event) => {
-      let compassHeading = null;
-
-      // iOS - webkitCompassHeading est le cap magnétique réel
+    const handleOrientationIOS = (event) => {
+      // iOS utilise webkitCompassHeading (0-360, 0 = Nord)
       if (event.webkitCompassHeading !== undefined && event.webkitCompassHeading !== null) {
-        compassHeading = event.webkitCompassHeading;
+        const heading = event.webkitCompassHeading;
+        const smoothed = smoothHeadingValue(heading);
+        setSmoothHeading(smoothed);
+        
+        // Précision du compas iOS
+        if (event.webkitCompassAccuracy !== undefined) {
+          if (event.webkitCompassAccuracy < 0) {
+            setCompassAccuracy('non calibré');
+          } else if (event.webkitCompassAccuracy <= 10) {
+            setCompassAccuracy('excellente');
+          } else if (event.webkitCompassAccuracy <= 25) {
+            setCompassAccuracy('bonne');
+          } else {
+            setCompassAccuracy('faible');
+          }
+        }
       }
-      // Android avec deviceorientationabsolute - alpha est relatif au nord
-      else if (event.absolute === true && event.alpha !== null) {
-        // Sur Android, alpha = 0 signifie que le haut de l'écran pointe vers le nord
-        // Mais alpha augmente dans le sens antihoraire, donc on inverse
-        compassHeading = (360 - event.alpha) % 360;
-      }
-      // Fallback - deviceorientation standard
-      else if (event.alpha !== null && event.alpha !== undefined) {
-        // Peut ne pas être calibré par rapport au nord magnétique
-        compassHeading = (360 - event.alpha) % 360;
-      }
+    };
 
-      if (compassHeading !== null && !isNaN(compassHeading)) {
-        const smoothed = smoothHeadingValue(compassHeading);
+    const handleOrientationAndroid = (event) => {
+      // Android: alpha est l'angle par rapport au nord magnétique
+      // alpha = 0 quand le haut du téléphone pointe vers le nord
+      // alpha augmente dans le sens antihoraire
+      if (event.alpha !== null && event.alpha !== undefined) {
+        // Sur Android, on doit inverser car alpha augmente dans le sens antihoraire
+        let heading = event.alpha;
+        
+        // Si absolute est true, c'est relatif au nord magnétique
+        if (event.absolute === true) {
+          heading = (360 - heading) % 360;
+        } else {
+          // Sinon, c'est relatif à l'orientation initiale du téléphone
+          heading = (360 - heading) % 360;
+        }
+        
+        const smoothed = smoothHeadingValue(heading);
         setSmoothHeading(smoothed);
       }
     };
 
-    const startOrientationTracking = () => {
-      // Essayer d'abord deviceorientationabsolute (plus précis sur Android)
-      const absoluteHandler = (event) => {
-        if (event.absolute === true) {
-          isAbsoluteOrientation = true;
-        }
-        handleOrientation(event);
-      };
-
-      window.addEventListener('deviceorientationabsolute', absoluteHandler, true);
-      window.addEventListener('deviceorientation', handleOrientation, true);
-      
-      orientationHandler = { absolute: absoluteHandler, standard: handleOrientation };
+    const startTracking = () => {
+      if (platform === 'ios') {
+        // iOS
+        orientationHandler = handleOrientationIOS;
+        window.addEventListener('deviceorientation', orientationHandler, true);
+      } else {
+        // Android - préférer deviceorientationabsolute si disponible
+        absoluteHandler = (event) => {
+          if (event.absolute) {
+            handleOrientationAndroid(event);
+          }
+        };
+        
+        orientationHandler = handleOrientationAndroid;
+        
+        // Essayer d'abord absolute (plus précis sur Android)
+        window.addEventListener('deviceorientationabsolute', absoluteHandler, true);
+        window.addEventListener('deviceorientation', orientationHandler, true);
+      }
     };
 
     // Demander permission sur iOS 13+
-    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+    if (typeof DeviceOrientationEvent !== 'undefined' && 
+        typeof DeviceOrientationEvent.requestPermission === 'function') {
+      // iOS 13+
       DeviceOrientationEvent.requestPermission()
-        .then(permissionState => {
-          if (permissionState === 'granted') {
-            startOrientationTracking();
+        .then(response => {
+          if (response === 'granted') {
+            startTracking();
           } else {
             setError('يرجى السماح بالوصول إلى البوصلة');
           }
@@ -292,18 +346,24 @@ export default function QiblaModal({ isOpen, onClose }) {
           setError('خطأ في طلب الإذن');
         });
     } else {
-      startOrientationTracking();
+      // Android ou iOS < 13
+      startTracking();
     }
 
     return () => {
       if (orientationHandler) {
-        window.removeEventListener('deviceorientationabsolute', orientationHandler.absolute, true);
-        window.removeEventListener('deviceorientation', orientationHandler.standard, true);
+        window.removeEventListener('deviceorientation', orientationHandler, true);
+      }
+      if (absoluteHandler) {
+        window.removeEventListener('deviceorientationabsolute', absoluteHandler, true);
       }
     };
-  }, [isOpen]);
+  }, [isOpen, loading, platform]);
 
-  // Vérifier alignement + son + vibration
+  // ============================================
+  // VÉRIFIER ALIGNEMENT + SON + VIBRATION
+  // ============================================
+
   useEffect(() => {
     if (qiblaDirection !== null && smoothHeading !== null) {
       const diff = Math.abs(smoothHeading - qiblaDirection);
@@ -311,7 +371,6 @@ export default function QiblaModal({ isOpen, onClose }) {
       
       const isPointing = normalizedDiff < 15;
       
-      // Son quand on atteint la Qibla
       if (isPointing && !wasPointingRef.current) {
         playSuccessSound();
       }
@@ -319,7 +378,6 @@ export default function QiblaModal({ isOpen, onClose }) {
       wasPointingRef.current = isPointing;
       setIsPointingToQibla(isPointing);
 
-      // Vibration
       const now = Date.now();
       const timeSinceLastVibration = now - lastVibrationTime;
       
@@ -339,12 +397,16 @@ export default function QiblaModal({ isOpen, onClose }) {
     }
   }, [smoothHeading, qiblaDirection, lastVibrationTime, soundEnabled]);
 
-  // Permission iOS
+  // ============================================
+  // PERMISSION iOS
+  // ============================================
+
   const requestPermission = async () => {
-    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+    if (typeof DeviceOrientationEvent !== 'undefined' &&
+        typeof DeviceOrientationEvent.requestPermission === 'function') {
       try {
-        const permissionState = await DeviceOrientationEvent.requestPermission();
-        if (permissionState === 'granted') {
+        const response = await DeviceOrientationEvent.requestPermission();
+        if (response === 'granted') {
           setError(null);
           window.location.reload();
         } else {
@@ -362,9 +424,17 @@ export default function QiblaModal({ isOpen, onClose }) {
     ? qiblaDirection - smoothHeading 
     : 0;
 
+  const getPlatformName = () => {
+    switch (platform) {
+      case 'ios': return 'iOS';
+      case 'android': return 'Android';
+      default: return 'غير معروف';
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" dir="rtl">
-      <div className={`bg-white dark:bg-gray-800 rounded-3xl max-w-sm w-full overflow-hidden shadow-2xl relative transition-all duration-300 ${
+      <div className={`bg-white dark:bg-gray-800 rounded-3xl max-w-sm w-full overflow-hidden shadow-2xl relative transition-all duration-500 ${
         isPointingToQibla ? 'ring-4 ring-yellow-400 shadow-yellow-400/50' : ''
       }`}>
         
@@ -427,7 +497,8 @@ export default function QiblaModal({ isOpen, onClose }) {
           ) : error ? (
             <div className="text-center py-6">
               <p className="text-red-600 dark:text-red-400 mb-4 text-sm">{error}</p>
-              {typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function' && (
+              {typeof DeviceOrientationEvent !== 'undefined' && 
+               typeof DeviceOrientationEvent.requestPermission === 'function' && (
                 <button
                   onClick={requestPermission}
                   className="bg-emerald-500 text-white px-6 py-3 rounded-xl hover:bg-emerald-600 transition-colors font-semibold mb-3 w-full"
@@ -444,8 +515,12 @@ export default function QiblaModal({ isOpen, onClose }) {
             </div>
           ) : (
             <div className="space-y-4">
-              {/* Debug */}
+              {/* Debug info */}
               <div className="text-xs text-center text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 p-2 rounded-xl">
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <Smartphone className="w-3 h-3" />
+                  <span>{getPlatformName()}</span>
+                </div>
                 <div>اتجاهك: {Math.round(smoothHeading)}° | القبلة: {qiblaDirection}°</div>
                 <div>الفرق: {Math.round(Math.abs(smoothHeading - qiblaDirection) > 180 ? 360 - Math.abs(smoothHeading - qiblaDirection) : Math.abs(smoothHeading - qiblaDirection))}°</div>
               </div>
@@ -472,12 +547,12 @@ export default function QiblaModal({ isOpen, onClose }) {
                   </div>
                 </div>
 
-                {/* Flèche - transition plus longue pour moins de vibration */}
+                {/* Flèche */}
                 <div
                   className="absolute inset-0 flex items-center justify-center"
                   style={{ 
                     transform: `rotate(${arrowRotation}deg)`,
-                    transition: 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
+                    transition: 'transform 0.6s cubic-bezier(0.25, 0.1, 0.25, 1)'
                   }}
                 >
                   <div className={`transition-colors duration-300 ${
@@ -542,6 +617,11 @@ export default function QiblaModal({ isOpen, onClose }) {
                     ? '✨ ثبّت هاتفك في هذا الاتجاه' 
                     : 'حرّك جهازك ببطء حتى تظهر الكعبة 🕋'
                   }
+                </p>
+                
+                {/* Conseil de calibration */}
+                <p className="text-xs text-gray-400 dark:text-gray-500">
+                  💡 لتحسين الدقة: حرّك الهاتف على شكل رقم 8
                 </p>
               </div>
             </div>
