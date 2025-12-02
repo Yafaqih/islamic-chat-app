@@ -45,14 +45,21 @@ export default async function handler(req, res) {
     // Hasher le mot de passe
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Créer l'utilisateur
+    // ✅ Créer l'utilisateur avec tous les nouveaux champs
     const user = await prisma.user.create({
       data: {
         name,
         email,
         password: hashedPassword,
         subscriptionTier: 'free',
-        messageCount: 0
+        subscriptionStatus: 'active', // ✅ NOUVEAU
+        messageCount: 0,
+        totalMessages: 0, // ✅ NOUVEAU
+        isAdmin: false, // ✅ NOUVEAU
+        role: 'user', // ✅ NOUVEAU
+        isBlocked: false, // ✅ NOUVEAU
+        lastActivity: new Date(), // ✅ NOUVEAU
+        revenue: 0, // ✅ NOUVEAU
       }
     });
 
