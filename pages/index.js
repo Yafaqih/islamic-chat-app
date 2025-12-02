@@ -651,9 +651,9 @@ export default function IslamicChatApp() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {suggestions.map((suggestion, idx) => (
                 <button key={idx} onClick={() => handleSuggestion(suggestion)} className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-emerald-500 dark:hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all group">
-                  <div className="flex items-center gap-3 justify-end">
-                    <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 text-right">{suggestion}</span>
+                  <div className="flex items-center gap-3 flex-row-reverse justify-end">
                     <Sparkles className="w-4 h-4 flex-shrink-0 text-gray-400 dark:text-gray-500 group-hover:text-emerald-500 dark:group-hover:text-emerald-400" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-400">{suggestion}</span>
                   </div>
                 </button>
               ))}
