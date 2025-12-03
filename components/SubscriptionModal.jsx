@@ -3,17 +3,16 @@ import { X, Crown, Check, Sparkles, Zap, Star, Tag, Loader2, CheckCircle, XCircl
 import { usePricing } from '../hooks/usePricing';
 
 /**
- * SubscriptionModal - Modal d'abonnement avec prix dynamiques selon le pays
+ * SubscriptionModal - Modal d'abonnement avec prix dynamiques LemonSqueezy
  */
 export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free' }) {
-  const [selectedTier, setSelectedTier] = useState(null);
   const [promoCode, setPromoCode] = useState('');
   const [promoStatus, setPromoStatus] = useState(null);
   const [promoData, setPromoData] = useState(null);
   const [promoError, setPromoError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // ✅ Récupérer les prix dynamiques selon le pays
+  // ✅ Récupérer les prix dynamiques depuis LemonSqueezy
   const { 
     proPrice,
     premiumPrice,
@@ -23,6 +22,12 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
     currency,
     loading: priceLoading,
   } = usePricing();
+
+  // ✅ URLs de checkout LemonSqueezy
+  const CHECKOUT_URLS = {
+    pro: 'https://yafaqih.lemonsqueezy.com/buy/669f5834-1817-42d3-ab4a-a8441db40737',
+    premium: 'https://yafaqih.lemonsqueezy.com/buy/c1fd514d-562d-45b0-8dff-c5f1ab34743f'
+  };
 
   // Configuration des plans avec prix dynamiques
   const plans = [
@@ -70,7 +75,7 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
       color: 'from-blue-500 to-blue-600',
       buttonColor: 'bg-blue-500 hover:bg-blue-600',
       popular: true,
-      lemonSqueezyVariantId: process.env.NEXT_PUBLIC_LEMONSQUEEZY_VARIANT_PRO || 'YOUR_PRO_VARIANT_ID',
+      checkoutUrl: CHECKOUT_URLS.pro,
     },
     {
       id: 'premium',
@@ -93,7 +98,7 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
       color: 'from-amber-500 to-orange-600',
       buttonColor: 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700',
       popular: false,
-      lemonSqueezyVariantId: process.env.NEXT_PUBLIC_LEMONSQUEEZY_VARIANT_PREMIUM || 'YOUR_PREMIUM_VARIANT_ID',
+      checkoutUrl: CHECKOUT_URLS.premium,
     },
   ];
 
@@ -111,7 +116,6 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           code: promoCode.trim().toUpperCase(),
-          tier: selectedTier || 'pro',
         }),
       });
 
@@ -141,8 +145,8 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
     }
   };
 
-  // Gérer le checkout
-  const handleCheckout = async (plan) => {
+  // ✅ Gérer le checkout - Redirection vers LemonSqueezy
+  const handleCheckout = (plan) => {
     if (plan.id === 'free' || plan.id === currentTier) {
       onClose();
       return;
@@ -150,20 +154,15 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
 
     setIsLoading(true);
 
-    try {
-      let checkoutUrl = `https://yafaqih.lemonsqueezy.com/checkout/buy/${plan.lemonSqueezyVariantId}`;
-      
-      if (promoStatus === 'valid' && promoData?.lemonSqueezyCode) {
-        checkoutUrl += `?discount_code=${promoData.lemonSqueezyCode}`;
-      }
-
-      window.location.href = checkoutUrl;
-    } catch (error) {
-      console.error('Checkout error:', error);
-      alert('حدث خطأ. يرجى المحاولة مرة أخرى.');
-    } finally {
-      setIsLoading(false);
+    // Construire l'URL avec code promo si applicable
+    let checkoutUrl = plan.checkoutUrl;
+    
+    if (promoStatus === 'valid' && promoData?.lemonSqueezyCode) {
+      checkoutUrl += `?discount_code=${promoData.lemonSqueezyCode}`;
     }
+
+    // Redirection vers LemonSqueezy
+    window.location.href = checkoutUrl;
   };
 
   if (!isOpen) return null;
@@ -182,12 +181,6 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
           <div className="text-center flex-1">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">اختر خطتك</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400">ارتقِ بتجربتك مع المساعد الإسلامي</p>
-            {/* ✅ Afficher la devise détectée */}
-            {currencySymbol && !priceLoading && (
-              <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
-                💰 الأسعار بـ {currencySymbol} ({currency})
-              </p>
-            )}
           </div>
           <div className="w-10"></div>
         </div>
@@ -243,7 +236,7 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
             {/* Messages */}
             {promoStatus === 'valid' && promoData && (
               <div className="mt-3 p-3 bg-green-100 dark:bg-green-900/30 rounded-xl text-green-700 dark:text-green-300 text-sm">
-                ✅ تم تطبيق الخصم: {promoData.discountType === 'percentage' ? `${promoData.discountValue}%` : `${promoData.discountValue} ${currencySymbol}`}
+                ✅ تم تطبيق الخصم: {promoData.discountType === 'percentage' ? `${promoData.discountValue}%` : `${promoData.discountValue}`}
                 {promoData.description && ` - ${promoData.description}`}
               </div>
             )}
@@ -301,24 +294,24 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
                       </div>
                     </div>
 
-                    {/* Prix - ✅ Dynamique selon le pays */}
+                    {/* Prix */}
                     <div className="mb-6">
                       {priceLoading && plan.id !== 'free' ? (
                         <div className="animate-pulse h-10 bg-gray-200 dark:bg-gray-700 rounded w-32" />
                       ) : hasDiscount ? (
                         <div className="flex items-baseline gap-2 flex-wrap">
                           <span className="text-3xl font-bold text-gray-900 dark:text-white">
-                            {discountedPrice.toFixed(2)} {currencySymbol}
+                            {discountedPrice.toFixed(2)}
                           </span>
                           <span className="text-lg text-gray-500 dark:text-gray-400 line-through">
-                            {plan.price} {currencySymbol}
+                            {plan.price}
                           </span>
                           <span className="text-gray-500 dark:text-gray-400">/شهر</span>
                         </div>
                       ) : (
                         <div className="flex items-baseline gap-1">
                           <span className="text-3xl font-bold text-gray-900 dark:text-white">
-                            {plan.id === 'free' ? plan.priceFormatted : plan.priceFormatted}
+                            {plan.priceFormatted}
                           </span>
                         </div>
                       )}
@@ -380,10 +373,6 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
             </p>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
               بالاشتراك، أنت توافق على شروط الخدمة وسياسة الخصوصية
-            </p>
-            {/* ✅ Note sur la conversion */}
-            <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2">
-              💱 السعر النهائي سيتم تأكيده عند الدفع
             </p>
           </div>
         </div>
