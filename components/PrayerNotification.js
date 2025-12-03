@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, BellOff, X } from 'lucide-react';
 
-export default function PrayerNotification() {
+export default function PrayerNotification({ 
+  isOpen = null,        // ✅ NOUVEAU: Contrôle externe (optionnel)
+  onClose = null,       // ✅ NOUVEAU: Callback pour fermer
+  showFloatingButton = true  // ✅ NOUVEAU: Afficher le bouton flottant
+}) {
   const [enabled, setEnabled] = useState(false);
   const [location, setLocation] = useState(null);
   const [prayerTimes, setPrayerTimes] = useState(null);
@@ -9,6 +13,18 @@ export default function PrayerNotification() {
   const [showSettings, setShowSettings] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState('default');
   const [loading, setLoading] = useState(false);
+
+  // ✅ NOUVEAU: Synchroniser avec le contrôle externe
+  useEffect(() => {
+    if (isOpen !== null) {
+      setShowSettings(isOpen);
+    }
+  }, [isOpen]);
+
+  const handleClose = () => {
+    setShowSettings(false);
+    if (onClose) onClose();
+  };
 
   const prayerNames = {
     Fajr: 'الفجر',
@@ -210,7 +226,8 @@ export default function PrayerNotification() {
 
   return (
     <>
-      {!showSettings && (
+      {/* ✅ Bouton flottant (optionnel) */}
+      {showFloatingButton && !showSettings && (
         <button
           onClick={() => setShowSettings(true)}
           className={`fixed bottom-[140px] sm:bottom-32 right-4 ${
@@ -229,12 +246,13 @@ export default function PrayerNotification() {
         </button>
       )}
 
+      {/* Modal */}
       {showSettings && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" dir="rtl">
           <div className="bg-white dark:bg-gray-800 rounded-3xl max-w-md w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
             
             <button
-              onClick={() => setShowSettings(false)}
+              onClick={handleClose}
               className="absolute top-4 left-4 text-gray-400 hover:text-gray-600"
             >
               <X className="w-6 h-6" />

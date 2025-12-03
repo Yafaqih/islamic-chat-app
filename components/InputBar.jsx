@@ -10,7 +10,8 @@ import {
   Loader2, 
   FileText,
   Plus,
-  ExternalLink
+  ExternalLink,
+  Bell  // ✅ NOUVEAU: Icône cloche
 } from 'lucide-react';
 import useGoogleDrivePicker from '../hooks/useGoogleDrivePicker';
 
@@ -25,7 +26,8 @@ export default function InputBar({
   isLoading = false,
   disabled = false,
   placeholder = "اكتب سؤالك هنا...",
-  onQiblaClick
+  onQiblaClick,
+  onPrayerClick  // ✅ NOUVEAU: Callback pour le bouton prière
 }) {
   const [isRecording, setIsRecording] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
@@ -210,7 +212,7 @@ export default function InputBar({
   const handleSend = () => {
     if (value.trim() && !isLoading && !disabled) {
       onSend();
-      setUploadedFiles([]);
+      // Reset textarea height
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
       }
@@ -255,119 +257,83 @@ export default function InputBar({
     }
   };
 
-  // ============================================
-  // HELPERS
-  // ============================================
-
+  // Format file size
   const formatFileSize = (bytes) => {
-    if (!bytes) return '';
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
-  const getFileIcon = (file) => {
-    if (file.source === 'google-drive') {
-      return (
-        <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 rounded-lg flex items-center justify-center relative">
-          {file.preview ? (
-            <img src={file.preview} alt="" className="w-full h-full object-cover rounded-lg" />
-          ) : (
-            <FileText className="w-6 h-6 text-blue-500" />
-          )}
-          {/* Badge Google Drive */}
-          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center shadow-sm">
-            <svg className="w-3 h-3" viewBox="0 0 24 24">
-              <path fill="#4285F4" d="M12 11.79L7.21 3.21H16.79L12 11.79Z"/>
-              <path fill="#FBBC05" d="M3 20.79L7.79 12H17.21L12.42 20.79H3Z"/>
-              <path fill="#34A853" d="M16.79 3.21L21 11.79L16.21 20.79L12 12.21L16.79 3.21Z"/>
-            </svg>
+  return (
+    <div 
+      className="w-full"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* Drop zone overlay */}
+      {isDragging && (
+        <div className="fixed inset-0 bg-emerald-500/20 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-2xl border-2 border-dashed border-emerald-500">
+            <div className="text-center">
+              <Paperclip className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
+              <p className="text-xl font-semibold text-gray-900 dark:text-white">
+                اسحب الملفات هنا
+              </p>
+            </div>
           </div>
         </div>
-      );
-    }
-    
-    if (file.preview) {
-      return (
-        <img src={file.preview} alt={file.name} className="w-12 h-12 object-cover rounded-lg" />
-      );
-    }
-    
-    return (
-      <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-        <FileText className="w-6 h-6 text-gray-500 dark:text-gray-400" />
-      </div>
-    );
-  };
+      )}
 
-  // ============================================
-  // RENDER
-  // ============================================
-
-  return (
-    <div className="w-full">
-      {/* Zone de drop */}
-      <div
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        className={`relative transition-all duration-200 ${
-          isDragging ? 'ring-2 ring-emerald-500 ring-offset-2 rounded-2xl' : ''
-        }`}
-      >
+      <div className="relative" dir="rtl">
         {/* Fichiers uploadés */}
         {uploadedFiles.length > 0 && (
           <div className="mb-3 flex flex-wrap gap-2">
             {uploadedFiles.map((file) => (
               <div 
                 key={file.id}
-                className="relative group bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-2 flex items-center gap-2 shadow-sm hover:shadow-md transition-shadow"
+                className="relative group bg-gray-100 dark:bg-gray-700 rounded-xl p-2 flex items-center gap-2"
               >
-                {getFileIcon(file)}
-                
-                <div className="max-w-[120px]">
-                  <p className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">
+                {file.preview ? (
+                  <img src={file.preview} alt={file.name} className="w-10 h-10 rounded-lg object-cover" />
+                ) : (
+                  <div className="w-10 h-10 bg-gray-200 dark:bg-gray-600 rounded-lg flex items-center justify-center">
+                    <FileText className="w-5 h-5 text-gray-500" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-gray-900 dark:text-white truncate max-w-[120px]">
                     {file.name}
                   </p>
-                  <div className="flex items-center gap-1">
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {formatFileSize(file.size)}
-                    </p>
-                    {file.source === 'google-drive' && (
-                      <span className="text-xs text-blue-500">• Drive</span>
-                    )}
-                  </div>
+                  <p className="text-xs text-gray-500">
+                    {formatFileSize(file.size)}
+                    {file.source === 'google-drive' && ' • Drive'}
+                  </p>
                 </div>
-
-                {/* Bouton ouvrir dans Drive */}
-                {file.driveUrl && (
-                  <a
-                    href={file.driveUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <ExternalLink className="w-3 h-3 text-gray-400" />
-                  </a>
-                )}
-
-                {/* Bouton supprimer */}
                 <button
                   onClick={() => removeFile(file.id)}
-                  className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-red-600"
+                  className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center 
+                    opacity-0 group-hover:opacity-100 transition-opacity absolute -top-2 -left-2"
                 >
-                  <X className="w-3 h-3" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
             ))}
           </div>
         )}
 
-        {/* Barre principale */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-visible">
+        {/* Zone de saisie principale */}
+        <div className={`
+          bg-white dark:bg-gray-800 
+          rounded-2xl shadow-lg 
+          border-2 transition-all duration-200
+          ${isDragging 
+            ? 'border-emerald-500 ring-4 ring-emerald-500/20' 
+            : 'border-gray-200 dark:border-gray-700 hover:border-emerald-300 dark:hover:border-emerald-700'
+          }
+        `}>
           {/* Textarea */}
-          <div className="relative">
+          <div className="px-4 pt-4 pb-2">
             <textarea
               ref={textareaRef}
               value={value}
@@ -376,12 +342,10 @@ export default function InputBar({
               placeholder={placeholder}
               disabled={disabled || isLoading}
               rows={1}
-              className="w-full px-4 py-4 text-right text-gray-900 dark:text-gray-100 
-                placeholder-gray-500 dark:placeholder-gray-400 bg-transparent
-                focus:outline-none resize-none text-base leading-relaxed
+              className="w-full resize-none bg-transparent text-gray-900 dark:text-white 
+                placeholder-gray-400 dark:placeholder-gray-500 outline-none text-base
                 disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ minHeight: '56px', maxHeight: '200px' }}
-              dir="rtl"
+              style={{ minHeight: '24px', maxHeight: '200px' }}
             />
           </div>
 
@@ -414,6 +378,20 @@ export default function InputBar({
 
             {/* Actions droite */}
             <div className="flex items-center gap-1">
+              {/* ✅ NOUVEAU: Bouton Notification Prière */}
+              {onPrayerClick && (
+                <button
+                  onClick={onPrayerClick}
+                  className="w-10 h-10 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 
+                    transition-all flex items-center justify-center
+                    border-2 border-transparent hover:border-purple-500/50
+                    text-purple-600 dark:text-purple-400"
+                  title="مواقيت الصلاة"
+                >
+                  <Bell className="w-5 h-5" />
+                </button>
+              )}
+
               {/* Bouton Qibla */}
               {onQiblaClick && (
                 <button

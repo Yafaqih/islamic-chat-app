@@ -44,6 +44,7 @@ export default function IslamicChatApp() {
   const [showHistory, setShowHistory] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState(null);
   const [showQiblaModal, setShowQiblaModal] = useState(false); // ✅ NOUVEAU: État pour le modal Qibla
+  const [showPrayerModal, setShowPrayerModal] = useState(false); // ✅ NOUVEAU: État pour le modal Prière
   const [uploadedFiles, setUploadedFiles] = useState([]); // ✅ NOUVEAU: Fichiers uploadés
   const messagesEndRef = useRef(null);
 
@@ -371,6 +372,11 @@ export default function IslamicChatApp() {
       {/* Modals */}
       <SubscriptionModal isOpen={showPremiumModal} onClose={() => setShowPremiumModal(false)} currentTier={subscriptionTier} />
       <QiblaModal isOpen={showQiblaModal} onClose={() => setShowQiblaModal(false)} />
+      <PrayerNotification 
+        isOpen={showPrayerModal} 
+        onClose={() => setShowPrayerModal(false)} 
+        showFloatingButton={false} 
+      />
 
       {/* Header */}
       <div className="bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-gray-800 dark:to-gray-900 text-white shadow-lg transition-colors duration-200">
@@ -393,7 +399,6 @@ export default function IslamicChatApp() {
             <div className="flex items-center gap-1 sm:gap-2">
               {/* Desktop actions */}
               <div className="hidden md:flex items-center gap-2">
-                <PrayerNotification />
                 
                 <button onClick={toggleDarkMode} className="p-2 hover:bg-white/10 rounded-lg transition-colors" title={darkMode ? "الوضع الفاتح" : "الوضع الداكن"}>
                   {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
@@ -476,10 +481,7 @@ export default function IslamicChatApp() {
 
               </div>
 
-              {/* Mobile actions */}
-              <div className="md:hidden">
-                <PrayerNotification />
-              </div>
+              {/* Mobile actions - PrayerNotification déplacé vers InputBar */}
               <button onClick={toggleDarkMode} className="md:hidden p-2 hover:bg-white/10 rounded-lg transition-colors">
                 {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
@@ -707,6 +709,7 @@ export default function IslamicChatApp() {
             disabled={false}
             placeholder="اكتب سؤالك هنا..."
             onQiblaClick={() => setShowQiblaModal(true)}
+            onPrayerClick={() => setShowPrayerModal(true)}
           />
         </div>
       </div>
