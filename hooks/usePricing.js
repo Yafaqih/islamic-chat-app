@@ -1,48 +1,11 @@
 import { useState, useEffect } from 'react';
 
-// Symboles de devises
-const CURRENCY_SYMBOLS = {
-  USD: { symbol: '$', position: 'before' },
-  EUR: { symbol: '€', position: 'after' },
-  GBP: { symbol: '£', position: 'before' },
-  CAD: { symbol: 'CA$', position: 'before' },
-  CHF: { symbol: 'CHF', position: 'before' },
-  MAD: { symbol: 'د.م.', position: 'after' },
-  SAR: { symbol: 'ر.س', position: 'after' },
-  AED: { symbol: 'د.إ', position: 'after' },
-  EGP: { symbol: 'ج.م', position: 'after' },
-  DZD: { symbol: 'د.ج', position: 'after' },
-  TND: { symbol: 'د.ت', position: 'after' },
-  KWD: { symbol: 'د.ك', position: 'after' },
-  QAR: { symbol: 'ر.ق', position: 'after' },
-  BHD: { symbol: 'د.ب', position: 'after' },
-  OMR: { symbol: 'ر.ع', position: 'after' },
-  JOD: { symbol: 'د.أ', position: 'after' },
-  IQD: { symbol: 'د.ع', position: 'after' },
-  LYD: { symbol: 'د.ل', position: 'after' },
-  SDG: { symbol: 'ج.س', position: 'after' },
-  YER: { symbol: 'ر.ي', position: 'after' },
-  SYP: { symbol: 'ل.س', position: 'after' },
-  ILS: { symbol: '₪', position: 'before' },
-  XOF: { symbol: 'CFA', position: 'after' },
-  XAF: { symbol: 'FCFA', position: 'after' },
-  NGN: { symbol: '₦', position: 'before' },
-  ZAR: { symbol: 'R', position: 'before' },
-  TRY: { symbol: '₺', position: 'before' },
-  PKR: { symbol: 'Rs', position: 'before' },
-  BDT: { symbol: '৳', position: 'before' },
-  IDR: { symbol: 'Rp', position: 'before' },
-  MYR: { symbol: 'RM', position: 'before' },
-  INR: { symbol: '₹', position: 'before' },
-  MXN: { symbol: 'MX$', position: 'before' },
-};
-
+// Pays arabes pour le suffixe /شهر
 const ARAB_COUNTRIES = ['MA', 'SA', 'AE', 'EG', 'DZ', 'TN', 'KW', 'QA', 'BH', 'OM', 'JO', 'IQ', 'LY', 'SD', 'YE', 'SY', 'PS', 'LB'];
 
 export function usePricing() {
   const [data, setData] = useState({
     country: null,
-    currency: 'USD',
     pro: null,
     premium: null
   });
@@ -83,9 +46,8 @@ export function usePricing() {
         // Valeurs par défaut
         setData({
           country: 'US',
-          currency: 'USD',
-          pro: { price: 9.99 },
-          premium: { price: 19.99 }
+          pro: { price: 9.99, currency: 'USD', formatted: '$9.99' },
+          premium: { price: 29.99, currency: 'USD', formatted: '$29.99' }
         });
       } finally {
         setLoading(false);
@@ -95,55 +57,34 @@ export function usePricing() {
     fetchPrices();
   }, []);
 
-  // Obtenir le symbole de devise
-  const currencyInfo = CURRENCY_SYMBOLS[data.currency] || CURRENCY_SYMBOLS.USD;
-
   // Vérifier si pays arabe
   const isArabic = ARAB_COUNTRIES.includes(data.country);
+  const periodSuffix = isArabic ? '/شهر' : '/mo';
 
-  // Formater un prix
-  const formatPrice = (amount, period = null) => {
-    if (amount === null || amount === undefined) return '...';
-
-    let displayAmount;
-    if (Number.isInteger(amount)) {
-      displayAmount = amount;
-    } else {
-      displayAmount = amount % 1 === 0 ? amount : amount.toFixed(2);
-    }
-
-    let formatted;
-    if (currencyInfo.position === 'before') {
-      formatted = `${currencyInfo.symbol}${displayAmount}`;
-    } else {
-      formatted = `${displayAmount} ${currencyInfo.symbol}`;
-    }
-
-    if (period) {
-      const periodText = {
-        month: isArabic ? '/شهر' : '/mo',
-        year: isArabic ? '/سنة' : '/yr'
-      };
-      formatted += periodText[period] || '';
-    }
-
-    return formatted;
+  // Formater le prix avec la période
+  const formatWithPeriod = (formatted) => {
+    if (!formatted) return '...';
+    return `${formatted}${periodSuffix}`;
   };
 
+  // Prix formatés avec période
+  const proPrice = formatWithPeriod(data.pro?.formatted);
+  const premiumPrice = formatWithPeriod(data.premium?.formatted);
+
   return {
-    // Prix formatés prêts à afficher
-    proPrice: formatPrice(data.pro?.price, 'month'),
-    premiumPrice: formatPrice(data.premium?.price, 'month'),
+    // Prix formatés prêts à afficher (ex: "$9.99/mo" ou "9.99 د.م./شهر")
+    proPrice,
+    premiumPrice,
     
     // Prix bruts (pour calculs)
     proPriceRaw: data.pro?.price,
     premiumPriceRaw: data.premium?.price,
     
-    // Infos devise
-    currency: data.currency,
-    currencySymbol: currencyInfo.symbol,
+    // Devise
+    currency: data.pro?.currency || 'USD',
+    currencySymbol: data.pro?.formatted?.replace(/[\d.,\s]/g, '').trim() || '$',
     
-    // Infos pays
+    // Pays
     country: data.country,
     isArabic,
     
@@ -151,8 +92,8 @@ export function usePricing() {
     loading,
     error,
     
-    // Fonction utilitaire
-    formatPrice
+    // Données brutes
+    rawData: data
   };
 }
 
