@@ -1,0 +1,44 @@
+# ===================================
+# Ya Faqih - يا فقيه
+# Robots.txt
+# https://www.yafaqih.app
+# ===================================
+
+# Autoriser tous les robots
+User-agent: *
+Allow: /
+
+# Bloquer les pages privées
+Disallow: /api/
+Disallow: /admin/
+Disallow: /_next/
+Disallow: /private/
+
+# Autoriser les ressources importantes
+Allow: /api/og-image
+Allow: /_next/static/
+
+# Google
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 1
+
+# Bing
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 2
+
+# Google Images
+User-agent: Googlebot-Image
+Allow: /
+
+# Google AdSense
+User-agent: Mediapartners-Google
+Allow: /
+
+# Sitemaps
+Sitemap: https://www.yafaqih.app/sitemap.xml
+Sitemap: https://www.yafaqih.app/sitemap-pages.xml
+
+# Host
+Host: https://www.yafaqih.app

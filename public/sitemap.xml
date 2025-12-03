@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  
+  <!-- Page d'accueil -->
+  <url>
+    <loc>https://www.yafaqih.app</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://www.yafaqih.app"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://www.yafaqih.app"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.yafaqih.app"/>
+    <image:image>
+      <image:loc>https://www.yafaqih.app/og-image.png</image:loc>
+      <image:title>Ya Faqih - يا فقيه - مساعدك الإسلامي الذكي</image:title>
+    </image:image>
+  </url>
+  
+  <!-- Page À propos -->
+  <url>
+    <loc>https://www.yafaqih.app/about</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- Page Dashboard -->
+  <url>
+    <loc>https://www.yafaqih.app/dashboard</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <!-- Page Authentification -->
+  <url>
+    <loc>https://www.yafaqih.app/auth</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <!-- ===== PAGES SEO - MOTS-CLÉS ARABES ===== -->
+  
+  <!-- تفسير القرآن - Tafsir Quran -->
+  <url>
+    <loc>https://www.yafaqih.app/tafsir</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  
+  <!-- مواقيت الصلاة - Prayer Times -->
+  <url>
+    <loc>https://www.yafaqih.app/prayer-times</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  
+  <!-- اتجاه القبلة - Qibla Direction -->
+  <url>
+    <loc>https://www.yafaqih.app/qibla</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  
+  <!-- الأحاديث الصحيحة - Authentic Hadiths -->
+  <url>
+    <loc>https://www.yafaqih.app/hadith</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  
+  <!-- الفتاوى الإسلامية - Islamic Fatwas -->
+  <url>
+    <loc>https://www.yafaqih.app/fatwa</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  
+  <!-- أذكار الصباح والمساء - Morning/Evening Adhkar -->
+  <url>
+    <loc>https://www.yafaqih.app/adhkar</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- الأدعية - Duas -->
+  <url>
+    <loc>https://www.yafaqih.app/dua</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- خطب الجمعة - Friday Sermons -->
+  <url>
+    <loc>https://www.yafaqih.app/khutba</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- التقويم الهجري - Hijri Calendar -->
+  <url>
+    <loc>https://www.yafaqih.app/hijri-calendar</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <!-- أحكام الصيام - Fasting Rules -->
+  <url>
+    <loc>https://www.yafaqih.app/fasting</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <!-- الزكاة - Zakat Calculator -->
+  <url>
+    <loc>https://www.yafaqih.app/zakat</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <!-- الحج والعمرة - Hajj & Umrah -->
+  <url>
+    <loc>https://www.yafaqih.app/hajj-umrah</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <!-- ===== PAGES SOURATES POPULAIRES ===== -->
+  
+  <!-- سورة الفاتحة -->
+  <url>
+    <loc>https://www.yafaqih.app/surah/al-fatiha</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- سورة البقرة -->
+  <url>
+    <loc>https://www.yafaqih.app/surah/al-baqarah</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- سورة آل عمران -->
+  <url>
+    <loc>https://www.yafaqih.app/surah/al-imran</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <!-- سورة الكهف -->
+  <url>
+    <loc>https://www.yafaqih.app/surah/al-kahf</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- سورة يس -->
+  <url>
+    <loc>https://www.yafaqih.app/surah/yaseen</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- سورة الرحمن -->
+  <url>
+    <loc>https://www.yafaqih.app/surah/ar-rahman</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <!-- سورة الملك -->
+  <url>
+    <loc>https://www.yafaqih.app/surah/al-mulk</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <!-- سورة الواقعة -->
+  <url>
+    <loc>https://www.yafaqih.app/surah/al-waqiah</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <!-- آية الكرسي -->
+  <url>
+    <loc>https://www.yafaqih.app/ayat-al-kursi</loc>
+    <lastmod>2025-01-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+</urlset>

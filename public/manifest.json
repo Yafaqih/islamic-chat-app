@@ -1,45 +1,42 @@
 {
-  "name": "المساعد الإسلامي - Ya Faqih",
+  "name": "Ya Faqih - يا فقيه - مساعدك الإسلامي الذكي",
   "short_name": "Ya Faqih",
-  "description": "Assistant islamique intelligent avec IA - القرآن، الأحاديث، الخطب",
+  "description": "مساعد إسلامي ذكي متخصص في تفسير القرآن الكريم، شرح الأحاديث الصحيحة، الفتاوى الإسلامية، مواقيت الصلاة واتجاه القبلة. Ya Faqih - Assistant islamique intelligent pour le Coran, Hadiths, Fiqh, horaires de prière et direction Qibla.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#10b981",
+  "theme_color": "#10B981",
   "orientation": "portrait-primary",
   "scope": "/",
   "lang": "ar",
   "dir": "rtl",
+  "categories": ["education", "lifestyle", "religion"],
+  "iarc_rating_id": "e84b072d-71b3-4d3e-86ae-31a8ce4e53b7",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon-72x72.png",
       "sizes": "72x72",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
       "src": "/icon-96x96.png",
       "sizes": "96x96",
       "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon-128x128.png",
-      "sizes": "128x128",
-      "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
       "src": "/icon-144x144.png",
       "sizes": "144x144",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
       "src": "/icon-152x152.png",
       "sizes": "152x152",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
       "src": "/icon-192x192.png",
@@ -51,7 +48,7 @@
       "src": "/icon-384x384.png",
       "sizes": "384x384",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
       "src": "/icon-512x512.png",
@@ -62,50 +59,49 @@
   ],
   "screenshots": [
     {
-      "src": "/screenshot-1.png",
-      "sizes": "540x720",
+      "src": "/og-image.png",
+      "sizes": "1200x630",
       "type": "image/png",
-      "form_factor": "narrow"
-    },
-    {
-      "src": "/screenshot-2.png",
-      "sizes": "1280x720",
-      "type": "image/png",
-      "form_factor": "wide"
+      "form_factor": "wide",
+      "label": "Ya Faqih - مساعدك الإسلامي الذكي"
     }
   ],
-  "categories": ["education", "lifestyle", "utilities"],
   "shortcuts": [
-    {
-      "name": "بوصلة القبلة",
-      "short_name": "القبلة",
-      "description": "فتح بوصلة القبلة",
-      "url": "/?qibla=true",
-      "icons": [{ "src": "/icon-96x96.png", "sizes": "96x96" }]
-    },
     {
       "name": "مواقيت الصلاة",
       "short_name": "الصلاة",
       "description": "عرض مواقيت الصلاة",
-      "url": "/?prayer=true",
+      "url": "/?action=prayer-times",
       "icons": [{ "src": "/icon-96x96.png", "sizes": "96x96" }]
     },
     {
-      "name": "محادثة جديدة",
-      "short_name": "محادثة",
-      "description": "بدء محادثة جديدة",
-      "url": "/?new=true",
+      "name": "اتجاه القبلة",
+      "short_name": "القبلة",
+      "description": "تحديد اتجاه القبلة",
+      "url": "/?action=qibla",
+      "icons": [{ "src": "/icon-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "تفسير القرآن",
+      "short_name": "التفسير",
+      "description": "تفسير آيات القرآن الكريم",
+      "url": "/?action=tafsir",
+      "icons": [{ "src": "/icon-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "الفتاوى",
+      "short_name": "فتوى",
+      "description": "الإجابة على الأسئلة الشرعية",
+      "url": "/?action=fatwa",
       "icons": [{ "src": "/icon-96x96.png", "sizes": "96x96" }]
     }
   ],
   "related_applications": [],
-  "prefer_related_applications": false,
-  "iarc_rating_id": "",
-  "features": [
-    "chat",
-    "offline",
-    "notifications",
-    "geolocation",
-    "vibration"
-  ]
+  "handle_links": "preferred",
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "edge_side_panel": {
+    "preferred_width": 400
+  }
 }
