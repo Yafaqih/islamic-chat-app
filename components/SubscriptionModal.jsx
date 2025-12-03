@@ -1,26 +1,37 @@
 import React, { useState } from 'react';
 import { X, Crown, Check, Sparkles, Zap, Star, Tag, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { usePricing } from '../hooks/usePricing';
 
 /**
- * SubscriptionModal - Modal d'abonnement en arabe avec codes promo
+ * SubscriptionModal - Modal d'abonnement avec prix dynamiques selon le pays
  */
 export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free' }) {
   const [selectedTier, setSelectedTier] = useState(null);
   const [promoCode, setPromoCode] = useState('');
-  const [promoStatus, setPromoStatus] = useState(null); // null, 'checking', 'valid', 'invalid'
+  const [promoStatus, setPromoStatus] = useState(null);
   const [promoData, setPromoData] = useState(null);
   const [promoError, setPromoError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Configuration des plans
+  // ✅ Récupérer les prix dynamiques selon le pays
+  const { 
+    proPrice,
+    premiumPrice,
+    proPriceRaw,
+    premiumPriceRaw,
+    currencySymbol,
+    currency,
+    loading: priceLoading,
+  } = usePricing();
+
+  // Configuration des plans avec prix dynamiques
   const plans = [
     {
       id: 'free',
       name: 'مجاني',
       nameEn: 'Free',
       price: 0,
-      currency: 'درهم',
-      period: '/شهر',
+      priceFormatted: 'مجاني',
       description: 'للتجربة والاستكشاف',
       features: [
         '10 رسائل يومياً',
@@ -41,9 +52,8 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
       id: 'pro',
       name: 'احترافي',
       nameEn: 'Pro',
-      price: 9.99,
-      currency: 'درهم',
-      period: '/شهر',
+      price: proPriceRaw || 9.99,
+      priceFormatted: proPrice || '...',
       description: 'للاستخدام المتقدم',
       features: [
         '100 رسالة يومياً',
@@ -66,9 +76,8 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
       id: 'premium',
       name: 'مميز',
       nameEn: 'Premium',
-      price: 29.99,
-      currency: 'درهم',
-      period: '/شهر',
+      price: premiumPriceRaw || 29.99,
+      priceFormatted: premiumPrice || '...',
       description: 'للمحترفين والمؤسسات',
       features: [
         'رسائل غير محدودة',
@@ -142,7 +151,6 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
     setIsLoading(true);
 
     try {
-      // Construire l'URL LemonSqueezy avec le code promo
       let checkoutUrl = `https://yafaqih.lemonsqueezy.com/checkout/buy/${plan.lemonSqueezyVariantId}`;
       
       if (promoStatus === 'valid' && promoData?.lemonSqueezyCode) {
@@ -174,6 +182,12 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
           <div className="text-center flex-1">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">اختر خطتك</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400">ارتقِ بتجربتك مع المساعد الإسلامي</p>
+            {/* ✅ Afficher la devise détectée */}
+            {currencySymbol && !priceLoading && (
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
+                💰 الأسعار بـ {currencySymbol} ({currency})
+              </p>
+            )}
           </div>
           <div className="w-10"></div>
         </div>
@@ -229,7 +243,7 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
             {/* Messages */}
             {promoStatus === 'valid' && promoData && (
               <div className="mt-3 p-3 bg-green-100 dark:bg-green-900/30 rounded-xl text-green-700 dark:text-green-300 text-sm">
-                ✅ تم تطبيق الخصم: {promoData.discountType === 'percentage' ? `${promoData.discountValue}%` : `${promoData.discountValue} درهم`}
+                ✅ تم تطبيق الخصم: {promoData.discountType === 'percentage' ? `${promoData.discountValue}%` : `${promoData.discountValue} ${currencySymbol}`}
                 {promoData.description && ` - ${promoData.description}`}
               </div>
             )}
@@ -246,7 +260,7 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
               const Icon = plan.icon;
               const isCurrentPlan = plan.id === currentTier;
               const discountedPrice = getDiscountedPrice(plan.price);
-              const hasDiscount = promoStatus === 'valid' && discountedPrice < plan.price;
+              const hasDiscount = promoStatus === 'valid' && discountedPrice < plan.price && plan.id !== 'free';
 
               return (
                 <div
@@ -287,30 +301,25 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
                       </div>
                     </div>
 
-                    {/* Prix */}
+                    {/* Prix - ✅ Dynamique selon le pays */}
                     <div className="mb-6">
-                      {hasDiscount ? (
-                        <div className="flex items-baseline gap-2">
+                      {priceLoading && plan.id !== 'free' ? (
+                        <div className="animate-pulse h-10 bg-gray-200 dark:bg-gray-700 rounded w-32" />
+                      ) : hasDiscount ? (
+                        <div className="flex items-baseline gap-2 flex-wrap">
                           <span className="text-3xl font-bold text-gray-900 dark:text-white">
-                            {discountedPrice.toFixed(2)}
+                            {discountedPrice.toFixed(2)} {currencySymbol}
                           </span>
                           <span className="text-lg text-gray-500 dark:text-gray-400 line-through">
-                            {plan.price}
+                            {plan.price} {currencySymbol}
                           </span>
-                          <span className="text-gray-500 dark:text-gray-400">
-                            {plan.currency}{plan.period}
-                          </span>
+                          <span className="text-gray-500 dark:text-gray-400">/شهر</span>
                         </div>
                       ) : (
                         <div className="flex items-baseline gap-1">
                           <span className="text-3xl font-bold text-gray-900 dark:text-white">
-                            {plan.price === 0 ? 'مجاني' : plan.price}
+                            {plan.id === 'free' ? plan.priceFormatted : plan.priceFormatted}
                           </span>
-                          {plan.price > 0 && (
-                            <span className="text-gray-500 dark:text-gray-400">
-                              {plan.currency}{plan.period}
-                            </span>
-                          )}
                         </div>
                       )}
                     </div>
@@ -371,6 +380,10 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
             </p>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
               بالاشتراك، أنت توافق على شروط الخدمة وسياسة الخصوصية
+            </p>
+            {/* ✅ Note sur la conversion */}
+            <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2">
+              💱 السعر النهائي سيتم تأكيده عند الدفع
             </p>
           </div>
         </div>
