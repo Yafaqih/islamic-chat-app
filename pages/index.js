@@ -70,7 +70,8 @@ export default function IslamicChatApp() {
 
   // ⭐ NOUVEAU: Auto-exécution du prompt depuis l'URL (pages SEO)
   useEffect(() => {
-    if (status !== "authenticated" || isLoading) return;
+    // Attendre que l'utilisateur soit authentifié ET que les données user soient chargées
+    if (status !== "authenticated" || isLoading || !user) return;
     
     const { prompt } = router.query;
     
@@ -80,13 +81,15 @@ export default function IslamicChatApp() {
       const decodedPrompt = decodeURIComponent(prompt);
       console.log('🚀 Auto-executing prompt from URL:', decodedPrompt);
       
-      // Exécuter le prompt automatiquement
-      handleSend(decodedPrompt);
-      
-      // Nettoyer l'URL
+      // Nettoyer l'URL d'abord
       router.replace('/', undefined, { shallow: true });
+      
+      // Petit délai pour s'assurer que la session est complète
+      setTimeout(() => {
+        handleSend(decodedPrompt);
+      }, 500);
     }
-  }, [router.query, status, isLoading]);
+  }, [router.query, status, isLoading, user]);
 
   const toggleDarkMode = () => {
     const newMode = !darkMode;
