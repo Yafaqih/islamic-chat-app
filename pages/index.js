@@ -47,8 +47,8 @@ export default function IslamicChatApp() {
   const [uploadedFiles, setUploadedFiles] = useState([]); // ✅ NOUVEAU: Fichiers uploadés
   const messagesEndRef = useRef(null);
 
-  // ⭐ NOUVEAU: Ref pour éviter double-exécution de l'auto-prompt
-  const hasAutoSubmitted = useRef(false);
+  // ⚠️ AUTO-PROMPT DÉSACTIVÉ - Ne fonctionne pas pour les utilisateurs non connectés
+  // const hasAutoSubmitted = useRef(false);
 
   const FREE_MESSAGE_LIMIT = 10;
   const PRO_MESSAGE_LIMIT = 100;
@@ -68,9 +68,11 @@ export default function IslamicChatApp() {
     }
   }, []);
 
-  // ⭐ NOUVEAU: Auto-exécution du prompt depuis l'URL (pages SEO)
+  /* ⚠️ AUTO-PROMPT DÉSACTIVÉ TEMPORAIREMENT
+   * Raison: Ne fonctionne pas pour les utilisateurs non connectés
+   * Pour réactiver: décommenter ce bloc et le useRef ci-dessus
+   
   useEffect(() => {
-    // Attendre que l'utilisateur soit authentifié ET que les données user soient chargées
     if (status !== "authenticated" || isLoading || !user) return;
     
     const { prompt } = router.query;
@@ -81,15 +83,14 @@ export default function IslamicChatApp() {
       const decodedPrompt = decodeURIComponent(prompt);
       console.log('🚀 Auto-executing prompt from URL:', decodedPrompt);
       
-      // Nettoyer l'URL d'abord
       router.replace('/', undefined, { shallow: true });
       
-      // Petit délai pour s'assurer que la session est complète
       setTimeout(() => {
         handleSend(decodedPrompt);
       }, 500);
     }
   }, [router.query, status, isLoading, user]);
+  */
 
   const toggleDarkMode = () => {
     const newMode = !darkMode;
