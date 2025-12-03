@@ -47,6 +47,9 @@ export default function IslamicChatApp() {
   const [uploadedFiles, setUploadedFiles] = useState([]); // ✅ NOUVEAU: Fichiers uploadés
   const messagesEndRef = useRef(null);
 
+  // ⭐ NOUVEAU: Ref pour éviter les double-exécutions de l'auto-prompt
+  const hasAutoSubmitted = useRef(false);
+
   const FREE_MESSAGE_LIMIT = 10;
   const PRO_MESSAGE_LIMIT = 100;
 
@@ -64,6 +67,41 @@ export default function IslamicChatApp() {
       }
     }
   }, []);
+
+  // ⭐ NOUVEAU: Auto-exécution du prompt depuis l'URL (pages SEO)
+  useEffect(() => {
+    // Attendre que l'utilisateur soit authentifié et que le composant soit prêt
+    if (status !== "authenticated" || isLoading) return;
+    
+    const { prompt } = router.query;
+    
+    if (prompt && !hasAutoSubmitted.current) {
+      hasAutoSubmitted.current = true;
+      
+      // Décoder le prompt (au cas où il serait encodé dans l'URL)
+      const decodedPrompt = decodeURIComponent(prompt);
+      
+      console.log('🚀 Auto-executing prompt from URL:', decodedPrompt);
+      
+      // Exécuter le prompt automatiquement
+      handleSend(decodedPrompt);
+      
+      // Nettoyer l'URL (enlever ?prompt=...)
+      router.replace('/', undefined, { shallow: true });
+    }
+  }, [router.query, status, isLoading]);
+
+  // ⭐ NOUVEAU: Reset le flag quand on navigue
+  useEffect(() => {
+    const handleRouteChange = () => {
+      hasAutoSubmitted.current = false;
+    };
+    
+    router.events.on('routeChangeStart', handleRouteChange);
+    return () => {
+      router.events.off('routeChangeStart', handleRouteChange);
+    };
+  }, [router]);
 
   const toggleDarkMode = () => {
     const newMode = !darkMode;
@@ -132,8 +170,12 @@ export default function IslamicChatApp() {
     console.log('Files uploaded:', files);
   };
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+  // ⭐ MODIFIÉ: handleSend accepte maintenant un paramètre optionnel
+  const handleSend = async (directMessage = null) => {
+    // Utiliser le message direct s'il est fourni, sinon utiliser l'input
+    const messageText = directMessage || input;
+    
+    if (!messageText.trim() || isLoading) return;
 
     const messageLimit = subscriptionTier === 'free' ? FREE_MESSAGE_LIMIT : 
                         subscriptionTier === 'pro' ? PRO_MESSAGE_LIMIT : Infinity;
@@ -143,11 +185,10 @@ export default function IslamicChatApp() {
       return;
     }
 
-    const userMessage = { id: nextId, role: 'user', content: input, isFavorite: false, references: [] };
+    const userMessage = { id: nextId, role: 'user', content: messageText, isFavorite: false, references: [] };
     setMessages(prev => [...prev, userMessage]);
     setNextId(nextId + 1);
-    const currentInput = input;
-    setInput('');
+    setInput(''); // Vider l'input dans tous les cas
     setIsLoading(true);
     setMessageCount(prev => prev + 1);
 
@@ -156,7 +197,7 @@ export default function IslamicChatApp() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: currentInput,
+          message: messageText,
           subscriptionTier,
           userId: user?.id,
           files: uploadedFiles.map(f => f.name) // Envoyer les noms des fichiers
@@ -176,44 +217,65 @@ export default function IslamicChatApp() {
         isFavorite: false,
         references: data.references || []
       };
-      
-      setMessages(prev => [...prev, assistantMessage]);
-      setNextId(nextId + 2);
-      setUploadedFiles([]); // Reset les fichiers après envoi
 
-      if (data.conversationId) {
-        loadConversations();
-      }
+      setMessages(prev => [...prev, assistantMessage]);
+      setNextId(prev => prev + 2);
       
+      if (data.conversationId) {
+        setCurrentConversationId(data.conversationId);
+      }
+
+      // Mettre à jour les stats d'utilisation si disponibles
+      if (data.usage) {
+        setMessageCount(data.usage.messagesUsed);
+      }
+
     } catch (error) {
       console.error('Error:', error);
-      setMessages(prev => [...prev, {
+      const errorMessage = {
         id: nextId + 1,
         role: 'assistant',
-        content: 'عذراً، حدث خطأ. يرجى المحاولة مرة أخرى.',
+        content: `عذراً، حدث خطأ: ${error.message}`,
         isFavorite: false,
         references: []
-      }]);
-      setNextId(nextId + 2);
+      };
+      setMessages(prev => [...prev, errorMessage]);
+      setNextId(prev => prev + 2);
     } finally {
       setIsLoading(false);
+      setUploadedFiles([]); // Vider les fichiers après envoi
     }
   };
 
-  const toggleFavorite = (messageId) => {
+  const handleSuggestion = (suggestion) => {
+    handleSend(suggestion);
+  };
+
+  const toggleFavorite = (id) => {
     setMessages(prev => prev.map(msg => 
-      msg.id === messageId ? { ...msg, isFavorite: !msg.isFavorite } : msg
+      msg.id === id ? { ...msg, isFavorite: !msg.isFavorite } : msg
     ));
   };
 
-  const handleSuggestion = (suggestion) => {
-    setInput(suggestion);
+  const favoriteMessages = messages.filter(msg => msg.isFavorite);
+
+  const getAuthenticityLevel = (reference) => {
+    const lowerRef = reference.toLowerCase();
+    if (lowerRef.includes('صحيح البخاري') || lowerRef.includes('صحيح مسلم')) {
+      return { label: 'صحيح', color: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300', icon: '✓' };
+    }
+    if (lowerRef.includes('سنن') || lowerRef.includes('مسند')) {
+      return { label: 'حسن', color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300', icon: '○' };
+    }
+    if (lowerRef.includes('سورة') || lowerRef.includes('آية') || lowerRef.includes(':')) {
+      return { label: 'قرآن', color: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300', icon: '📖' };
+    }
+    return null;
   };
 
   const loadConversations = async () => {
-    if (!user?.id) return;
     try {
-      const response = await fetch(`/api/conversations/list?userId=${user.id}`);
+      const response = await fetch('/api/conversations');
       const data = await response.json();
       if (response.ok) {
         setConversations(data.conversations || []);
@@ -228,14 +290,27 @@ export default function IslamicChatApp() {
       const response = await fetch(`/api/conversations/${conversationId}`);
       const data = await response.json();
       if (response.ok && data.conversation) {
-        const loadedMessages = data.conversation.messages.map((msg, index) => ({
-          id: index + 1000,
+        const loadedMessages = data.conversation.messages.map((msg, idx) => ({
+          id: idx + 1,
           role: msg.role,
           content: msg.content,
-          references: msg.references ? JSON.parse(msg.references) : [],
-          isFavorite: false
+          isFavorite: false,
+          references: msg.references ? JSON.parse(msg.references) : []
         }));
-        setMessages([messages[0], ...loadedMessages]);
+        
+        // Ajouter le message de bienvenue au début si nécessaire
+        if (loadedMessages.length > 0 && loadedMessages[0].role !== 'assistant') {
+          loadedMessages.unshift({
+            id: 0,
+            role: 'assistant',
+            content: 'السلام عليكم ورحمة الله وبركاته\n\nمرحباً بك! أنا مساعدك الإسلامي.',
+            isFavorite: false,
+            references: []
+          });
+        }
+        
+        setMessages(loadedMessages);
+        setNextId(loadedMessages.length + 1);
         setCurrentConversationId(conversationId);
         setShowHistory(false);
       }
@@ -244,60 +319,63 @@ export default function IslamicChatApp() {
     }
   };
 
-  const deleteConversation = async (conversationId) => {
+  const deleteConversation = async (conversationId, e) => {
+    e.stopPropagation();
     if (!confirm('هل تريد حذف هذه المحادثة؟')) return;
+    
     try {
-      const response = await fetch(`/api/conversations/${conversationId}`, { method: 'DELETE' });
+      const response = await fetch(`/api/conversations/${conversationId}`, {
+        method: 'DELETE'
+      });
       if (response.ok) {
-        loadConversations();
+        setConversations(prev => prev.filter(c => c.id !== conversationId));
+        if (currentConversationId === conversationId) {
+          startNewConversation();
+        }
       }
     } catch (error) {
       console.error('Error deleting conversation:', error);
     }
   };
 
-  const favoriteMessages = messages.filter(msg => msg.isFavorite);
-
-  const getAuthenticityLevel = (referenceText) => {
-    const text = referenceText.toLowerCase();
-    
-    if (text.includes('صحيح البخاري') || text.includes('صحيح مسلم')) {
-      return { label: 'صحيح', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300', icon: <Shield className="w-3 h-3" /> };
-    }
-    if (text.includes('حديث صحيح') || text.includes('إسناده صحيح')) {
-      return { label: 'صحيح', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300', icon: <Shield className="w-3 h-3" /> };
-    }
-    if (text.includes('حديث حسن') || text.includes('إسناده حسن') || text.includes('سنن الترمذي') || text.includes('سنن أبي داود') || text.includes('سنن النسائي') || text.includes('سنن ابن ماجه')) {
-      return { label: 'حسن', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300', icon: <Check className="w-3 h-3" /> };
-    }
-    if (text.includes('حديث ضعيف') || text.includes('إسناده ضعيف')) {
-      return { label: 'ضعيف', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300', icon: <AlertCircle className="w-3 h-3" /> };
-    }
-    if (text.includes('موضوع') || text.includes('مكذوب')) {
-      return { label: 'موضوع', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300', icon: <X className="w-3 h-3" /> };
-    }
-    if (text.includes('القرآن') || text.includes('قرآن') || text.includes('تفسير') || text.includes('آية')) {
-      return { label: 'قرآن كريم', color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300', icon: <BookOpen className="w-3 h-3" /> };
-    }
-    return null;
+  const startNewConversation = () => {
+    setMessages([{
+      id: 1,
+      role: 'assistant',
+      content: 'السلام عليكم ورحمة الله وبركاته\n\nمرحباً بك! أنا مساعدك الإسلامي المتخصص في التقاليد السنية. يمكنني مساعدتك في:\n\n• تفسير آيات القرآن الكريم\n• شرح الأحاديث الصحيحة\n• إعداد الخطب\n• أسئلة الفقه الإسلامي\n\nكيف يمكنني مساعدتك اليوم؟',
+      isFavorite: false,
+      references: []
+    }]);
+    setNextId(2);
+    setCurrentConversationId(null);
+    setShowHistory(false);
   };
 
   // Page de connexion
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-gray-900 dark:to-gray-800">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-300">جاري التحميل...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4" dir="rtl">
-        <div className="bg-white dark:bg-gray-800 rounded-3xl max-w-md w-full p-8 shadow-2xl">
-          <div className="text-center mb-8">
-            <div className="bg-gradient-to-br from-emerald-500 to-teal-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <BookOpen className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">المساعد الإسلامي</h1>
-            <p className="text-gray-600 dark:text-gray-300">خطب، قرآن وأحاديث - السنة النبوية</p>
+      <div dir="rtl" className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-8 max-w-md w-full text-center">
+          <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <BookOpen className="w-10 h-10 text-white" />
           </div>
-
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">يا فقيه</h1>
+          <p className="text-gray-600 dark:text-gray-300 mb-8">مساعدك الإسلامي الذكي</p>
+          
           <button
-            onClick={() => signIn('google', { callbackUrl: '/' })}
-            className="w-full bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-semibold py-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600 transition-all flex items-center justify-center gap-3"
+            onClick={() => signIn('google')}
+            className="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-xl py-3 px-4 flex items-center justify-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-600 transition-all"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -305,32 +383,12 @@ export default function IslamicChatApp() {
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
             </svg>
-            المتابعة مع Google
+            <span className="text-gray-700 dark:text-gray-200 font-medium">تسجيل الدخول بحساب Google</span>
           </button>
-
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">أو</span>
-            </div>
-          </div>
-
-          <button
-            onClick={() => router.push('/auth')}
-            className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold py-3 rounded-xl hover:from-emerald-600 hover:to-teal-700 transition-all"
-          >
-            تسجيل الدخول بالبريد الإلكتروني
-          </button>
-
-          <button
-            onClick={toggleDarkMode}
-            className="mt-4 w-full flex items-center justify-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
-          >
-            {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            {darkMode ? 'الوضع الفاتح' : 'الوضع الداكن'}
-          </button>
+          
+          <p className="mt-6 text-sm text-gray-500 dark:text-gray-400">
+            بالتسجيل، أنت توافق على شروط الاستخدام
+          </p>
         </div>
       </div>
     );
@@ -338,192 +396,185 @@ export default function IslamicChatApp() {
 
   // Application principale
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-200" dir="rtl">
-      
-      {/* Modals */}
-      <SubscriptionModal isOpen={showPremiumModal} onClose={() => setShowPremiumModal(false)} currentTier={subscriptionTier} />
-      <QiblaModal isOpen={showQiblaModal} onClose={() => setShowQiblaModal(false)} />
-
-      {/* Header */}
-      <div className="bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-gray-800 dark:to-gray-900 text-white shadow-lg transition-colors duration-200">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
-          <div className="flex items-center justify-between">
-            {/* Logo */}
-            <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
-              <BookOpen className="w-6 h-6 sm:w-8 sm:h-8 flex-shrink-0" />
-              <div className="min-w-0">
-                <h1 className="text-base sm:text-xl font-bold truncate">المساعد الإسلامي</h1>
-                <p className="text-xs sm:text-sm text-emerald-100 dark:text-gray-400 truncate">
-                  {subscriptionTier === 'premium' && '⭐ مميز'}
-                  {subscriptionTier === 'pro' && '💎 احترافي'}
-                  {subscriptionTier === 'free' && `${messageCount}/${FREE_MESSAGE_LIMIT}`}
-                </p>
-              </div>
+    <div dir="rtl" className={`min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-300`}>
+      {/* En-tête */}
+      <header className="fixed top-0 left-0 right-0 z-40 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-b border-gray-200 dark:border-gray-700">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
+              <BookOpen className="w-5 h-5 text-white" />
             </div>
-
-            {/* Actions */}
-            <div className="flex items-center gap-1 sm:gap-2">
-              {/* Desktop actions */}
-              <div className="hidden md:flex items-center gap-2">
-                <PrayerNotification />
-                
-                <button onClick={toggleDarkMode} className="p-2 hover:bg-white/10 rounded-lg transition-colors" title={darkMode ? "الوضع الفاتح" : "الوضع الداكن"}>
-                  {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                </button>
-
-                <button onClick={handleExportPDF} className="p-2 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50" title="تصدير PDF" disabled={messages.length <= 1 || subscriptionTier !== 'premium'}>
-                  <Download className="w-5 h-5" />
-                </button>
-
-                <button onClick={() => router.push('/dashboard')} className="p-2 hover:bg-white/10 rounded-lg transition-colors" title="لوحة التحكم">
-                  <User className="w-5 h-5" />
-                </button>
-                
-                <button onClick={() => setShowHistory(!showHistory)} className="p-2 hover:bg-white/10 rounded-lg transition-colors" title="المحادثات السابقة">
-                  <MessageSquare className="w-5 h-5" />
-                </button>
-
-                <button onClick={() => setShowFavorites(!showFavorites)} className="p-2 hover:bg-white/10 rounded-lg transition-colors" title="المفضلة">
-                  <Star className="w-5 h-5" />
-                </button>
-                
-                {/* Menu utilisateur */}
-                <div className="relative group">
-                  <button className="flex items-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors">
-                    <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-                      <span className="text-white font-bold text-sm">{user?.name?.[0]?.toUpperCase() || 'U'}</span>
-                    </div>
-                    <span className="text-sm font-medium hidden lg:inline">{user?.name || 'Utilisateur'}</span>
-                  </button>
-                  
-                  <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 overflow-hidden">
-                    {user?.isAdmin && (
-                      <>
-                        <button onClick={() => setShowAdminDashboard(true)} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all">
-                          <div className="w-9 h-9 bg-gradient-to-r from-amber-500 to-orange-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <Shield className="w-5 h-5 text-white" />
-                          </div>
-                          <div className="text-left flex-1">
-                            <div className="font-semibold">Dashboard Admin</div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">Gestion & statistiques</div>
-                          </div>
-                        </button>
-                        <div className="border-t border-gray-200 dark:border-gray-700"></div>
-                      </>
-                    )}
-                    
-                    <button onClick={() => setShowPremiumModal(true)} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all">
-                      <div className="w-9 h-9 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Crown className="w-5 h-5 text-white" />
-                      </div>
-                      <div className="text-left flex-1">
-                        <div className="font-semibold">الاشتراكات</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">Abonnements & codes promo</div>
-                      </div>
-                    </button>
-                    
-                    <button onClick={() => setShowAbout(true)} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all">
-                      <div className="w-9 h-9 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <BookOpen className="w-5 h-5 text-white" />
-                      </div>
-                      <div className="text-left flex-1">
-                        <div className="font-semibold">حول التطبيق</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">À propos</div>
-                      </div>
-                    </button>
-                    
-                    <div className="border-t border-gray-200 dark:border-gray-700"></div>
-                    
-                    <button onClick={() => signOut()} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all rounded-b-xl">
-                      <div className="w-9 h-9 bg-gradient-to-r from-red-500 to-red-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <LogOut className="w-5 h-5 text-white" />
-                      </div>
-                      <div className="text-left flex-1">
-                        <div className="font-semibold">تسجيل الخروج</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">Déconnexion</div>
-                      </div>
-                    </button>
-                  </div>
-                </div>
-
-              </div>
-
-              {/* Mobile actions */}
-              <div className="md:hidden">
-                <PrayerNotification />
-              </div>
-              <button onClick={toggleDarkMode} className="md:hidden p-2 hover:bg-white/10 rounded-lg transition-colors">
-                {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-              </button>
-              <button onClick={() => setShowMobileMenu(!showMobileMenu)} className="md:hidden p-2 hover:bg-white/10 rounded-lg transition-colors">
-                <Menu className="w-6 h-6" />
-              </button>
+            <div>
+              <h1 className="font-bold text-gray-900 dark:text-white">يا فقيه</h1>
+              <p className="text-xs text-gray-500 dark:text-gray-400">مساعدك الإسلامي</p>
             </div>
           </div>
 
-          {/* Menu mobile */}
-          {showMobileMenu && (
-            <div className="md:hidden mt-3 pt-3 border-t border-white/20 space-y-2">
-              <button onClick={() => { setShowHistory(!showHistory); setShowMobileMenu(false); }} className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/10 rounded-lg transition-colors text-right">
-                <MessageSquare className="w-5 h-5" /><span>المحادثات السابقة</span>
+          <div className="flex items-center gap-2">
+            {/* Bouton Dark Mode */}
+            <button onClick={toggleDarkMode} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+              {darkMode ? <Sun className="w-5 h-5 text-gray-600 dark:text-gray-300" /> : <Moon className="w-5 h-5 text-gray-600" />}
+            </button>
+
+            {/* Bouton Export PDF */}
+            {subscriptionTier === 'premium' && (
+              <button onClick={handleExportPDF} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" title="تصدير PDF">
+                <Download className="w-5 h-5 text-gray-600 dark:text-gray-300" />
               </button>
-              <button onClick={() => { setShowFavorites(!showFavorites); setShowMobileMenu(false); }} className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/10 rounded-lg transition-colors text-right">
-                <Star className="w-5 h-5" /><span>المفضلة</span>
+            )}
+
+            {/* Bouton Historique */}
+            <button onClick={() => { loadConversations(); setShowHistory(true); }} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+              <MessageSquare className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+            </button>
+
+            {/* Bouton Favoris */}
+            <button onClick={() => setShowFavorites(true)} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors relative">
+              <Star className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+              {favoriteMessages.length > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-500 text-white text-xs rounded-full flex items-center justify-center">
+                  {favoriteMessages.length}
+                </span>
+              )}
+            </button>
+
+            {/* Bouton Premium */}
+            <button onClick={() => setShowPremiumModal(true)} className={`p-2 rounded-lg transition-colors ${subscriptionTier === 'premium' ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white' : subscriptionTier === 'pro' ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
+              <Crown className={`w-5 h-5 ${subscriptionTier !== 'free' ? 'text-white' : 'text-gray-600 dark:text-gray-300'}`} />
+            </button>
+
+            {/* Menu Mobile */}
+            <button onClick={() => setShowMobileMenu(!showMobileMenu)} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors md:hidden">
+              <Menu className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+            </button>
+
+            {/* Menu Utilisateur Desktop */}
+            <div className="hidden md:flex items-center gap-2">
+              <button onClick={() => setShowAbout(true)} className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+                حول
               </button>
-              {user?.isAdmin && (
-                <button onClick={() => { setShowAdminDashboard(true); setShowMobileMenu(false); }} className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/10 rounded-lg transition-colors text-right bg-amber-500/20">
-                  <Shield className="w-5 h-5 text-amber-300" /><span>Dashboard Admin</span>
+              {user?.role === 'ADMIN' && (
+                <button onClick={() => setShowAdminDashboard(true)} className="px-3 py-1.5 text-sm bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors flex items-center gap-1">
+                  <Shield className="w-4 h-4" />
+                  إدارة
                 </button>
               )}
-              <button onClick={() => { setShowPremiumModal(true); setShowMobileMenu(false); }} className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/10 rounded-lg transition-colors text-right">
-                <Tag className="w-5 h-5" /><span>الاشتراكات وكود الخصم</span>
-              </button>
-              <button onClick={() => { setShowAbout(true); setShowMobileMenu(false); }} className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/10 rounded-lg transition-colors text-right">
-                <BookOpen className="w-5 h-5" /><span>حول التطبيق</span>
-              </button>
-              <button onClick={() => { handleExportPDF(); setShowMobileMenu(false); }} disabled={messages.length <= 1 || subscriptionTier !== 'premium'} className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/10 rounded-lg transition-colors text-right disabled:opacity-50">
-                <Download className="w-5 h-5" /><span>تصدير PDF</span>{subscriptionTier !== 'premium' && <span className="text-xs">(مميز)</span>}
-              </button>
-              <button onClick={() => { router.push('/dashboard'); setShowMobileMenu(false); }} className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/10 rounded-lg transition-colors text-right">
-                <User className="w-5 h-5" /><span>لوحة التحكم</span>
-              </button>
-              <button onClick={() => { signOut(); setShowMobileMenu(false); }} className="w-full flex items-center gap-3 px-3 py-2 hover:bg-red-500/20 rounded-lg transition-colors text-right text-red-200">
-                <LogOut className="w-5 h-5" /><span>تسجيل الخروج</span>
+              <button onClick={() => signOut()} className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 transition-colors">
+                <LogOut className="w-5 h-5" />
               </button>
             </div>
-          )}
+          </div>
         </div>
-      </div>
 
-      {/* Historique */}
+        {/* Menu Mobile Dropdown */}
+        {showMobileMenu && (
+          <div className="md:hidden absolute top-full left-0 right-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-lg">
+            <div className="p-4 space-y-2">
+              <div className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center text-white font-bold">
+                  {user?.name?.[0]?.toUpperCase() || 'U'}
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-white text-sm">{user?.name}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{subscriptionTier === 'premium' ? 'بريميوم' : subscriptionTier === 'pro' ? 'برو' : 'مجاني'}</p>
+                </div>
+              </div>
+              <button onClick={() => { setShowAbout(true); setShowMobileMenu(false); }} className="w-full text-right p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg text-gray-700 dark:text-gray-300">
+                حول التطبيق
+              </button>
+              {user?.role === 'ADMIN' && (
+                <button onClick={() => { setShowAdminDashboard(true); setShowMobileMenu(false); }} className="w-full text-right p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg text-purple-600 dark:text-purple-400 flex items-center gap-2 justify-end">
+                  <span>لوحة الإدارة</span>
+                  <Shield className="w-4 h-4" />
+                </button>
+              )}
+              <button onClick={() => signOut()} className="w-full text-right p-3 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg text-red-600 dark:text-red-400 flex items-center gap-2 justify-end">
+                <span>تسجيل الخروج</span>
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Barre de progression des messages */}
+        {subscriptionTier !== 'premium' && (
+          <div className="max-w-6xl mx-auto px-4 py-2 border-t border-gray-100 dark:border-gray-800">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-gray-500 dark:text-gray-400">
+                {messageCount} / {subscriptionTier === 'pro' ? PRO_MESSAGE_LIMIT : FREE_MESSAGE_LIMIT} رسالة
+              </span>
+              <div className="flex-1 mx-4 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full rounded-full transition-all ${
+                    messageCount >= (subscriptionTier === 'pro' ? PRO_MESSAGE_LIMIT : FREE_MESSAGE_LIMIT) * 0.8 
+                      ? 'bg-red-500' 
+                      : 'bg-emerald-500'
+                  }`}
+                  style={{ width: `${(messageCount / (subscriptionTier === 'pro' ? PRO_MESSAGE_LIMIT : FREE_MESSAGE_LIMIT)) * 100}%` }}
+                />
+              </div>
+              <button onClick={() => setShowPremiumModal(true)} className="text-emerald-600 dark:text-emerald-400 hover:underline">
+                ترقية
+              </button>
+            </div>
+          </div>
+        )}
+      </header>
+
+      {/* Notifications de prière */}
+      <PrayerNotification />
+
+      {/* Modal Premium/Subscription */}
+      {showPremiumModal && (
+        <SubscriptionModal
+          isOpen={showPremiumModal}
+          onClose={() => setShowPremiumModal(false)}
+          currentTier={subscriptionTier}
+          messageCount={messageCount}
+          messageLimit={subscriptionTier === 'pro' ? PRO_MESSAGE_LIMIT : FREE_MESSAGE_LIMIT}
+        />
+      )}
+
+      {/* Modal Qibla */}
+      {showQiblaModal && (
+        <QiblaModal onClose={() => setShowQiblaModal(false)} />
+      )}
+
+      {/* Espacement pour le header fixe */}
+      <div className={`${subscriptionTier !== 'premium' ? 'pt-28' : 'pt-20'}`}></div>
+
+      {/* Modal Historique */}
       {showHistory && (
-        <div className="fixed inset-y-0 right-0 w-80 bg-white dark:bg-gray-800 shadow-2xl z-40 overflow-y-auto transition-colors duration-200">
-          <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
-              <button onClick={() => setShowHistory(false)} className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl max-w-2xl w-full max-h-[80vh] overflow-hidden shadow-2xl">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+              <button onClick={() => setShowHistory(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                 <X className="w-6 h-6" />
               </button>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">المحادثات المحفوظة</h2>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">المحادثات السابقة</h2>
+              <button onClick={startNewConversation} className="text-emerald-600 dark:text-emerald-400 text-sm hover:underline">
+                محادثة جديدة
+              </button>
             </div>
             
             {conversations.length === 0 ? (
-              <div className="text-center py-8">
-                <MessageSquare className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
-                <p className="text-gray-500 dark:text-gray-400 text-sm">لا توجد محادثات محفوظة</p>
+              <div className="p-12 text-center">
+                <MessageSquare className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                <p className="text-gray-500 dark:text-gray-400">لا توجد محادثات سابقة</p>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="overflow-y-auto max-h-[60vh] p-4 space-y-2">
                 {conversations.map((conv) => (
-                  <div key={conv.id} className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer group">
-                    <div className="flex justify-between items-start gap-2">
-                      <button onClick={() => deleteConversation(conv.id)} className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <X className="w-4 h-4" />
-                      </button>
+                  <div key={conv.id} className="group bg-gray-50 dark:bg-gray-700/50 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-xl transition-all cursor-pointer">
+                    <div className="p-4 flex items-start gap-3">
                       {subscriptionTier === 'premium' && (
-                        <button onClick={(e) => { e.stopPropagation(); handleExportHistoricalPDF(conv.id); }} className="text-emerald-500 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 opacity-0 group-hover:opacity-100 transition-opacity" title="تصدير PDF">
-                          <Download className="w-4 h-4" />
+                        <button onClick={(e) => handleExportHistoricalPDF(conv.id)} className="opacity-0 group-hover:opacity-100 p-2 hover:bg-white dark:hover:bg-gray-600 rounded-lg transition-all" title="تصدير PDF">
+                          <Download className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                         </button>
                       )}
+                      <button onClick={(e) => deleteConversation(conv.id, e)} className="opacity-0 group-hover:opacity-100 p-2 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-all">
+                        <X className="w-4 h-4 text-red-500" />
+                      </button>
                       <div onClick={() => loadConversation(conv.id)} className="flex-1 text-right">
                         <p className="text-sm font-medium text-gray-900 dark:text-gray-100 line-clamp-2 mb-2">{conv.title || 'محادثة جديدة'}</p>
                         <div className="flex items-center gap-2 justify-end text-xs">
@@ -673,7 +724,7 @@ export default function IslamicChatApp() {
           <InputBar
             value={input}
             onChange={setInput}
-            onSend={handleSend}
+            onSend={() => handleSend()}
             onFileUpload={handleFileUpload}
             isLoading={isLoading}
             disabled={false}
