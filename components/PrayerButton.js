@@ -15,7 +15,6 @@ export default function PrayerButton() {
   const adhanAudioRef = useRef(null);
   const lastAdhanTimeRef = useRef(null);
 
-  // Noms des prières en arabe
   const prayerNames = {
     Fajr: 'الفجر',
     Dhuhr: 'الظهر',
@@ -24,7 +23,6 @@ export default function PrayerButton() {
     Isha: 'العشاء'
   };
 
-  // Initialiser depuis localStorage
   useEffect(() => {
     const savedEnabled = localStorage.getItem('prayerNotificationsEnabled');
     const savedLocation = localStorage.getItem('prayerLocation');
@@ -46,7 +44,6 @@ export default function PrayerButton() {
     }
   }, []);
 
-  // Créer l'élément audio pour l'Adhan
   useEffect(() => {
     adhanAudioRef.current = new Audio('/audio/adhan.mp3');
     
@@ -67,7 +64,6 @@ export default function PrayerButton() {
     };
   }, []);
 
-  // Charger les horaires de prière
   useEffect(() => {
     if (enabled && location) {
       fetchPrayerTimes();
@@ -76,7 +72,6 @@ export default function PrayerButton() {
     }
   }, [enabled, location]);
 
-  // Vérifier la prochaine prière
   useEffect(() => {
     if (prayerTimes) {
       const checkInterval = setInterval(() => {
@@ -166,12 +161,10 @@ export default function PrayerButton() {
 
     setNextPrayer(nextPrayerData);
 
-    // Notification 5 minutes avant
     if (nextPrayerData.diff === 5) {
       sendNotification(nextPrayerData.name, nextPrayerData.time, true);
     }
 
-    // Au moment de la prière
     if (nextPrayerData.diff <= 1 && nextPrayerData.diff >= 0) {
       const adhanKey = `${currentKey}-${nextPrayerData.name}`;
       
@@ -194,7 +187,7 @@ export default function PrayerButton() {
       adhanAudioRef.current.currentTime = 0;
       await adhanAudioRef.current.play();
     } catch (error) {
-      console.error('Erreur lors de la lecture de l\'Adhan:', error);
+      console.error('Erreur Adhan:', error);
       setAdhanPlaying(false);
       playAdhanFallback();
     }
@@ -338,7 +331,6 @@ export default function PrayerButton() {
 
   return (
     <>
-      {/* Bouton flottant */}
       {!showSettings && (
         <button
           onClick={() => setShowSettings(true)}
@@ -363,12 +355,10 @@ export default function PrayerButton() {
         </button>
       )}
 
-      {/* Modal */}
       {showSettings && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" dir="rtl">
           <div className="bg-white dark:bg-gray-800 rounded-3xl max-w-md w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
             
-            {/* Header */}
             <button
               onClick={() => setShowSettings(false)}
               className="absolute top-4 left-4 text-gray-400 hover:text-gray-600"
@@ -380,7 +370,6 @@ export default function PrayerButton() {
               مواقيت الصلاة
             </h2>
 
-            {/* Toggle Notifications */}
             <div className="flex items-center justify-between mb-4">
               <span className="text-gray-700 dark:text-gray-300 font-medium">تفعيل التنبيهات</span>
               <button
@@ -396,7 +385,6 @@ export default function PrayerButton() {
               </button>
             </div>
 
-            {/* Toggle Adhan - Visible seulement quand notifications activées */}
             {enabled && (
               <div className="flex items-center justify-between mb-4 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-xl">
                 <div className="flex items-center gap-2">
@@ -423,7 +411,6 @@ export default function PrayerButton() {
               </div>
             )}
 
-            {/* Bouton test Adhan */}
             {enabled && adhanEnabled && (
               <button
                 onClick={testAdhan}
@@ -447,7 +434,6 @@ export default function PrayerButton() {
               </button>
             )}
 
-            {/* Liste des prières */}
             {enabled && prayerTimes && (
               <div className="space-y-2 mb-4">
                 {Object.entries(prayerTimes).map(([name, time]) => {
@@ -477,7 +463,6 @@ export default function PrayerButton() {
               </div>
             )}
 
-            {/* Prochaine prière */}
             {enabled && nextPrayer && (
               <div className="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl p-4 text-white text-center">
                 <div className="text-sm opacity-80 mb-1">الصلاة القادمة</div>
@@ -495,7 +480,6 @@ export default function PrayerButton() {
               </div>
             )}
 
-            {/* Message si désactivé */}
             {!enabled && (
               <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 <BellOff className="w-12 h-12 mx-auto mb-3 opacity-50" />
