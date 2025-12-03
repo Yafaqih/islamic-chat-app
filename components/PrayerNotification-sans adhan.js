@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Bell, BellOff, X, Volume2, VolumeX } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Bell, BellOff, X } from 'lucide-react';
 
 export default function PrayerNotification({ 
-  isOpen = null,
-  onClose = null,
-  showFloatingButton = true
+  isOpen = null,        // ✅ NOUVEAU: Contrôle externe (optionnel)
+  onClose = null,       // ✅ NOUVEAU: Callback pour fermer
+  showFloatingButton = true  // ✅ NOUVEAU: Afficher le bouton flottant
 }) {
   const [enabled, setEnabled] = useState(false);
   const [location, setLocation] = useState(null);
@@ -13,13 +13,8 @@ export default function PrayerNotification({
   const [showSettings, setShowSettings] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState('default');
   const [loading, setLoading] = useState(false);
-  
-  // ✅ NOUVEAU: État pour l'Adhan
-  const [adhanEnabled, setAdhanEnabled] = useState(false);
-  const [adhanPlaying, setAdhanPlaying] = useState(false);
-  const audioRef = useRef(null);
 
-  // Synchroniser avec le contrôle externe
+  // ✅ NOUVEAU: Synchroniser avec le contrôle externe
   useEffect(() => {
     if (isOpen !== null) {
       setShowSettings(isOpen);
@@ -39,21 +34,15 @@ export default function PrayerNotification({
     Isha: 'العشاء'
   };
 
-  // Charger les préférences
   useEffect(() => {
     const savedEnabled = localStorage.getItem('prayerNotificationsEnabled');
     const savedLocation = localStorage.getItem('prayerLocation');
-    const savedAdhan = localStorage.getItem('adhanEnabled');
     
     if (savedEnabled === 'true') {
       setEnabled(true);
       if (savedLocation) {
         setLocation(JSON.parse(savedLocation));
       }
-    }
-    
-    if (savedAdhan === 'true') {
-      setAdhanEnabled(true);
     }
 
     if ('Notification' in window) {
@@ -157,74 +146,12 @@ export default function PrayerNotification({
 
     setNextPrayer(nextPrayerData);
 
-    // Notification 5 minutes avant
     if (nextPrayerData.diff === 5) {
       sendNotification(nextPrayerData.name, nextPrayerData.time, true);
     }
 
-    // Notification à l'heure exacte + Adhan
     if (nextPrayerData.diff === 0) {
       sendNotification(nextPrayerData.name, nextPrayerData.time, false);
-      if (adhanEnabled) {
-        playAdhan();
-      }
-    }
-  };
-
-  // ✅ NOUVEAU: Jouer l'Adhan
-  const playAdhan = () => {
-    try {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-      }
-      
-      const audio = new Audio('/sounds/adhan.mp3');
-      audioRef.current = audio;
-      
-      audio.volume = 0.7;
-      audio.play()
-        .then(() => {
-          setAdhanPlaying(true);
-        })
-        .catch((error) => {
-          console.error('Error playing Adhan:', error);
-        });
-      
-      audio.onended = () => {
-        setAdhanPlaying(false);
-      };
-    } catch (error) {
-      console.error('Error playing Adhan:', error);
-    }
-  };
-
-  // ✅ NOUVEAU: Arrêter l'Adhan
-  const stopAdhan = () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-      setAdhanPlaying(false);
-    }
-  };
-
-  // ✅ NOUVEAU: Tester l'Adhan
-  const testAdhan = () => {
-    if (adhanPlaying) {
-      stopAdhan();
-    } else {
-      playAdhan();
-    }
-  };
-
-  // ✅ NOUVEAU: Toggle Adhan
-  const toggleAdhan = () => {
-    const newValue = !adhanEnabled;
-    setAdhanEnabled(newValue);
-    localStorage.setItem('adhanEnabled', newValue.toString());
-    
-    if (!newValue && adhanPlaying) {
-      stopAdhan();
     }
   };
 
@@ -244,8 +171,7 @@ export default function PrayerNotification({
       new Notification(title, {
         body: body,
         icon: '/icon-192x192.png',
-        tag: `prayer-${prayerName}-${isBefore ? 'before' : 'now'}`,
-        requireInteraction: !isBefore
+        tag: `prayer-${prayerName}-${isBefore ? 'before' : 'now'}`
       });
     } catch (error) {
       console.error('Notification error:', error);
@@ -284,7 +210,6 @@ export default function PrayerNotification({
     setEnabled(false);
     localStorage.setItem('prayerNotificationsEnabled', 'false');
     setNextPrayer(null);
-    stopAdhan();
   };
 
   const formatTimeRemaining = (minutes) => {
@@ -301,7 +226,7 @@ export default function PrayerNotification({
 
   return (
     <>
-      {/* Bouton flottant (optionnel) */}
+      {/* ✅ Bouton flottant (optionnel) */}
       {showFloatingButton && !showSettings && (
         <button
           onClick={() => setShowSettings(true)}
@@ -328,21 +253,17 @@ export default function PrayerNotification({
             
             <button
               onClick={handleClose}
-              className="absolute top-4 left-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              className="absolute top-4 left-4 text-gray-400 hover:text-gray-600"
             >
               <X className="w-6 h-6" />
             </button>
 
             <h2 className="text-2xl font-bold text-center text-gray-900 dark:text-white mb-6">
-              🕌 مواقيت الصلاة
+              مواقيت الصلاة
             </h2>
 
-            {/* Toggle Notifications */}
-            <div className="flex items-center justify-between mb-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-              <div className="flex items-center gap-3">
-                <Bell className="w-5 h-5 text-purple-500" />
-                <span className="text-gray-700 dark:text-gray-300 font-medium">تفعيل التنبيهات</span>
-              </div>
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-gray-700 dark:text-gray-300 font-medium">تفعيل التنبيهات</span>
               <button
                 onClick={enabled ? disableNotifications : enableNotifications}
                 disabled={loading}
@@ -356,61 +277,6 @@ export default function PrayerNotification({
               </button>
             </div>
 
-            {/* ✅ NOUVEAU: Toggle Adhan */}
-            <div className={`flex items-center justify-between mb-4 p-3 rounded-xl transition-all ${
-              enabled 
-                ? 'bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border border-purple-200 dark:border-purple-700' 
-                : 'bg-gray-100 dark:bg-gray-700/30 opacity-50'
-            }`}>
-              <div className="flex items-center gap-3">
-                {adhanEnabled ? (
-                  <Volume2 className="w-5 h-5 text-purple-500" />
-                ) : (
-                  <VolumeX className="w-5 h-5 text-gray-400" />
-                )}
-                <div>
-                  <span className="text-gray-700 dark:text-gray-300 font-medium block">صوت الأذان</span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">تشغيل الأذان عند وقت الصلاة</span>
-                </div>
-              </div>
-              <button
-                onClick={toggleAdhan}
-                disabled={!enabled}
-                className={`relative w-14 h-8 rounded-full transition-all ${
-                  adhanEnabled && enabled ? 'bg-purple-500' : 'bg-gray-300 dark:bg-gray-600'
-                } ${!enabled ? 'cursor-not-allowed' : ''}`}
-              >
-                <div className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow transition-all ${
-                  adhanEnabled && enabled ? 'right-1' : 'left-1'
-                }`} />
-              </button>
-            </div>
-
-            {/* ✅ NOUVEAU: Bouton test Adhan */}
-            {enabled && adhanEnabled && (
-              <button
-                onClick={testAdhan}
-                className={`w-full mb-4 py-3 px-4 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${
-                  adhanPlaying 
-                    ? 'bg-red-500 hover:bg-red-600 text-white' 
-                    : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/50'
-                }`}
-              >
-                {adhanPlaying ? (
-                  <>
-                    <VolumeX className="w-5 h-5" />
-                    إيقاف الأذان
-                  </>
-                ) : (
-                  <>
-                    <Volume2 className="w-5 h-5" />
-                    تجربة صوت الأذان
-                  </>
-                )}
-              </button>
-            )}
-
-            {/* Horaires des prières */}
             {enabled && prayerTimes && (
               <div className="space-y-2 mb-4">
                 {Object.entries(prayerTimes).map(([name, time]) => {
@@ -440,7 +306,6 @@ export default function PrayerNotification({
               </div>
             )}
 
-            {/* Prochaine prière */}
             {enabled && nextPrayer && (
               <div className="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl p-4 text-white text-center">
                 <div className="text-sm opacity-80 mb-1">الصلاة القادمة</div>
@@ -450,28 +315,14 @@ export default function PrayerNotification({
                 <div className="text-sm opacity-80">
                   بعد {formatTimeRemaining(nextPrayer.diff)}
                 </div>
-                {adhanEnabled && (
-                  <div className="mt-2 text-xs opacity-70 flex items-center justify-center gap-1">
-                    <Volume2 className="w-3 h-3" />
-                    سيتم تشغيل الأذان
-                  </div>
-                )}
               </div>
             )}
 
-            {/* État désactivé */}
             {!enabled && (
               <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 <BellOff className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>فعّل التنبيهات للحصول على إشعارات الصلاة</p>
               </div>
-            )}
-
-            {/* Note sur l'Adhan */}
-            {enabled && (
-              <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-4">
-                💡 تأكد من رفع صوت الجهاز لسماع الأذان
-              </p>
             )}
 
           </div>
