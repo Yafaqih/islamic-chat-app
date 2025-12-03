@@ -3,7 +3,7 @@ import { useSession, signIn, signOut } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import { Send, BookOpen, Sparkles, Star, X, Crown, Check, Zap, LogOut, MessageSquare, Shield, AlertCircle, Moon, Sun, Download, User, Navigation, Menu, Tag } from 'lucide-react';
 import { exportCurrentConversationToPDF, exportConversationToPDF } from '../lib/pdfExport';
-import PrayerButton from '../components/PrayerButton';
+import PrayerNotification from '../components/PrayerNotification';
 // ✨ Import du composant TTS
 import ArabicTTS from '../components/ArabicTTS';
 import AboutPage from '../components/AboutPage';
@@ -365,7 +365,7 @@ export default function IslamicChatApp() {
             <div className="flex items-center gap-1 sm:gap-2">
               {/* Desktop actions */}
               <div className="hidden md:flex items-center gap-2">
-                <PrayerButton />
+                <PrayerNotification />
                 
                 <button onClick={toggleDarkMode} className="p-2 hover:bg-white/10 rounded-lg transition-colors" title={darkMode ? "الوضع الفاتح" : "الوضع الداكن"}>
                   {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
@@ -450,7 +450,7 @@ export default function IslamicChatApp() {
 
               {/* Mobile actions */}
               <div className="md:hidden">
-                <PrayerButton />
+                <PrayerNotification />
               </div>
               <button onClick={toggleDarkMode} className="md:hidden p-2 hover:bg-white/10 rounded-lg transition-colors">
                 {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}

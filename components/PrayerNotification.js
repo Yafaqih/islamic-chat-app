@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, BellOff, X } from 'lucide-react';
 
-export default function PrayerButton() {
+export default function PrayerNotification() {
   const [enabled, setEnabled] = useState(false);
   const [location, setLocation] = useState(null);
   const [prayerTimes, setPrayerTimes] = useState(null);
