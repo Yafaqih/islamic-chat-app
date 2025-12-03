@@ -4,8 +4,16 @@ import Anthropic from '@anthropic-ai/sdk';
 import prisma from '../../lib/prisma';
 import { withRateLimit } from '../../lib/rateLimit';
 
+// Vérifier la clé API au démarrage
+const apiKey = process.env.ANTHROPIC_API_KEY;
+console.log('=== API CONFIG CHECK ===');
+console.log('API Key exists:', !!apiKey);
+console.log('API Key length:', apiKey?.length || 0);
+console.log('API Key prefix:', apiKey?.substring(0, 15) || 'MISSING');
+console.log('========================');
+
 const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
+  apiKey: apiKey,
 });
 
 // Limites de messages par tier
@@ -15,7 +23,6 @@ const PRO_MESSAGE_LIMIT = 100;
 // Fonction pour sauvegarder la conversation
 async function saveConversation(userId, userMessage, assistantMessage, references) {
   try {
-    // Chercher une conversation active pour aujourd'hui
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -31,9 +38,7 @@ async function saveConversation(userId, userMessage, assistantMessage, reference
       }
     });
 
-    // Si pas de conversation aujourd'hui, en créer une nouvelle
     if (!conversation) {
-      // Extraire un titre du premier message (premiers 60 caractères)
       let title = userMessage.substring(0, 60);
       if (userMessage.length > 60) {
         title += '...';
@@ -49,7 +54,6 @@ async function saveConversation(userId, userMessage, assistantMessage, reference
       console.log('New conversation created:', conversation.id);
     }
 
-    // Sauvegarder les messages
     await prisma.message.createMany({
       data: [
         {
@@ -66,7 +70,6 @@ async function saveConversation(userId, userMessage, assistantMessage, reference
       ]
     });
 
-    // Mettre à jour le timestamp de la conversation
     await prisma.conversation.update({
       where: { id: conversation.id },
       data: { updatedAt: new Date() }
@@ -76,7 +79,6 @@ async function saveConversation(userId, userMessage, assistantMessage, reference
     return conversation.id;
   } catch (error) {
     console.error('Error saving conversation:', error);
-    // Ne pas bloquer la réponse si la sauvegarde échoue
     return null;
   }
 }
@@ -86,23 +88,30 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // ✨ VÉRIFIER L'AUTHENTIFICATION
+  // Vérifier la clé API avant tout
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.error('❌ ANTHROPIC_API_KEY is not set!');
+    return res.status(500).json({ 
+      error: 'Clé API non configurée',
+      debug: 'ANTHROPIC_API_KEY missing from environment'
+    });
+  }
+
   const session = await getServerSession(req, res, authOptions);
   if (!session) {
     return res.status(401).json({ error: 'Non authentifié' });
   }
 
-  // ✨ RATE LIMITING: 10 requêtes par minute par utilisateur
   const rateLimitPassed = await withRateLimit(
     req, 
     res, 
     'chat', 
     10, 
-    () => session.user.id // Utiliser l'ID utilisateur comme clé
+    () => session.user.id
   );
   
   if (!rateLimitPassed) {
-    return; // La réponse 429 a déjà été envoyée
+    return;
   }
 
   const { message } = req.body;
@@ -113,7 +122,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Récupérer l'utilisateur pour vérifier son tier et son compteur
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -126,13 +134,11 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Utilisateur non trouvé' });
     }
 
-    // Déterminer la limite de messages selon le tier
     const currentTier = user.subscriptionTier || 'free';
     const messageLimit = currentTier === 'free' ? FREE_MESSAGE_LIMIT : 
                         currentTier === 'pro' ? PRO_MESSAGE_LIMIT : 
-                        Infinity; // Premium = illimité
+                        Infinity;
 
-    // Vérifier si l'utilisateur a atteint sa limite
     if (user.messageCount >= messageLimit) {
       return res.status(403).json({ 
         error: 'Limite de messages atteinte',
@@ -142,7 +148,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // Construire le prompt système selon le tier
     let systemPrompt;
     let maxTokens;
 
@@ -170,7 +175,8 @@ Pour les khutbas, utilise cette structure:
       maxTokens = 1000;
     }
 
-    // Appeler l'API Claude
+    console.log('Calling Anthropic API...');
+    
     const completion = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: maxTokens,
@@ -183,12 +189,12 @@ Pour les khutbas, utilise cette structure:
       ]
     });
 
+    console.log('Anthropic API response received');
+
     const response = completion.content[0].text;
 
-    // Extraire les références du texte
     const references = [];
     
-    // Détecter les sourates du Coran
     const surahMatches = response.matchAll(/سورة\s+[\u0600-\u06FF]+/g);
     for (const match of surahMatches) {
       if (!references.includes(match[0])) {
@@ -196,7 +202,6 @@ Pour les khutbas, utilise cette structure:
       }
     }
     
-    // Détecter les hadiths
     const hadithMatches = response.matchAll(/(صحيح البخاري|صحيح مسلم|سنن الترمذي|سنن أبي داود|سنن النسائي|سنن ابن ماجه)[^\.،]+/g);
     for (const match of hadithMatches) {
       if (!references.includes(match[0])) {
@@ -204,7 +209,6 @@ Pour les khutbas, utilise cette structure:
       }
     }
 
-    // Détecter les références au Coran avec versets
     const ayahMatches = response.matchAll(/[\u0600-\u06FF\s]+:\s*\d+/g);
     for (const match of ayahMatches) {
       if (match[0].includes('سورة') || match[0].length < 50) {
@@ -214,10 +218,8 @@ Pour les khutbas, utilise cette structure:
       }
     }
 
-    // ✨ SAUVEGARDER LA CONVERSATION AUTOMATIQUEMENT
     const conversationId = await saveConversation(userId, message, response, references);
 
-    // Mettre à jour le compteur de messages de l'utilisateur
     try {
       await prisma.user.update({
         where: { id: userId },
@@ -229,13 +231,12 @@ Pour les khutbas, utilise cette structure:
       });
     } catch (dbError) {
       console.error('Error updating message count:', dbError);
-      // On continue même si l'update échoue
     }
 
     return res.status(200).json({
       response,
-      references: [...new Set(references)].slice(0, 5), // Dédupliquer et limiter à 5
-      conversationId, // Retourner l'ID de la conversation
+      references: [...new Set(references)].slice(0, 5),
+      conversationId,
       usage: {
         messagesUsed: user.messageCount + 1,
         messagesLimit: messageLimit,
@@ -244,11 +245,18 @@ Pour les khutbas, utilise cette structure:
     });
 
   } catch (error) {
-    console.error('Chat error:', error);
+    console.error('=== CHAT ERROR ===');
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    console.error('Error status:', error.status);
+    console.error('Full error:', JSON.stringify(error, null, 2));
+    console.error('==================');
     
-    // Gérer les erreurs spécifiques de l'API Anthropic
     if (error.status === 401) {
-      return res.status(500).json({ error: 'Erreur de configuration API' });
+      return res.status(500).json({ 
+        error: 'Erreur de configuration API',
+        debug: 'API key invalid or unauthorized'
+      });
     }
     
     if (error.status === 429) {
@@ -259,6 +267,9 @@ Pour les khutbas, utilise cette structure:
       return res.status(400).json({ error: 'Requête invalide' });
     }
     
-    return res.status(500).json({ error: 'Erreur serveur' });
+    return res.status(500).json({ 
+      error: 'Erreur serveur',
+      debug: error.message 
+    });
   }
 }
