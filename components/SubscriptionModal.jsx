@@ -67,7 +67,7 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
       id: 'premium',
       name: 'مميز',
       price: 5.99,
-      priceFormatted: '$5.99/شهر,
+      priceFormatted: '$5.99/شهر',
       description: 'للمحترفين والمؤسسات',
       features: [
         'رسائل غير محدودة',
