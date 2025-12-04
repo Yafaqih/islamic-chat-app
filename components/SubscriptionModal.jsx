@@ -44,7 +44,7 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
       id: 'pro',
       name: 'احترافي',
       price: 3.99,
-      priceFormatted: '$3.99/mo',
+      priceFormatted: '$3.99/شهر',
       description: 'للاستخدام المتقدم',
       features: [
         '100 رسالة يومياً',
@@ -67,7 +67,7 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
       id: 'premium',
       name: 'مميز',
       price: 5.99,
-      priceFormatted: '$5.99/mo',
+      priceFormatted: '$5.99/شهر,
       description: 'للمحترفين والمؤسسات',
       features: [
         'رسائل غير محدودة',

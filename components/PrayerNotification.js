@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, BellOff, X, Volume2, VolumeX } from 'lucide-react';
+import { Bell, BellOff, X, Volume2, VolumeX, Smartphone, Download } from 'lucide-react';
 
 export default function PrayerNotification({ 
   isOpen = null,
@@ -13,8 +13,10 @@ export default function PrayerNotification({
   const [showSettings, setShowSettings] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState('default');
   const [loading, setLoading] = useState(false);
+  const [notificationSupported, setNotificationSupported] = useState(true);
+  const [showInstallGuide, setShowInstallGuide] = useState(false);
   
-  // ✅ NOUVEAU: État pour l'Adhan
+  // État pour l'Adhan
   const [adhanEnabled, setAdhanEnabled] = useState(false);
   const [adhanPlaying, setAdhanPlaying] = useState(false);
   const audioRef = useRef(null);
@@ -39,6 +41,44 @@ export default function PrayerNotification({
     Isha: 'العشاء'
   };
 
+  // ✅ Détecter le support des notifications
+  const checkNotificationSupport = () => {
+    // Vérifier si l'API existe
+    if (!('Notification' in window)) {
+      return { supported: false, reason: 'api_missing' };
+    }
+    
+    // Vérifier si on est en HTTPS
+    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+      return { supported: false, reason: 'not_https' };
+    }
+    
+    // Vérifier si c'est iOS Safari (sans PWA)
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+    
+    if (isIOS && !isStandalone) {
+      return { supported: false, reason: 'ios_not_pwa' };
+    }
+    
+    return { supported: true, reason: null };
+  };
+
+  // ✅ Détecter si mobile
+  const isMobile = () => {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  };
+
+  // ✅ Détecter si iOS
+  const isIOS = () => {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent);
+  };
+
+  // ✅ Détecter si PWA installée
+  const isPWA = () => {
+    return window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+  };
+
   // Charger les préférences
   useEffect(() => {
     const savedEnabled = localStorage.getItem('prayerNotificationsEnabled');
@@ -55,6 +95,10 @@ export default function PrayerNotification({
     if (savedAdhan === 'true') {
       setAdhanEnabled(true);
     }
+
+    // ✅ Vérifier le support des notifications
+    const support = checkNotificationSupport();
+    setNotificationSupported(support.supported);
 
     if ('Notification' in window) {
       setNotificationPermission(Notification.permission);
@@ -171,7 +215,7 @@ export default function PrayerNotification({
     }
   };
 
-  // ✅ NOUVEAU: Jouer l'Adhan
+  // Jouer l'Adhan
   const playAdhan = () => {
     try {
       if (audioRef.current) {
@@ -199,7 +243,7 @@ export default function PrayerNotification({
     }
   };
 
-  // ✅ NOUVEAU: Arrêter l'Adhan
+  // Arrêter l'Adhan
   const stopAdhan = () => {
     if (audioRef.current) {
       audioRef.current.pause();
@@ -208,7 +252,7 @@ export default function PrayerNotification({
     }
   };
 
-  // ✅ NOUVEAU: Tester l'Adhan
+  // Tester l'Adhan
   const testAdhan = () => {
     if (adhanPlaying) {
       stopAdhan();
@@ -217,7 +261,7 @@ export default function PrayerNotification({
     }
   };
 
-  // ✅ NOUVEAU: Toggle Adhan
+  // Toggle Adhan
   const toggleAdhan = () => {
     const newValue = !adhanEnabled;
     setAdhanEnabled(newValue);
@@ -252,20 +296,79 @@ export default function PrayerNotification({
     }
   };
 
+  // ✅ Fonction améliorée pour activer les notifications
   const enableNotifications = async () => {
-    if (!('Notification' in window)) {
-      alert('المتصفح لا يدعم التنبيهات');
+    const support = checkNotificationSupport();
+    
+    // ✅ Si iOS sans PWA, afficher le guide d'installation
+    if (!support.supported && support.reason === 'ios_not_pwa') {
+      setShowInstallGuide(true);
       return;
     }
-
-    if (notificationPermission !== 'granted') {
-      const permission = await Notification.requestPermission();
-      setNotificationPermission(permission);
-      
-      if (permission !== 'granted') {
-        alert('يرجى السماح بالتنبيهات');
+    
+    // ✅ Si API manquante mais mobile, essayer quand même avec son Adhan
+    if (!support.supported && support.reason === 'api_missing') {
+      if (isMobile()) {
+        // Activer quand même pour l'Adhan et les horaires
+        if (!location) {
+          getLocation();
+        }
+        setEnabled(true);
+        localStorage.setItem('prayerNotificationsEnabled', 'true');
+        setAdhanEnabled(true);
+        localStorage.setItem('adhanEnabled', 'true');
+        alert('✅ تم تفعيل مواقيت الصلاة مع صوت الأذان\n\n⚠️ التنبيهات غير مدعومة على هذا المتصفح، لكن سيتم تشغيل الأذان عند كل صلاة إذا كان التطبيق مفتوحاً');
+        if (location) {
+          fetchPrayerTimes();
+        }
+        return;
+      } else {
+        alert('المتصفح لا يدعم التنبيهات. جرب متصفح آخر مثل Chrome أو Firefox');
         return;
       }
+    }
+
+    // ✅ Demander la permission
+    try {
+      if (notificationPermission !== 'granted') {
+        const permission = await Notification.requestPermission();
+        setNotificationPermission(permission);
+        
+        if (permission === 'denied') {
+          alert('❌ تم رفض التنبيهات\n\nلتفعيلها، اذهب إلى إعدادات المتصفح وفعّل التنبيهات لهذا الموقع');
+          return;
+        }
+        
+        if (permission !== 'granted') {
+          // Fallback pour Adhan
+          if (!location) {
+            getLocation();
+          }
+          setEnabled(true);
+          localStorage.setItem('prayerNotificationsEnabled', 'true');
+          setAdhanEnabled(true);
+          localStorage.setItem('adhanEnabled', 'true');
+          alert('⚠️ لم يتم السماح بالتنبيهات\n\nتم تفعيل صوت الأذان كبديل. تأكد أن التطبيق مفتوح لسماع الأذان');
+          if (location) {
+            fetchPrayerTimes();
+          }
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Error requesting notification permission:', error);
+      // Fallback
+      if (!location) {
+        getLocation();
+      }
+      setEnabled(true);
+      localStorage.setItem('prayerNotificationsEnabled', 'true');
+      setAdhanEnabled(true);
+      localStorage.setItem('adhanEnabled', 'true');
+      if (location) {
+        fetchPrayerTimes();
+      }
+      return;
     }
 
     if (!location) {
@@ -277,6 +380,16 @@ export default function PrayerNotification({
     
     if (location) {
       fetchPrayerTimes();
+    }
+
+    // ✅ Envoyer une notification de test
+    try {
+      new Notification('✅ تم تفعيل تنبيهات الصلاة', {
+        body: 'ستصلك إشعارات قبل كل صلاة بخمس دقائق',
+        icon: '/icon-192x192.png',
+      });
+    } catch (e) {
+      console.log('Test notification failed:', e);
     }
   };
 
@@ -321,6 +434,67 @@ export default function PrayerNotification({
         </button>
       )}
 
+      {/* ✅ Guide d'installation PWA pour iOS */}
+      {showInstallGuide && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4" dir="rtl">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl max-w-md w-full p-6 shadow-2xl">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Download className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                📱 أضف التطبيق للشاشة الرئيسية
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
+                لتفعيل التنبيهات على الآيفون، يجب إضافة يا فقيه للشاشة الرئيسية
+              </p>
+              
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 text-right space-y-3 mb-6">
+                <div className="flex items-center gap-3">
+                  <span className="w-6 h-6 bg-purple-500 text-white rounded-full flex items-center justify-center text-sm font-bold">1</span>
+                  <span className="text-gray-700 dark:text-gray-300">اضغط على زر المشاركة <span className="inline-block">⬆️</span></span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="w-6 h-6 bg-purple-500 text-white rounded-full flex items-center justify-center text-sm font-bold">2</span>
+                  <span className="text-gray-700 dark:text-gray-300">اختر "إضافة للشاشة الرئيسية"</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="w-6 h-6 bg-purple-500 text-white rounded-full flex items-center justify-center text-sm font-bold">3</span>
+                  <span className="text-gray-700 dark:text-gray-300">افتح التطبيق من الشاشة الرئيسية</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="w-6 h-6 bg-purple-500 text-white rounded-full flex items-center justify-center text-sm font-bold">4</span>
+                  <span className="text-gray-700 dark:text-gray-300">فعّل التنبيهات 🔔</span>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowInstallGuide(false)}
+                  className="flex-1 py-3 px-4 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium"
+                >
+                  لاحقاً
+                </button>
+                <button
+                  onClick={() => {
+                    setShowInstallGuide(false);
+                    // Activer quand même pour l'Adhan
+                    if (!location) getLocation();
+                    setEnabled(true);
+                    localStorage.setItem('prayerNotificationsEnabled', 'true');
+                    setAdhanEnabled(true);
+                    localStorage.setItem('adhanEnabled', 'true');
+                  }}
+                  className="flex-1 py-3 px-4 bg-purple-500 text-white rounded-xl font-medium"
+                >
+                  فعّل الأذان فقط
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal */}
       {showSettings && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" dir="rtl">
@@ -356,7 +530,7 @@ export default function PrayerNotification({
               </button>
             </div>
 
-            {/* ✅ NOUVEAU: Toggle Adhan */}
+            {/* Toggle Adhan */}
             <div className={`flex items-center justify-between mb-4 p-3 rounded-xl transition-all ${
               enabled 
                 ? 'bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border border-purple-200 dark:border-purple-700' 
@@ -386,7 +560,7 @@ export default function PrayerNotification({
               </button>
             </div>
 
-            {/* ✅ NOUVEAU: Bouton test Adhan */}
+            {/* Bouton test Adhan */}
             {enabled && adhanEnabled && (
               <button
                 onClick={testAdhan}
