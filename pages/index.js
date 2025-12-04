@@ -43,13 +43,10 @@ export default function IslamicChatApp() {
   const [conversations, setConversations] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState(null);
-  const [showQiblaModal, setShowQiblaModal] = useState(false); // ✅ NOUVEAU: État pour le modal Qibla
-  const [showPrayerModal, setShowPrayerModal] = useState(false); // ✅ NOUVEAU: État pour le modal Prière
-  const [uploadedFiles, setUploadedFiles] = useState([]); // ✅ NOUVEAU: Fichiers uploadés
+  const [showQiblaModal, setShowQiblaModal] = useState(false);
+  const [showPrayerModal, setShowPrayerModal] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState([]);
   const messagesEndRef = useRef(null);
-
-  // ⚠️ AUTO-PROMPT DÉSACTIVÉ - Ne fonctionne pas pour les utilisateurs non connectés
-  // const hasAutoSubmitted = useRef(false);
 
   const FREE_MESSAGE_LIMIT = 10;
   const PRO_MESSAGE_LIMIT = 100;
@@ -68,30 +65,6 @@ export default function IslamicChatApp() {
       }
     }
   }, []);
-
-  /* ⚠️ AUTO-PROMPT DÉSACTIVÉ TEMPORAIREMENT
-   * Raison: Ne fonctionne pas pour les utilisateurs non connectés
-   * Pour réactiver: décommenter ce bloc et le useRef ci-dessus
-   
-  useEffect(() => {
-    if (status !== "authenticated" || isLoading || !user) return;
-    
-    const { prompt } = router.query;
-    
-    if (prompt && !hasAutoSubmitted.current) {
-      hasAutoSubmitted.current = true;
-      
-      const decodedPrompt = decodeURIComponent(prompt);
-      console.log('🚀 Auto-executing prompt from URL:', decodedPrompt);
-      
-      router.replace('/', undefined, { shallow: true });
-      
-      setTimeout(() => {
-        handleSend(decodedPrompt);
-      }, 500);
-    }
-  }, [router.query, status, isLoading, user]);
-  */
 
   const toggleDarkMode = () => {
     const newMode = !darkMode;
@@ -153,14 +126,11 @@ export default function IslamicChatApp() {
     "ما أهمية يوم الجمعة؟"
   ];
 
-  // ✅ NOUVEAU: Gestion des fichiers uploadés
   const handleFileUpload = (files) => {
     setUploadedFiles(prev => [...prev, ...files]);
-    // TODO: Envoyer les fichiers au serveur pour traitement
     console.log('Files uploaded:', files);
   };
 
-  // ⭐ MODIFIÉ: handleSend accepte maintenant un paramètre optionnel pour l'auto-prompt
   const handleSend = async (directMessage = null) => {
     const messageText = directMessage || input;
     if (!messageText.trim() || isLoading) return;
@@ -168,83 +138,106 @@ export default function IslamicChatApp() {
     const messageLimit = subscriptionTier === 'free' ? FREE_MESSAGE_LIMIT : 
                         subscriptionTier === 'pro' ? PRO_MESSAGE_LIMIT : Infinity;
 
-    if (messageCount >= messageLimit) {
+    if (messageCount >= messageLimit && subscriptionTier !== 'premium') {
       setShowPremiumModal(true);
       return;
     }
 
-    const userMessage = { id: nextId, role: 'user', content: messageText, isFavorite: false, references: [] };
+    const userMessage = {
+      id: nextId,
+      role: 'user',
+      content: messageText,
+      isFavorite: false
+    };
+
     setMessages(prev => [...prev, userMessage]);
-    setNextId(nextId + 1);
+    setNextId(prev => prev + 1);
     setInput('');
     setIsLoading(true);
-    setMessageCount(prev => prev + 1);
 
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: messageText,
-          subscriptionTier,
-          userId: user?.id,
-          files: uploadedFiles.map(f => f.name) // Envoyer les noms des fichiers
+          messages: [...messages, userMessage].map(m => ({
+            role: m.role,
+            content: m.content
+          })),
+          userId: user?.id
         })
       });
 
       const data = await response.json();
-      
-      if (!response.ok) {
+
+      if (response.ok) {
+        const assistantMessage = {
+          id: nextId + 1,
+          role: 'assistant',
+          content: data.message,
+          isFavorite: false,
+          references: data.references || []
+        };
+
+        setMessages(prev => [...prev, assistantMessage]);
+        setNextId(prev => prev + 2);
+        setMessageCount(data.messageCount || messageCount + 1);
+
+        if (isAuthenticated) {
+          saveConversation([...messages, userMessage, assistantMessage]);
+        }
+      } else {
         throw new Error(data.error || 'Erreur serveur');
       }
-
-      const assistantMessage = {
-        id: nextId + 1,
-        role: 'assistant',
-        content: data.response,
-        isFavorite: false,
-        references: data.references || []
-      };
-      
-      setMessages(prev => [...prev, assistantMessage]);
-      setNextId(nextId + 2);
-      setUploadedFiles([]); // Reset les fichiers après envoi
-
-      if (data.conversationId) {
-        loadConversations();
-      }
-      
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Erreur:', error);
       setMessages(prev => [...prev, {
         id: nextId + 1,
         role: 'assistant',
-        content: `عذراً، حدث خطأ: ${error.message}`,
-        isFavorite: false,
-        references: []
+        content: 'عذراً، حدث خطأ. يرجى المحاولة مرة أخرى.',
+        isFavorite: false
       }]);
-      setNextId(nextId + 2);
+      setNextId(prev => prev + 2);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleSuggestion = (suggestion) => {
+    setInput(suggestion);
+    handleSend(suggestion);
+  };
+
   const toggleFavorite = (messageId) => {
-    setMessages(prev => prev.map(msg => 
+    setMessages(prev => prev.map(msg =>
       msg.id === messageId ? { ...msg, isFavorite: !msg.isFavorite } : msg
     ));
   };
 
-  const handleSuggestion = (suggestion) => {
-    setInput(suggestion);
+  const saveConversation = async (msgs) => {
+    try {
+      const title = msgs.length > 1 ? msgs[1].content.substring(0, 60) : 'محادثة جديدة';
+      const response = await fetch('/api/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, messages: msgs })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setCurrentConversationId(data.conversation?.id);
+        loadConversations();
+      }
+    } catch (error) {
+      console.error('Error saving conversation:', error);
+    }
   };
 
   const loadConversations = async () => {
-    if (!user?.id) return;
     try {
-      const response = await fetch(`/api/conversations/list?userId=${user.id}`);
-      const data = await response.json();
+      const response = await fetch('/api/conversations');
       if (response.ok) {
+        const data = await response.json();
         setConversations(data.conversations || []);
       }
     } catch (error) {
@@ -255,26 +248,27 @@ export default function IslamicChatApp() {
   const loadConversation = async (conversationId) => {
     try {
       const response = await fetch(`/api/conversations/${conversationId}`);
-      const data = await response.json();
-      if (response.ok && data.conversation) {
-        const loadedMessages = data.conversation.messages.map((msg, index) => ({
-          id: index + 1000,
-          role: msg.role,
-          content: msg.content,
-          references: msg.references ? JSON.parse(msg.references) : [],
-          isFavorite: false
-        }));
-        setMessages([messages[0], ...loadedMessages]);
-        setCurrentConversationId(conversationId);
-        setShowHistory(false);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.conversation && data.conversation.messages) {
+          setMessages(data.conversation.messages.map((m, idx) => ({
+            id: idx + 1,
+            role: m.role,
+            content: m.content,
+            isFavorite: false,
+            references: m.references || []
+          })));
+          setNextId(data.conversation.messages.length + 1);
+          setCurrentConversationId(conversationId);
+        }
       }
     } catch (error) {
       console.error('Error loading conversation:', error);
     }
+    setShowHistory(false);
   };
 
   const deleteConversation = async (conversationId) => {
-    if (!confirm('هل تريد حذف هذه المحادثة؟')) return;
     try {
       const response = await fetch(`/api/conversations/${conversationId}`, { method: 'DELETE' });
       if (response.ok) {
@@ -334,7 +328,10 @@ export default function IslamicChatApp() {
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
             </svg>
-            المتابعة مع Google
+            <div className="text-right">
+              <span className="block">المتابعة مع Google</span>
+              <span className="block text-xs text-gray-500 dark:text-gray-400">Continue with Google</span>
+            </div>
           </button>
 
           <div className="relative my-6">
@@ -350,7 +347,8 @@ export default function IslamicChatApp() {
             onClick={() => router.push('/auth')}
             className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold py-3 rounded-xl hover:from-emerald-600 hover:to-teal-700 transition-all"
           >
-            تسجيل الدخول بالبريد الإلكتروني
+            <span className="block">تسجيل الدخول بالبريد الإلكتروني</span>
+            <span className="block text-xs text-emerald-100">Log in with email</span>
           </button>
 
           <button
@@ -358,7 +356,10 @@ export default function IslamicChatApp() {
             className="mt-4 w-full flex items-center justify-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
           >
             {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            {darkMode ? 'الوضع الفاتح' : 'الوضع الداكن'}
+            <div>
+              <span>{darkMode ? 'الوضع الفاتح' : 'الوضع الداكن'}</span>
+              <span className="text-xs text-gray-400 mr-1">({darkMode ? 'Light mode' : 'Dark mode'})</span>
+            </div>
           </button>
         </div>
       </div>
@@ -372,11 +373,7 @@ export default function IslamicChatApp() {
       {/* Modals */}
       <SubscriptionModal isOpen={showPremiumModal} onClose={() => setShowPremiumModal(false)} currentTier={subscriptionTier} />
       <QiblaModal isOpen={showQiblaModal} onClose={() => setShowQiblaModal(false)} />
-      <PrayerNotification 
-        isOpen={showPrayerModal} 
-        onClose={() => setShowPrayerModal(false)} 
-        showFloatingButton={false} 
-      />
+      <PrayerNotification isOpen={showPrayerModal} onClose={() => setShowPrayerModal(false)} showFloatingButton={false} />
 
       {/* Header */}
       <div className="bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-gray-800 dark:to-gray-900 text-white shadow-lg transition-colors duration-200">
@@ -399,23 +396,18 @@ export default function IslamicChatApp() {
             <div className="flex items-center gap-1 sm:gap-2">
               {/* Desktop actions */}
               <div className="hidden md:flex items-center gap-2">
-                
                 <button onClick={toggleDarkMode} className="p-2 hover:bg-white/10 rounded-lg transition-colors" title={darkMode ? "الوضع الفاتح" : "الوضع الداكن"}>
                   {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                 </button>
-
                 <button onClick={handleExportPDF} className="p-2 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50" title="تصدير PDF" disabled={messages.length <= 1 || subscriptionTier !== 'premium'}>
                   <Download className="w-5 h-5" />
                 </button>
-
                 <button onClick={() => router.push('/dashboard')} className="p-2 hover:bg-white/10 rounded-lg transition-colors" title="لوحة التحكم">
                   <User className="w-5 h-5" />
                 </button>
-                
                 <button onClick={() => setShowHistory(!showHistory)} className="p-2 hover:bg-white/10 rounded-lg transition-colors" title="المحادثات السابقة">
                   <MessageSquare className="w-5 h-5" />
                 </button>
-
                 <button onClick={() => setShowFavorites(!showFavorites)} className="p-2 hover:bg-white/10 rounded-lg transition-colors" title="المفضلة">
                   <Star className="w-5 h-5" />
                 </button>
@@ -426,7 +418,7 @@ export default function IslamicChatApp() {
                     <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
                       <span className="text-white font-bold text-sm">{user?.name?.[0]?.toUpperCase() || 'U'}</span>
                     </div>
-                    <span className="text-sm font-medium hidden lg:inline">{user?.name || 'Utilisateur'}</span>
+                    <span className="text-sm font-medium hidden lg:inline">{user?.name || 'User'}</span>
                   </button>
                   
                   <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 overflow-hidden">
@@ -438,7 +430,7 @@ export default function IslamicChatApp() {
                           </div>
                           <div className="text-left flex-1">
                             <div className="font-semibold">Dashboard Admin</div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">Gestion & statistiques</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">Management & statistics</div>
                           </div>
                         </button>
                         <div className="border-t border-gray-200 dark:border-gray-700"></div>
@@ -451,7 +443,7 @@ export default function IslamicChatApp() {
                       </div>
                       <div className="text-left flex-1">
                         <div className="font-semibold">الاشتراكات</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">Abonnements & codes promo</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Subscriptions & promo codes</div>
                       </div>
                     </button>
                     
@@ -461,7 +453,7 @@ export default function IslamicChatApp() {
                       </div>
                       <div className="text-left flex-1">
                         <div className="font-semibold">حول التطبيق</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">À propos</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">About</div>
                       </div>
                     </button>
                     
@@ -473,15 +465,14 @@ export default function IslamicChatApp() {
                       </div>
                       <div className="text-left flex-1">
                         <div className="font-semibold">تسجيل الخروج</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">Déconnexion</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Log out</div>
                       </div>
                     </button>
                   </div>
                 </div>
-
               </div>
 
-              {/* Mobile actions - PrayerNotification déplacé vers InputBar */}
+              {/* Mobile actions */}
               <button onClick={toggleDarkMode} className="md:hidden p-2 hover:bg-white/10 rounded-lg transition-colors">
                 {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
@@ -678,9 +669,7 @@ export default function IslamicChatApp() {
         {/* Suggestions */}
         {messages.length === 1 && (
           <div className="mt-8 flex gap-4">
-            {/* Espace pour l'avatar (même largeur que l'avatar du message) */}
             <div className="flex-shrink-0 w-10"></div>
-            {/* Grille des suggestions */}
             <div className="flex-1 max-w-3xl">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {suggestions.map((suggestion, idx) => (
@@ -697,7 +686,7 @@ export default function IslamicChatApp() {
         )}
       </div>
 
-      {/* ✅ NOUVELLE BARRE D'INPUT STYLE CLAUDE */}
+      {/* Input Bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-white dark:from-gray-900 via-white/95 dark:via-gray-900/95 to-transparent p-3 sm:p-4">
         <div className="max-w-4xl mx-auto">
           <InputBar
