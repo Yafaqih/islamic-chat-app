@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { X, Crown, Check, Sparkles, Zap, Star, Tag, Loader2, CheckCircle, XCircle } from 'lucide-react';
-import { usePricing } from '../hooks/usePricing';
 
 /**
- * SubscriptionModal - Modal d'abonnement avec prix dynamiques LemonSqueezy
+ * SubscriptionModal - Modal d'abonnement avec prix fixes en USD
  */
 export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free' }) {
   const [promoCode, setPromoCode] = useState('');
@@ -12,29 +11,17 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
   const [promoError, setPromoError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // ✅ Récupérer les prix dynamiques depuis LemonSqueezy
-  const { 
-    proPrice,
-    premiumPrice,
-    proPriceRaw,
-    premiumPriceRaw,
-    currencySymbol,
-    currency,
-    loading: priceLoading,
-  } = usePricing();
-
   // ✅ URLs de checkout LemonSqueezy
   const CHECKOUT_URLS = {
     pro: 'https://yafaqih.lemonsqueezy.com/buy/669f5834-1817-42d3-ab4a-a8441db40737',
     premium: 'https://yafaqih.lemonsqueezy.com/buy/c1fd514d-562d-45b0-8dff-c5f1ab34743f'
   };
 
-  // Configuration des plans avec prix dynamiques
+  // Configuration des plans avec prix fixes en USD
   const plans = [
     {
       id: 'free',
       name: 'مجاني',
-      nameEn: 'Free',
       price: 0,
       priceFormatted: 'مجاني',
       description: 'للتجربة والاستكشاف',
@@ -56,9 +43,8 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
     {
       id: 'pro',
       name: 'احترافي',
-      nameEn: 'Pro',
-      price: proPriceRaw || 9.99,
-      priceFormatted: proPrice || '...',
+      price: 3.99,
+      priceFormatted: '$3.99/mo',
       description: 'للاستخدام المتقدم',
       features: [
         '100 رسالة يومياً',
@@ -80,9 +66,8 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
     {
       id: 'premium',
       name: 'مميز',
-      nameEn: 'Premium',
-      price: premiumPriceRaw || 29.99,
-      priceFormatted: premiumPrice || '...',
+      price: 5.99,
+      priceFormatted: '$5.99/mo',
       description: 'للمحترفين والمؤسسات',
       features: [
         'رسائل غير محدودة',
@@ -145,7 +130,7 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
     }
   };
 
-  // ✅ Gérer le checkout - Redirection vers LemonSqueezy
+  // Gérer le checkout
   const handleCheckout = (plan) => {
     if (plan.id === 'free' || plan.id === currentTier) {
       onClose();
@@ -154,14 +139,12 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
 
     setIsLoading(true);
 
-    // Construire l'URL avec code promo si applicable
     let checkoutUrl = plan.checkoutUrl;
     
     if (promoStatus === 'valid' && promoData?.lemonSqueezyCode) {
       checkoutUrl += `?discount_code=${promoData.lemonSqueezyCode}`;
     }
 
-    // Redirection vers LemonSqueezy
     window.location.href = checkoutUrl;
   };
 
@@ -233,10 +216,9 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
               </button>
             </div>
 
-            {/* Messages */}
             {promoStatus === 'valid' && promoData && (
               <div className="mt-3 p-3 bg-green-100 dark:bg-green-900/30 rounded-xl text-green-700 dark:text-green-300 text-sm">
-                ✅ تم تطبيق الخصم: {promoData.discountType === 'percentage' ? `${promoData.discountValue}%` : `${promoData.discountValue}`}
+                ✅ تم تطبيق الخصم: {promoData.discountType === 'percentage' ? `${promoData.discountValue}%` : `$${promoData.discountValue}`}
                 {promoData.description && ` - ${promoData.description}`}
               </div>
             )}
@@ -264,7 +246,6 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
                       : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                   }`}
                 >
-                  {/* Badge Populaire */}
                   {plan.popular && (
                     <div className="absolute -top-4 left-1/2 -translate-x-1/2">
                       <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm font-bold px-4 py-1 rounded-full shadow-lg">
@@ -273,7 +254,6 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
                     </div>
                   )}
 
-                  {/* Badge Plan Actuel */}
                   {isCurrentPlan && (
                     <div className="absolute -top-4 right-4">
                       <div className="bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-full">
@@ -283,7 +263,6 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
                   )}
 
                   <div className="p-6">
-                    {/* Header du plan */}
                     <div className="flex items-center gap-3 mb-4">
                       <div className={`w-12 h-12 bg-gradient-to-br ${plan.color} rounded-xl flex items-center justify-center`}>
                         <Icon className="w-6 h-6 text-white" />
@@ -296,17 +275,15 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
 
                     {/* Prix */}
                     <div className="mb-6">
-                      {priceLoading && plan.id !== 'free' ? (
-                        <div className="animate-pulse h-10 bg-gray-200 dark:bg-gray-700 rounded w-32" />
-                      ) : hasDiscount ? (
+                      {hasDiscount ? (
                         <div className="flex items-baseline gap-2 flex-wrap">
                           <span className="text-3xl font-bold text-gray-900 dark:text-white">
-                            {discountedPrice.toFixed(2)}
+                            ${discountedPrice.toFixed(2)}
                           </span>
                           <span className="text-lg text-gray-500 dark:text-gray-400 line-through">
-                            {plan.price}
+                            ${plan.price}
                           </span>
-                          <span className="text-gray-500 dark:text-gray-400">/شهر</span>
+                          <span className="text-gray-500 dark:text-gray-400">/mo</span>
                         </div>
                       ) : (
                         <div className="flex items-baseline gap-1">
@@ -317,7 +294,6 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
                       )}
                     </div>
 
-                    {/* Features */}
                     <div className="space-y-3 mb-6">
                       {plan.features.map((feature, idx) => (
                         <div key={idx} className="flex items-center gap-3">
@@ -337,7 +313,6 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
                       ))}
                     </div>
 
-                    {/* Bouton */}
                     <button
                       onClick={() => handleCheckout(plan)}
                       disabled={isCurrentPlan || isLoading}
