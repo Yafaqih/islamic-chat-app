@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, BookOpen, Sparkles, Heart, Shield, Zap, Users, Mail, Globe, MessageCircle } from 'lucide-react';
+import { X, BookOpen, Sparkles, Heart, Shield, Zap, Users, Mail, Globe, MessageCircle, Bell, Compass } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
 /**
@@ -28,6 +28,10 @@ export default function AboutPage({ onClose }) {
       feature5Desc: 'اطرح أسئلتك بصوتك باللغة العربية مع النسخ التلقائي للنص',
       feature6Title: 'القراءة الصوتية',
       feature6Desc: 'استمع إلى الإجابات صوتياً مع تقنية التوليف الصوتي',
+      feature7Title: 'اتجاه القبلة',
+      feature7Desc: 'بوصلة ذكية لتحديد اتجاه القبلة بدقة عالية من أي مكان في العالم',
+      feature8Title: 'مواقيت الصلاة',
+      feature8Desc: 'إشعارات بأوقات الصلاة حسب موقعك مع إمكانية تشغيل الأذان',
       principlesTitle: 'مبادئنا',
       principle1: 'الدقة العلمية: نعتمد فقط على المصادر الموثوقة والمعتمدة',
       principle2: 'الشفافية: نذكر دائماً مصادر المعلومات والمراجع',
@@ -42,7 +46,7 @@ export default function AboutPage({ onClose }) {
       tech3: 'تحديث مستمر',
       tech3Desc: 'تطوير وتحسين دائم',
       teamTitle: 'فريق العمل',
-      teamText: 'يا فقيه هو ثمرة تعاون بين متخصصين في العلوم الإسلامية ومطورين تقنيين متميزين. نحن نعمل بجد واجتهاد لتقديم أفضل تجربة ممكنة للمسلمين في جميع أنحاء العالم.',
+      teamText: 'يا فقيه هو مشروع مبني على مصادر إسلامية موثوقة ومعتمدة، تم تطويره بواسطة فريق تقني متخصص. نحن نستخدم المراجع والتفاسير المعتمدة لتقديم أفضل تجربة ممكنة للمسلمين في جميع أنحاء العالم.',
       contactTitle: 'التواصل والدعم',
       emailSupport: 'البريد الإلكتروني للدعم',
       website: 'الموقع الإلكتروني',
@@ -70,6 +74,10 @@ export default function AboutPage({ onClose }) {
       feature5Desc: 'Posez vos questions à voix haute avec transcription automatique',
       feature6Title: 'Lecture audio',
       feature6Desc: 'Écoutez les réponses avec la technologie de synthèse vocale',
+      feature7Title: 'Direction de la Qibla',
+      feature7Desc: 'Boussole intelligente pour déterminer la direction de la Qibla avec précision depuis n\'importe où',
+      feature8Title: 'Horaires de prière',
+      feature8Desc: 'Notifications des heures de prière selon votre position avec option d\'Adhan',
       principlesTitle: 'Nos principes',
       principle1: 'Rigueur scientifique : Nous nous appuyons uniquement sur des sources fiables',
       principle2: 'Transparence : Nous citons toujours nos sources et références',
@@ -84,7 +92,7 @@ export default function AboutPage({ onClose }) {
       tech3: 'Mise à jour continue',
       tech3Desc: 'Amélioration constante',
       teamTitle: 'Notre équipe',
-      teamText: 'Ya Faqih est le fruit d\'une collaboration entre spécialistes des sciences islamiques et développeurs talentueux. Nous travaillons dur pour offrir la meilleure expérience possible.',
+      teamText: 'Ya Faqih est un projet basé sur des sources islamiques fiables et reconnues, développé par une équipe technique spécialisée. Nous utilisons des références et tafsirs reconnus pour offrir la meilleure expérience possible aux musulmans du monde entier.',
       contactTitle: 'Contact et support',
       emailSupport: 'Email de support',
       website: 'Site web',
@@ -112,6 +120,10 @@ export default function AboutPage({ onClose }) {
       feature5Desc: 'Ask your questions by voice with automatic transcription',
       feature6Title: 'Audio Reading',
       feature6Desc: 'Listen to answers with text-to-speech technology',
+      feature7Title: 'Qibla Direction',
+      feature7Desc: 'Smart compass to determine Qibla direction accurately from anywhere in the world',
+      feature8Title: 'Prayer Times',
+      feature8Desc: 'Prayer time notifications based on your location with Adhan option',
       principlesTitle: 'Our principles',
       principle1: 'Scientific rigor: We rely only on reliable sources',
       principle2: 'Transparency: We always cite our sources and references',
@@ -126,7 +138,7 @@ export default function AboutPage({ onClose }) {
       tech3: 'Continuous updates',
       tech3Desc: 'Constant improvement',
       teamTitle: 'Our team',
-      teamText: 'Ya Faqih is the result of collaboration between Islamic science specialists and talented developers. We work hard to offer the best possible experience.',
+      teamText: 'Ya Faqih is a project built on reliable and recognized Islamic sources, developed by a specialized technical team. We use recognized references and tafsirs to offer the best possible experience to Muslims worldwide.',
       contactTitle: 'Contact and support',
       emailSupport: 'Support email',
       website: 'Website',
@@ -237,6 +249,24 @@ export default function AboutPage({ onClose }) {
                   <span className="text-xl">🔊</span>
                 </div>
                 <p className={`text-sm text-gray-600 dark:text-gray-400 ${isRTL ? 'text-right' : 'text-left'}`}>{txt.feature6Desc}</p>
+              </div>
+
+              {/* NEW: Qibla Direction */}
+              <div className="bg-gradient-to-br from-rose-50 to-pink-50 dark:from-rose-900/10 dark:to-pink-900/10 p-4 rounded-xl border border-rose-100 dark:border-rose-800/30">
+                <div className={`flex items-center gap-2 mb-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                  <h3 className="font-semibold text-gray-800 dark:text-gray-200">{txt.feature7Title}</h3>
+                  <span className="text-xl">🕋</span>
+                </div>
+                <p className={`text-sm text-gray-600 dark:text-gray-400 ${isRTL ? 'text-right' : 'text-left'}`}>{txt.feature7Desc}</p>
+              </div>
+
+              {/* NEW: Prayer Times */}
+              <div className="bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-900/10 dark:to-purple-900/10 p-4 rounded-xl border border-violet-100 dark:border-violet-800/30">
+                <div className={`flex items-center gap-2 mb-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                  <h3 className="font-semibold text-gray-800 dark:text-gray-200">{txt.feature8Title}</h3>
+                  <Bell className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+                </div>
+                <p className={`text-sm text-gray-600 dark:text-gray-400 ${isRTL ? 'text-right' : 'text-left'}`}>{txt.feature8Desc}</p>
               </div>
             </div>
           </section>
