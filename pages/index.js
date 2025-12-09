@@ -647,7 +647,7 @@ export default function IslamicChatApp() {
                     </div>
                   </button>
                   <div className="border-t border-gray-200 dark:border-gray-700"></div>
-                  <button onClick={() => signOut()} className={`w-full flex items-center gap-3 px-4 py-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 ${isRTL ? 'flex-row-reverse text-right' : ''}`}>
+                  <button onClick={() => signOut({ callbackUrl: '/' })} className={`w-full flex items-center gap-3 px-4 py-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 ${isRTL ? 'flex-row-reverse text-right' : ''}`}>
                     <LogOut className="w-5 h-5" />
                     <div>
                       <div className="font-semibold">{t('logout')}</div>
@@ -903,7 +903,7 @@ export default function IslamicChatApp() {
       
       {showAdminDashboard && (
         <div className="fixed inset-0 z-[9999] bg-gray-900/95">
-          <AdminDashboard user={user} onLogout={() => { setShowAdminDashboard(false); signOut(); }} onClose={() => setShowAdminDashboard(false)} />
+          <AdminDashboard user={user} onLogout={() => { setShowAdminDashboard(false); signOut({ callbackUrl: '/' }); }} onClose={() => setShowAdminDashboard(false)} />
         </div>
       )}
     </div>
