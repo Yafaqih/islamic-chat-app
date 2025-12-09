@@ -16,6 +16,7 @@ export default function QiblaModal({ isOpen, onClose }) {
   const [loading, setLoading] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [permissionNeeded, setPermissionNeeded] = useState(false);
+  const [compassActive, setCompassActive] = useState(false);
   const [debugRotation, setDebugRotation] = useState(0);
   
   const headingBuffer = useRef([]);
@@ -26,6 +27,12 @@ export default function QiblaModal({ isOpen, onClose }) {
   const wasPointingRef = useRef(false);
   const lastSoundTimeRef = useRef(0);
   const audioContextRef = useRef(null);
+  const orientationHandlerRef = useRef(null);
+  
+  // Détecter si iOS nécessite une permission utilisateur
+  const isIOS = typeof window !== 'undefined' && 
+    typeof DeviceOrientationEvent !== 'undefined' && 
+    typeof DeviceOrientationEvent.requestPermission === 'function';
   
   const BUFFER_SIZE = 25;
   const LERP_FACTOR = 0.05;
@@ -245,47 +252,69 @@ export default function QiblaModal({ isOpen, onClose }) {
     );
   }, [isOpen]);
 
-  // Capteur d'orientation
+  // Capteur d'orientation - Fonction handler
+  const handleOrientation = useCallback((event) => {
+    let heading;
+    if (event.webkitCompassHeading !== undefined) {
+      // iOS
+      heading = event.webkitCompassHeading;
+    } else if (event.alpha !== null) {
+      // Android
+      heading = 360 - event.alpha;
+    }
+    
+    if (heading !== undefined && !isNaN(heading)) {
+      processHeading(heading);
+    }
+  }, [processHeading]);
+
+  // Stocker le handler dans une ref pour le cleanup
+  useEffect(() => {
+    orientationHandlerRef.current = handleOrientation;
+  }, [handleOrientation]);
+
+  // Démarrer le listener d'orientation
+  const startCompass = useCallback(() => {
+    if (compassActive) return;
+    
+    window.addEventListener('deviceorientation', orientationHandlerRef.current, true);
+    setCompassActive(true);
+    setPermissionNeeded(false);
+    setError(null);
+  }, [compassActive]);
+
+  // Initialiser le capteur d'orientation
   useEffect(() => {
     if (!isOpen || loading || error) return;
 
-    const handleOrientation = (event) => {
-      let heading;
-      if (event.webkitCompassHeading !== undefined) {
-        heading = event.webkitCompassHeading;
-      } else if (event.alpha !== null) {
-        heading = 360 - event.alpha;
-      }
-      
-      if (heading !== undefined) {
-        processHeading(heading);
-      }
-    };
+    // Sur iOS, on doit attendre que l'utilisateur clique
+    if (isIOS) {
+      setPermissionNeeded(true);
+      return;
+    }
 
-    const requestPermission = async () => {
-      if (typeof DeviceOrientationEvent !== 'undefined' && 
-          typeof DeviceOrientationEvent.requestPermission === 'function') {
-        try {
-          const permission = await DeviceOrientationEvent.requestPermission();
-          if (permission === 'granted') {
-            window.addEventListener('deviceorientation', handleOrientation);
-          } else {
-            setPermissionNeeded(true);
-          }
-        } catch (e) {
-          setPermissionNeeded(true);
-        }
-      } else {
-        window.addEventListener('deviceorientation', handleOrientation);
-      }
-    };
-
-    requestPermission();
+    // Sur Android/Desktop, on démarre directement
+    startCompass();
 
     return () => {
-      window.removeEventListener('deviceorientation', handleOrientation);
+      if (orientationHandlerRef.current) {
+        window.removeEventListener('deviceorientation', orientationHandlerRef.current, true);
+      }
+      setCompassActive(false);
     };
-  }, [isOpen, loading, error, processHeading]);
+  }, [isOpen, loading, error, isIOS, startCompass]);
+
+  // Cleanup quand le modal se ferme
+  useEffect(() => {
+    if (!isOpen && compassActive) {
+      if (orientationHandlerRef.current) {
+        window.removeEventListener('deviceorientation', orientationHandlerRef.current, true);
+      }
+      setCompassActive(false);
+      setPermissionNeeded(false);
+      headingBuffer.current = [];
+    }
+  }, [isOpen, compassActive]);
 
   // Détection de la Qibla
   useEffect(() => {
@@ -306,18 +335,24 @@ export default function QiblaModal({ isOpen, onClose }) {
     wasPointingRef.current = isPointing;
   }, [displayHeading, qiblaDirection, playSuccessSound]);
 
+  // Fonction appelée quand l'utilisateur clique sur "Autoriser"
   const requestPermission = async () => {
     if (typeof DeviceOrientationEvent !== 'undefined' && 
         typeof DeviceOrientationEvent.requestPermission === 'function') {
       try {
         const permission = await DeviceOrientationEvent.requestPermission();
         if (permission === 'granted') {
-          setPermissionNeeded(false);
-          setError(null);
+          // Permission accordée - démarrer le compass
+          startCompass();
+        } else {
+          setError(txt.allowCompass);
         }
       } catch (e) {
         setError(txt.allowCompass);
       }
+    } else {
+      // Pas iOS - démarrer directement
+      startCompass();
     }
   };
 
@@ -384,10 +419,20 @@ export default function QiblaModal({ isOpen, onClose }) {
               <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
               <p className="text-gray-500">{txt.locating}</p>
             </div>
-          ) : error || permissionNeeded ? (
+          ) : error ? (
             <div className="text-center py-6">
-              <p className="text-red-500 mb-4 text-sm">{error || txt.allowCompass}</p>
+              <p className="text-red-500 mb-4 text-sm">{error}</p>
               <button onClick={requestPermission} className="bg-emerald-500 text-white px-6 py-3 rounded-xl font-semibold w-full">
+                {txt.allowAccess}
+              </button>
+            </div>
+          ) : permissionNeeded && !compassActive ? (
+            <div className="text-center py-6">
+              <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-3xl">🧭</span>
+              </div>
+              <p className="text-gray-600 dark:text-gray-300 mb-4 text-sm">{txt.allowCompass}</p>
+              <button onClick={requestPermission} className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-xl font-semibold w-full transition-colors">
                 {txt.allowAccess}
               </button>
             </div>
