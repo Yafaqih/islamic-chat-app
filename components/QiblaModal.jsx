@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X, MapPin, Volume2, VolumeX } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 /**
- * QiblaModal - Version avec flèche corrigée
+ * QiblaModal - Version multilingue avec flèche corrigée
  */
 export default function QiblaModal({ isOpen, onClose }) {
+  const { language, isRTL } = useLanguage();
+  
   const [displayHeading, setDisplayHeading] = useState(0);
   const [qiblaDirection, setQiblaDirection] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
@@ -32,10 +35,67 @@ export default function QiblaModal({ isOpen, onClose }) {
   const KAABA_LAT = 21.422487;
   const KAABA_LNG = 39.826206;
 
-  // ============================================
-  // ANIMATION FLUIDE
-  // ============================================
-  
+  // Traductions
+  const txt = {
+    ar: {
+      qiblaDirection: 'اتجاه القبلة',
+      km: 'كم',
+      locating: 'جاري تحديد الموقع...',
+      allowLocation: 'يرجى السماح بالوصول إلى موقعك',
+      allowCompass: 'يرجى السماح بالوصول إلى البوصلة',
+      allowAccess: 'السماح بالوصول',
+      yourDirection: 'اتجاهك',
+      qibla: 'القبلة',
+      difference: 'الفرق',
+      foundQibla: '✅ القبلة',
+      prayHere: 'صلّ في هذا الاتجاه 🤲',
+      turnPhone: '🔄 أدر هاتفك حتى يتوافق النقطة الخضراء مع السهم',
+      turnLeft: '← أدر لليسار',
+      turnRight: '→ أدر لليمين',
+      testSound: '🔊 اختبار الصوت',
+      tip: '💡 حرّك الهاتف على شكل ∞ لتحسين الدقة'
+    },
+    fr: {
+      qiblaDirection: 'Direction de la Qibla',
+      km: 'km',
+      locating: 'Localisation en cours...',
+      allowLocation: 'Veuillez autoriser l\'accès à votre position',
+      allowCompass: 'Veuillez autoriser l\'accès à la boussole',
+      allowAccess: 'Autoriser l\'accès',
+      yourDirection: 'Votre direction',
+      qibla: 'Qibla',
+      difference: 'Différence',
+      foundQibla: '✅ Qibla',
+      prayHere: 'Priez dans cette direction 🤲',
+      turnPhone: '🔄 Tournez votre téléphone jusqu\'à aligner le point vert avec la flèche',
+      turnLeft: '← Tournez à gauche',
+      turnRight: '→ Tournez à droite',
+      testSound: '🔊 Tester le son',
+      tip: '💡 Bougez le téléphone en forme de ∞ pour améliorer la précision'
+    },
+    en: {
+      qiblaDirection: 'Qibla Direction',
+      km: 'km',
+      locating: 'Locating...',
+      allowLocation: 'Please allow access to your location',
+      allowCompass: 'Please allow access to the compass',
+      allowAccess: 'Allow Access',
+      yourDirection: 'Your direction',
+      qibla: 'Qibla',
+      difference: 'Difference',
+      foundQibla: '✅ Qibla',
+      prayHere: 'Pray in this direction 🤲',
+      turnPhone: '🔄 Turn your phone until the green dot aligns with the arrow',
+      turnLeft: '← Turn left',
+      turnRight: '→ Turn right',
+      testSound: '🔊 Test sound',
+      tip: '💡 Move your phone in a ∞ shape to improve accuracy'
+    }
+  }[language] || {
+    qiblaDirection: 'اتجاه القبلة', km: 'كم', locating: 'جاري تحديد الموقع...', allowLocation: 'يرجى السماح بالوصول إلى موقعك', allowCompass: 'يرجى السماح بالوصول إلى البوصلة', allowAccess: 'السماح بالوصول', yourDirection: 'اتجاهك', qibla: 'القبلة', difference: 'الفرق', foundQibla: '✅ القبلة', prayHere: 'صلّ في هذا الاتجاه 🤲', turnPhone: '🔄 أدر هاتفك حتى يتوافق النقطة الخضراء مع السهم', turnLeft: '← أدر لليسار', turnRight: '→ أدر لليمين', testSound: '🔊 اختبار الصوت', tip: '💡 حرّك الهاتف على شكل ∞ لتحسين الدقة'
+  };
+
+  // Animation fluide
   const animate = useCallback(() => {
     const current = currentHeadingRef.current;
     const target = targetHeadingRef.current;
@@ -69,10 +129,7 @@ export default function QiblaModal({ isOpen, onClose }) {
     };
   }, [isOpen, loading, error, animate]);
 
-  // ============================================
-  // AUDIO
-  // ============================================
-  
+  // Audio
   const playSuccessSound = useCallback(async () => {
     if (!soundEnabled) return;
     
@@ -117,10 +174,7 @@ export default function QiblaModal({ isOpen, onClose }) {
     playSuccessSound();
   };
 
-  // ============================================
-  // CALCUL QIBLA
-  // ============================================
-
+  // Calcul Qibla
   const calculateQiblaDirection = (userLat, userLng) => {
     const lat1 = userLat * Math.PI / 180;
     const lng1 = userLng * Math.PI / 180;
@@ -145,10 +199,7 @@ export default function QiblaModal({ isOpen, onClose }) {
     return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
   };
 
-  // ============================================
-  // LISSAGE DU COMPAS
-  // ============================================
-
+  // Lissage du compas
   const processHeading = useCallback((rawHeading) => {
     if (rawHeading === null || isNaN(rawHeading)) return;
     
@@ -168,10 +219,7 @@ export default function QiblaModal({ isOpen, onClose }) {
     targetHeadingRef.current = (avgHeading + 360) % 360;
   }, []);
 
-  // ============================================
-  // GÉOLOCALISATION
-  // ============================================
-
+  // Géolocalisation
   useEffect(() => {
     if (!isOpen) return;
 
@@ -190,73 +238,59 @@ export default function QiblaModal({ isOpen, onClose }) {
         setLoading(false);
       },
       (err) => {
-        setError('يرجى السماح بالوصول إلى موقعك');
+        setError(txt.allowLocation);
         setLoading(false);
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   }, [isOpen]);
 
-  // ============================================
-  // ORIENTATION
-  // ============================================
-
+  // Capteur d'orientation
   useEffect(() => {
     if (!isOpen || loading || error) return;
 
     const handleOrientation = (event) => {
-      let heading = null;
-      
-      // iOS - webkitCompassHeading donne directement le cap magnétique
-      if (event.webkitCompassHeading !== undefined && event.webkitCompassHeading !== null) {
+      let heading;
+      if (event.webkitCompassHeading !== undefined) {
         heading = event.webkitCompassHeading;
-      }
-      // Android
-      else if (event.alpha !== null) {
-        heading = (360 - event.alpha) % 360;
+      } else if (event.alpha !== null) {
+        heading = 360 - event.alpha;
       }
       
-      if (heading !== null) {
+      if (heading !== undefined) {
         processHeading(heading);
       }
     };
 
-    const startListening = () => {
-      window.addEventListener('deviceorientationabsolute', handleOrientation, true);
-      window.addEventListener('deviceorientation', handleOrientation, true);
+    const requestPermission = async () => {
+      if (typeof DeviceOrientationEvent !== 'undefined' && 
+          typeof DeviceOrientationEvent.requestPermission === 'function') {
+        try {
+          const permission = await DeviceOrientationEvent.requestPermission();
+          if (permission === 'granted') {
+            window.addEventListener('deviceorientation', handleOrientation);
+          } else {
+            setPermissionNeeded(true);
+          }
+        } catch (e) {
+          setPermissionNeeded(true);
+        }
+      } else {
+        window.addEventListener('deviceorientation', handleOrientation);
+      }
     };
 
-    if (typeof DeviceOrientationEvent !== 'undefined' &&
-        typeof DeviceOrientationEvent.requestPermission === 'function') {
-      setPermissionNeeded(true);
-      DeviceOrientationEvent.requestPermission()
-        .then(response => {
-          setPermissionNeeded(false);
-          if (response === 'granted') {
-            startListening();
-          } else {
-            setError('يرجى السماح بالوصول إلى البوصلة');
-          }
-        })
-        .catch(() => setPermissionNeeded(true));
-    } else {
-      startListening();
-    }
+    requestPermission();
 
     return () => {
-      window.removeEventListener('deviceorientationabsolute', handleOrientation, true);
-      window.removeEventListener('deviceorientation', handleOrientation, true);
+      window.removeEventListener('deviceorientation', handleOrientation);
     };
   }, [isOpen, loading, error, processHeading]);
 
-  // ============================================
-  // DÉTECTION ALIGNEMENT
-  // ============================================
-
+  // Détection de la Qibla
   useEffect(() => {
     if (qiblaDirection === null) return;
-    
-    // Calculer la différence pour détection
+
     let diff = qiblaDirection - displayHeading;
     if (diff > 180) diff -= 360;
     if (diff < -180) diff += 360;
@@ -264,46 +298,37 @@ export default function QiblaModal({ isOpen, onClose }) {
     setDebugRotation(diff);
     
     const isPointing = Math.abs(diff) < 15;
+    setIsPointingToQibla(isPointing);
     
     if (isPointing && !wasPointingRef.current) {
       playSuccessSound();
-      if ('vibrate' in navigator) {
-        try { navigator.vibrate([200, 100, 200]); } catch(e) {}
-      }
     }
-    
     wasPointingRef.current = isPointing;
-    setIsPointingToQibla(isPointing);
   }, [displayHeading, qiblaDirection, playSuccessSound]);
 
-  // ============================================
-  // PERMISSION iOS
-  // ============================================
-
   const requestPermission = async () => {
-    try {
-      const response = await DeviceOrientationEvent.requestPermission();
-      if (response === 'granted') {
-        window.location.reload();
+    if (typeof DeviceOrientationEvent !== 'undefined' && 
+        typeof DeviceOrientationEvent.requestPermission === 'function') {
+      try {
+        const permission = await DeviceOrientationEvent.requestPermission();
+        if (permission === 'granted') {
+          setPermissionNeeded(false);
+          setError(null);
+        }
+      } catch (e) {
+        setError(txt.allowCompass);
       }
-    } catch (e) {
-      setError('خطأ في طلب الإذن');
     }
   };
 
   if (!isOpen) return null;
 
-  // CORRECTION: La flèche doit pointer vers la Qibla
-  // Quand displayHeading = qiblaDirection, la flèche doit pointer vers le HAUT (rotation = 0)
-  // La flèche indique "où aller" donc on calcule qiblaDirection - displayHeading
   let arrowRotation = qiblaDirection !== null ? qiblaDirection - displayHeading : 0;
-  
-  // Normaliser entre -180 et 180
   if (arrowRotation > 180) arrowRotation -= 360;
   if (arrowRotation < -180) arrowRotation += 360;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" dir="rtl">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" dir={isRTL ? 'rtl' : 'ltr'}>
       <div className={`bg-white dark:bg-gray-800 rounded-3xl max-w-sm w-full overflow-hidden shadow-2xl transition-all duration-700 ${
         isPointingToQibla ? 'ring-4 ring-yellow-400 shadow-yellow-400/50' : ''
       }`}>
@@ -328,23 +353,23 @@ export default function QiblaModal({ isOpen, onClose }) {
               : 'bg-gradient-to-br from-emerald-600 to-teal-700'
           }`} />
 
-          <div className="absolute bottom-3 right-4 text-white text-right">
-            <h2 className="text-xl font-bold">اتجاه القبلة</h2>
+          <div className={`absolute bottom-3 ${isRTL ? 'right-4 text-right' : 'left-4 text-left'} text-white`}>
+            <h2 className="text-xl font-bold">{txt.qiblaDirection}</h2>
             {userLocation && (
-              <div className="flex items-center justify-end gap-1 text-sm text-white/80">
-                <span>{calculateDistance(userLocation.lat, userLocation.lng).toLocaleString()} كم</span>
+              <div className={`flex items-center gap-1 text-sm text-white/80 ${isRTL ? 'justify-end' : 'justify-start'}`}>
+                <span>{calculateDistance(userLocation.lat, userLocation.lng).toLocaleString()} {txt.km}</span>
                 <MapPin className="w-3 h-3" />
               </div>
             )}
           </div>
           
-          <button onClick={onClose} className="absolute top-3 left-3 w-9 h-9 bg-black/30 hover:bg-black/50 rounded-full flex items-center justify-center text-white">
+          <button onClick={onClose} className={`absolute top-3 ${isRTL ? 'left-3' : 'right-3'} w-9 h-9 bg-black/30 hover:bg-black/50 rounded-full flex items-center justify-center text-white`}>
             <X className="w-5 h-5" />
           </button>
 
           <button
             onClick={() => setSoundEnabled(!soundEnabled)}
-            className={`absolute top-3 left-14 w-9 h-9 rounded-full flex items-center justify-center ${
+            className={`absolute top-3 ${isRTL ? 'left-14' : 'right-14'} w-9 h-9 rounded-full flex items-center justify-center ${
               soundEnabled ? 'bg-emerald-500/80 text-white' : 'bg-black/30 text-white/60'
             }`}
           >
@@ -357,13 +382,13 @@ export default function QiblaModal({ isOpen, onClose }) {
           {loading ? (
             <div className="text-center py-8">
               <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-              <p className="text-gray-500">جاري تحديد الموقع...</p>
+              <p className="text-gray-500">{txt.locating}</p>
             </div>
           ) : error || permissionNeeded ? (
             <div className="text-center py-6">
-              <p className="text-red-500 mb-4 text-sm">{error || 'يرجى السماح بالوصول إلى البوصلة'}</p>
+              <p className="text-red-500 mb-4 text-sm">{error || txt.allowCompass}</p>
               <button onClick={requestPermission} className="bg-emerald-500 text-white px-6 py-3 rounded-xl font-semibold w-full">
-                السماح بالوصول
+                {txt.allowAccess}
               </button>
             </div>
           ) : (
@@ -371,15 +396,15 @@ export default function QiblaModal({ isOpen, onClose }) {
               {/* Debug Info */}
               <div className="grid grid-cols-3 gap-2 text-center text-sm bg-gray-100 dark:bg-gray-700 rounded-xl p-3">
                 <div>
-                  <div className="text-gray-500 text-xs">اتجاهك</div>
+                  <div className="text-gray-500 text-xs">{txt.yourDirection}</div>
                   <div className="font-bold">{Math.round(displayHeading)}°</div>
                 </div>
                 <div>
-                  <div className="text-gray-500 text-xs">القبلة</div>
+                  <div className="text-gray-500 text-xs">{txt.qibla}</div>
                   <div className="font-bold text-emerald-600">{qiblaDirection}°</div>
                 </div>
                 <div>
-                  <div className="text-gray-500 text-xs">الفرق</div>
+                  <div className="text-gray-500 text-xs">{txt.difference}</div>
                   <div className={`font-bold ${Math.abs(debugRotation) < 15 ? 'text-green-500' : 'text-orange-500'}`}>
                     {Math.round(debugRotation)}°
                   </div>
@@ -388,19 +413,16 @@ export default function QiblaModal({ isOpen, onClose }) {
 
               {/* Boussole */}
               <div className="relative w-56 h-56 mx-auto">
-                {/* Cercle */}
                 <div className={`absolute inset-0 rounded-full border-4 transition-colors duration-500 ${
                   isPointingToQibla 
                     ? 'border-yellow-400 bg-gradient-to-br from-yellow-50 to-amber-100 dark:from-yellow-900/20 dark:to-amber-900/20' 
                     : 'border-gray-200 dark:border-gray-600 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900'
                 }`}>
-                  {/* Points cardinaux */}
                   <span className="absolute top-2 left-1/2 -translate-x-1/2 text-xs font-bold text-red-500">N</span>
                   <span className="absolute bottom-2 left-1/2 -translate-x-1/2 text-xs font-bold text-gray-400">S</span>
                   <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">W</span>
                   <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">E</span>
                   
-                  {/* Graduations */}
                   {[0, 45, 90, 135, 180, 225, 270, 315].map(deg => (
                     <div
                       key={deg}
@@ -415,7 +437,6 @@ export default function QiblaModal({ isOpen, onClose }) {
                   ))}
                 </div>
 
-                {/* Indicateur Qibla sur le cercle (point fixe) */}
                 <div
                   className="absolute w-3 h-3 bg-emerald-500 rounded-full shadow-lg"
                   style={{
@@ -426,7 +447,6 @@ export default function QiblaModal({ isOpen, onClose }) {
                   }}
                 />
 
-                {/* Kaaba au centre quand aligné */}
                 <div className={`absolute inset-0 flex items-center justify-center transition-all duration-500 pointer-events-none ${
                   isPointingToQibla ? 'opacity-100 scale-100' : 'opacity-0 scale-50'
                 }`}>
@@ -435,8 +455,6 @@ export default function QiblaModal({ isOpen, onClose }) {
                   </div>
                 </div>
 
-                {/* AIGUILLE FIXE - Pointe toujours vers le haut */}
-                {/* L'utilisateur doit tourner pour aligner le point vert avec l'aiguille */}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <svg 
                     className={`w-20 h-20 drop-shadow-lg transition-colors duration-500 ${
@@ -449,7 +467,6 @@ export default function QiblaModal({ isOpen, onClose }) {
                   </svg>
                 </div>
 
-                {/* Centre */}
                 <div className={`absolute top-1/2 left-1/2 w-4 h-4 rounded-full -translate-x-1/2 -translate-y-1/2 shadow-md transition-colors duration-500 ${
                   isPointingToQibla ? 'bg-yellow-500' : 'bg-emerald-600'
                 }`} />
@@ -463,30 +480,24 @@ export default function QiblaModal({ isOpen, onClose }) {
               }`}>
                 {isPointingToQibla ? (
                   <>
-                    <p className="text-green-700 dark:text-green-300 font-bold text-lg">✅ القبلة</p>
-                    <p className="text-green-600 dark:text-green-400 text-sm">صلّ في هذا الاتجاه 🤲</p>
+                    <p className="text-green-700 dark:text-green-300 font-bold text-lg">{txt.foundQibla}</p>
+                    <p className="text-green-600 dark:text-green-400 text-sm">{txt.prayHere}</p>
                   </>
                 ) : (
                   <>
-                    <p className="text-gray-600 dark:text-gray-300 font-medium">
-                      🔄 أدر هاتفك حتى يتوافق النقطة الخضراء مع السهم
-                    </p>
+                    <p className="text-gray-600 dark:text-gray-300 font-medium">{txt.turnPhone}</p>
                     <p className="text-gray-500 text-xs mt-1">
-                      {debugRotation > 0 ? '← أدر لليسار' : '→ أدر لليمين'}
+                      {debugRotation > 0 ? txt.turnLeft : txt.turnRight}
                     </p>
                   </>
                 )}
               </div>
 
-              {/* Test son */}
               <button onClick={handleTestSound} className="w-full text-xs text-gray-400 hover:text-gray-600 py-2">
-                🔊 اختبار الصوت
+                {txt.testSound}
               </button>
 
-              {/* Conseil */}
-              <p className="text-xs text-gray-400 text-center">
-                💡 حرّك الهاتف على شكل ∞ لتحسين الدقة
-              </p>
+              <p className="text-xs text-gray-400 text-center">{txt.tip}</p>
             </div>
           )}
         </div>

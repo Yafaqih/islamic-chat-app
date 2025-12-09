@@ -5,22 +5,151 @@ import {
   DollarSign, UserCheck, UserX, Calendar, Clock, Activity,
   Package, Zap, Shield, AlertCircle, CheckCircle, XCircle, X
 } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 
-// Import des onglets
 import UsersTab from './admin/UsersTab';
 import PromoCodesTab from './admin/PromoCodesTab';
 
 /**
- * Dashboard Admin Complet pour Ya Faqih
- * Gestion: Utilisateurs, Abonnements, Analytiques, Codes Promo, etc.
+ * Dashboard Admin Multilingue pour Ya Faqih
  */
 export default function AdminDashboard({ user, onLogout, onClose }) {
+  const { language, isRTL } = useLanguage();
+  
   const [activeTab, setActiveTab] = useState('overview');
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState('7days');
 
-  // Charger les statistiques
+  // Traductions
+  const txt = {
+    ar: {
+      adminConsole: 'لوحة الإدارة',
+      accessDenied: 'الوصول مرفوض',
+      noPermission: 'ليس لديك صلاحية للوصول إلى لوحة الإدارة',
+      back: 'رجوع',
+      today: 'اليوم',
+      last7Days: 'آخر 7 أيام',
+      last30Days: 'آخر 30 يوم',
+      last90Days: 'آخر 90 يوم',
+      allTime: 'كل الأوقات',
+      refresh: 'تحديث',
+      logout: 'تسجيل الخروج',
+      close: 'إغلاق',
+      overview: 'نظرة عامة',
+      users: 'المستخدمون',
+      subscriptions: 'الاشتراكات',
+      promoCodes: 'أكواد الخصم',
+      analytics: 'التحليلات',
+      settings: 'الإعدادات',
+      totalUsers: 'إجمالي المستخدمين',
+      activeUsers: 'المستخدمون النشطون',
+      totalRevenue: 'إجمالي الإيرادات',
+      mrr: 'الإيرادات الشهرية',
+      subscriptionDistribution: 'توزيع الاشتراكات',
+      messageActivity: 'نشاط الرسائل',
+      total: 'الإجمالي',
+      todayLabel: 'اليوم',
+      avgPerUser: 'المتوسط/مستخدم',
+      free: 'مجاني',
+      pro: 'احترافي',
+      premium: 'مميز',
+      recentActivity: 'النشاط الأخير',
+      quickActions: 'إجراءات سريعة',
+      exportData: 'تصدير البيانات',
+      manageApiKeys: 'إدارة مفاتيح API',
+      viewReports: 'عرض التقارير',
+      systemSettings: 'إعدادات النظام',
+      comingSoon: 'قريباً...',
+      subscriptionSettings: 'إعدادات الاشتراكات',
+      analyticsSettings: 'إعدادات التحليلات'
+    },
+    fr: {
+      adminConsole: 'Console d\'administration',
+      accessDenied: 'Accès Refusé',
+      noPermission: 'Vous n\'avez pas les permissions pour accéder au dashboard admin.',
+      back: 'Retour',
+      today: 'Aujourd\'hui',
+      last7Days: '7 derniers jours',
+      last30Days: '30 derniers jours',
+      last90Days: '90 derniers jours',
+      allTime: 'Tout le temps',
+      refresh: 'Rafraîchir',
+      logout: 'Déconnexion',
+      close: 'Fermer',
+      overview: 'Vue d\'ensemble',
+      users: 'Utilisateurs',
+      subscriptions: 'Abonnements',
+      promoCodes: 'Codes Promo',
+      analytics: 'Analytique',
+      settings: 'Paramètres',
+      totalUsers: 'Utilisateurs Totaux',
+      activeUsers: 'Utilisateurs Actifs',
+      totalRevenue: 'Revenu Total',
+      mrr: 'MRR (Revenu Mensuel)',
+      subscriptionDistribution: 'Répartition des Abonnements',
+      messageActivity: 'Activité Messages',
+      total: 'Total',
+      todayLabel: 'Aujourd\'hui',
+      avgPerUser: 'Moyenne/utilisateur',
+      free: 'Free',
+      pro: 'Pro',
+      premium: 'Premium',
+      recentActivity: 'Activité Récente',
+      quickActions: 'Actions Rapides',
+      exportData: 'Exporter les Données',
+      manageApiKeys: 'Gérer les Clés API',
+      viewReports: 'Voir les Rapports',
+      systemSettings: 'Paramètres Système',
+      comingSoon: 'À venir...',
+      subscriptionSettings: 'Paramètres Abonnements',
+      analyticsSettings: 'Paramètres Analytique'
+    },
+    en: {
+      adminConsole: 'Admin Console',
+      accessDenied: 'Access Denied',
+      noPermission: 'You don\'t have permission to access the admin dashboard.',
+      back: 'Back',
+      today: 'Today',
+      last7Days: 'Last 7 days',
+      last30Days: 'Last 30 days',
+      last90Days: 'Last 90 days',
+      allTime: 'All time',
+      refresh: 'Refresh',
+      logout: 'Logout',
+      close: 'Close',
+      overview: 'Overview',
+      users: 'Users',
+      subscriptions: 'Subscriptions',
+      promoCodes: 'Promo Codes',
+      analytics: 'Analytics',
+      settings: 'Settings',
+      totalUsers: 'Total Users',
+      activeUsers: 'Active Users',
+      totalRevenue: 'Total Revenue',
+      mrr: 'MRR (Monthly Revenue)',
+      subscriptionDistribution: 'Subscription Distribution',
+      messageActivity: 'Message Activity',
+      total: 'Total',
+      todayLabel: 'Today',
+      avgPerUser: 'Average/user',
+      free: 'Free',
+      pro: 'Pro',
+      premium: 'Premium',
+      recentActivity: 'Recent Activity',
+      quickActions: 'Quick Actions',
+      exportData: 'Export Data',
+      manageApiKeys: 'Manage API Keys',
+      viewReports: 'View Reports',
+      systemSettings: 'System Settings',
+      comingSoon: 'Coming soon...',
+      subscriptionSettings: 'Subscription Settings',
+      analyticsSettings: 'Analytics Settings'
+    }
+  }[language] || {
+    adminConsole: 'Console d\'administration', accessDenied: 'Accès Refusé', noPermission: 'Vous n\'avez pas les permissions.', back: 'Retour', today: 'Aujourd\'hui', last7Days: '7 derniers jours', last30Days: '30 derniers jours', last90Days: '90 derniers jours', allTime: 'Tout le temps', refresh: 'Rafraîchir', logout: 'Déconnexion', close: 'Fermer', overview: 'Vue d\'ensemble', users: 'Utilisateurs', subscriptions: 'Abonnements', promoCodes: 'Codes Promo', analytics: 'Analytique', settings: 'Paramètres', totalUsers: 'Utilisateurs Totaux', activeUsers: 'Utilisateurs Actifs', totalRevenue: 'Revenu Total', mrr: 'MRR', subscriptionDistribution: 'Répartition des Abonnements', messageActivity: 'Activité Messages', total: 'Total', todayLabel: 'Aujourd\'hui', avgPerUser: 'Moyenne/utilisateur', free: 'Free', pro: 'Pro', premium: 'Premium', recentActivity: 'Activité Récente', quickActions: 'Actions Rapides', exportData: 'Exporter', manageApiKeys: 'Clés API', viewReports: 'Rapports', systemSettings: 'Paramètres', comingSoon: 'À venir...', subscriptionSettings: 'Abonnements', analyticsSettings: 'Analytique'
+  };
+
   useEffect(() => {
     loadStats();
   }, [dateRange]);
@@ -32,105 +161,81 @@ export default function AdminDashboard({ user, onLogout, onClose }) {
       const data = await response.json();
       setStats(data);
     } catch (error) {
-      console.error('Erreur chargement stats:', error);
+      console.error('Error loading stats:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Vérifier si l'utilisateur est admin
   if (!user?.isAdmin) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center" dir={isRTL ? 'rtl' : 'ltr'}>
         <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg text-center">
           <Shield className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">
-            Accès Refusé
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">
-            Vous n'avez pas les permissions pour accéder au dashboard admin.
-          </p>
-          <button
-            onClick={onClose}
-            className="px-6 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-all"
-          >
-            Retour
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">{txt.accessDenied}</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">{txt.noPermission}</p>
+          <button onClick={onClose} className="px-6 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-all">
+            {txt.back}
           </button>
         </div>
       </div>
     );
   }
 
+  const tabs = [
+    { id: 'overview', label: txt.overview, icon: BarChart3 },
+    { id: 'users', label: txt.users, icon: Users },
+    { id: 'subscriptions', label: txt.subscriptions, icon: CreditCard },
+    { id: 'promo', label: txt.promoCodes, icon: Tag },
+    { id: 'analytics', label: txt.analytics, icon: TrendingUp },
+    { id: 'settings', label: txt.settings, icon: Settings },
+  ];
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Header */}
       <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40">
         <div className="px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+          <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
+            <div className={`flex items-center gap-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
               <div className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
                 <BarChart3 className="w-6 h-6 text-white" />
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">
-                  Ya Faqih Admin
-                </h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Console d'administration
-                </p>
+              <div className={isRTL ? 'text-right' : 'text-left'}>
+                <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">Ya Faqih Admin</h1>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{txt.adminConsole}</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              {/* Sélecteur de période */}
+            <div className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
               <select
                 value={dateRange}
                 onChange={(e) => setDateRange(e.target.value)}
                 className="px-3 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-200"
               >
-                <option value="today">Aujourd'hui</option>
-                <option value="7days">7 derniers jours</option>
-                <option value="30days">30 derniers jours</option>
-                <option value="90days">90 derniers jours</option>
-                <option value="all">Tout le temps</option>
+                <option value="today">{txt.today}</option>
+                <option value="7days">{txt.last7Days}</option>
+                <option value="30days">{txt.last30Days}</option>
+                <option value="90days">{txt.last90Days}</option>
+                <option value="all">{txt.allTime}</option>
               </select>
 
-              {/* Rafraîchir */}
-              <button
-                onClick={loadStats}
-                className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-all"
-                title="Rafraîchir"
-              >
+              <button onClick={loadStats} className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-all" title={txt.refresh}>
                 <RefreshCw className={`w-5 h-5 text-gray-600 dark:text-gray-300 ${loading ? 'animate-spin' : ''}`} />
               </button>
 
-              {/* User Menu */}
-              <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+              <div className={`flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg ${isRTL ? 'flex-row-reverse' : ''}`}>
                 <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">
-                    {user?.name?.charAt(0) || 'A'}
-                  </span>
+                  <span className="text-white font-bold text-sm">{user?.name?.charAt(0) || 'A'}</span>
                 </div>
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-200 hidden sm:inline">
-                  {user?.name || 'Admin'}
-                </span>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-200 hidden sm:inline">{user?.name || 'Admin'}</span>
               </div>
 
-              {/* Fermer */}
-              <button
-                onClick={onClose}
-                className="p-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-all"
-                title="Fermer"
-              >
+              <button onClick={onClose} className="p-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-all" title={txt.close}>
                 <X className="w-5 h-5" />
               </button>
 
-              {/* Logout */}
-              <button
-                onClick={onLogout}
-                className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-all"
-                title="Déconnexion"
-              >
+              <button onClick={onLogout} className="p-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-all" title={txt.logout}>
                 <LogOut className="w-5 h-5" />
               </button>
             </div>
@@ -141,19 +246,12 @@ export default function AdminDashboard({ user, onLogout, onClose }) {
       {/* Navigation Tabs */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="px-4 sm:px-6 lg:px-8">
-          <nav className="flex gap-1 overflow-x-auto">
-            {[
-              { id: 'overview', label: 'Vue d\'ensemble', icon: BarChart3 },
-              { id: 'users', label: 'Utilisateurs', icon: Users },
-              { id: 'subscriptions', label: 'Abonnements', icon: CreditCard },
-              { id: 'promo', label: 'Codes Promo', icon: Tag },
-              { id: 'analytics', label: 'Analytique', icon: TrendingUp },
-              { id: 'settings', label: 'Paramètres', icon: Settings },
-            ].map((tab) => (
+          <nav className={`flex gap-1 overflow-x-auto ${isRTL ? 'flex-row-reverse' : ''}`}>
+            {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-all whitespace-nowrap ${
+                className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-all whitespace-nowrap ${isRTL ? 'flex-row-reverse' : ''} ${
                   activeTab === tab.id
                     ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400 font-semibold'
                     : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
@@ -169,21 +267,19 @@ export default function AdminDashboard({ user, onLogout, onClose }) {
 
       {/* Content */}
       <main className="px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === 'overview' && <OverviewTab stats={stats} loading={loading} />}
+        {activeTab === 'overview' && <OverviewTab stats={stats} loading={loading} txt={txt} isRTL={isRTL} />}
         {activeTab === 'users' && <UsersTab />}
-        {activeTab === 'subscriptions' && <SubscriptionsTab />}
+        {activeTab === 'subscriptions' && <SubscriptionsTab txt={txt} isRTL={isRTL} />}
         {activeTab === 'promo' && <PromoCodesTab />}
-        {activeTab === 'analytics' && <AnalyticsTab stats={stats} />}
-        {activeTab === 'settings' && <SettingsTab />}
+        {activeTab === 'analytics' && <AnalyticsTab stats={stats} txt={txt} isRTL={isRTL} />}
+        {activeTab === 'settings' && <SettingsTab txt={txt} isRTL={isRTL} />}
       </main>
     </div>
   );
 }
 
-// ============================================
-// ONGLET: VUE D'ENSEMBLE
-// ============================================
-function OverviewTab({ stats, loading }) {
+// OverviewTab Component
+function OverviewTab({ stats, loading, txt, isRTL }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -193,256 +289,125 @@ function OverviewTab({ stats, loading }) {
   }
 
   const mockStats = stats || {
-    totalUsers: 1250,
-    activeUsers: 890,
-    newUsers: 145,
-    totalRevenue: 12450,
-    mrr: 4200,
-    subscriptions: {
-      free: 650,
-      pro: 420,
-      premium: 180
-    },
-    messages: {
-      total: 45320,
-      today: 1234
-    },
+    totalUsers: 1250, activeUsers: 890, newUsers: 145, totalRevenue: 12450, mrr: 4200,
+    subscriptions: { free: 650, pro: 420, premium: 180 },
+    messages: { total: 45320, today: 1234 },
     conversion: 32.5
   };
 
   return (
     <div className="space-y-6">
-      {/* KPIs principaux */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Utilisateurs Totaux */}
-        <StatCard
-          title="Utilisateurs Totaux"
-          value={mockStats.totalUsers.toLocaleString()}
-          change="+12.5%"
-          changeType="positive"
-          icon={Users}
-          color="blue"
-        />
-
-        {/* Utilisateurs Actifs */}
-        <StatCard
-          title="Utilisateurs Actifs"
-          value={mockStats.activeUsers.toLocaleString()}
-          change="+8.2%"
-          changeType="positive"
-          icon={UserCheck}
-          color="green"
-        />
-
-        {/* Revenu Total */}
-        <StatCard
-          title="Revenu Total"
-          value={`$${mockStats.totalRevenue.toLocaleString()}`}
-          change="+23.1%"
-          changeType="positive"
-          icon={DollarSign}
-          color="purple"
-        />
-
-        {/* MRR */}
-        <StatCard
-          title="MRR (Revenu Mensuel)"
-          value={`$${mockStats.mrr.toLocaleString()}`}
-          change="+15.7%"
-          changeType="positive"
-          icon={TrendingUp}
-          color="emerald"
-        />
+        <StatCard title={txt.totalUsers} value={mockStats.totalUsers.toLocaleString()} change="+12.5%" changeType="positive" icon={Users} color="blue" isRTL={isRTL} />
+        <StatCard title={txt.activeUsers} value={mockStats.activeUsers.toLocaleString()} change="+8.2%" changeType="positive" icon={UserCheck} color="green" isRTL={isRTL} />
+        <StatCard title={txt.totalRevenue} value={`$${mockStats.totalRevenue.toLocaleString()}`} change="+23.1%" changeType="positive" icon={DollarSign} color="purple" isRTL={isRTL} />
+        <StatCard title={txt.mrr} value={`$${mockStats.mrr.toLocaleString()}`} change="+15.7%" changeType="positive" icon={TrendingUp} color="emerald" isRTL={isRTL} />
       </div>
 
-      {/* Graphiques et tableaux */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Répartition des abonnements */}
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">
-            Répartition des Abonnements
-          </h3>
+          <h3 className={`text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 ${isRTL ? 'text-right' : 'text-left'}`}>{txt.subscriptionDistribution}</h3>
           <div className="space-y-3">
-            <SubscriptionBar label="Free" count={mockStats.subscriptions.free} total={mockStats.totalUsers} color="gray" />
-            <SubscriptionBar label="Pro" count={mockStats.subscriptions.pro} total={mockStats.totalUsers} color="blue" />
-            <SubscriptionBar label="Premium" count={mockStats.subscriptions.premium} total={mockStats.totalUsers} color="purple" />
+            <SubscriptionBar label={txt.free} count={mockStats.subscriptions.free} total={mockStats.totalUsers} color="gray" isRTL={isRTL} />
+            <SubscriptionBar label={txt.pro} count={mockStats.subscriptions.pro} total={mockStats.totalUsers} color="blue" isRTL={isRTL} />
+            <SubscriptionBar label={txt.premium} count={mockStats.subscriptions.premium} total={mockStats.totalUsers} color="purple" isRTL={isRTL} />
           </div>
         </div>
 
-        {/* Activité Messages */}
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">
-            Activité Messages
-          </h3>
+          <h3 className={`text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 ${isRTL ? 'text-right' : 'text-left'}`}>{txt.messageActivity}</h3>
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600 dark:text-gray-400">Total</span>
-              <span className="text-2xl font-bold text-gray-800 dark:text-gray-200">
-                {mockStats.messages.total.toLocaleString()}
-              </span>
+            <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <span className="text-gray-600 dark:text-gray-400">{txt.total}</span>
+              <span className="text-2xl font-bold text-gray-800 dark:text-gray-200">{mockStats.messages.total.toLocaleString()}</span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600 dark:text-gray-400">Aujourd'hui</span>
-              <span className="text-xl font-semibold text-emerald-600 dark:text-emerald-400">
-                {mockStats.messages.today.toLocaleString()}
-              </span>
+            <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <span className="text-gray-600 dark:text-gray-400">{txt.todayLabel}</span>
+              <span className="text-xl font-semibold text-emerald-600 dark:text-emerald-400">{mockStats.messages.today.toLocaleString()}</span>
             </div>
             <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Moyenne/utilisateur</span>
-                <span className="text-lg font-medium text-gray-800 dark:text-gray-200">
-                  {(mockStats.messages.total / mockStats.totalUsers).toFixed(1)}
-                </span>
+              <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
+                <span className="text-gray-600 dark:text-gray-400">{txt.avgPerUser}</span>
+                <span className="text-lg font-medium text-gray-800 dark:text-gray-200">{(mockStats.messages.total / mockStats.totalUsers).toFixed(1)}</span>
               </div>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Dernières activités */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">
-          Activité Récente
-        </h3>
-        <div className="space-y-3">
-          <ActivityItem
-            icon={UserCheck}
-            text="Nouvel utilisateur inscrit"
-            user="Ahmed Mohamed"
-            time="Il y a 5 min"
-            color="green"
-          />
-          <ActivityItem
-            icon={CreditCard}
-            text="Nouvel abonnement Premium"
-            user="Fatima Ali"
-            time="Il y a 12 min"
-            color="purple"
-          />
-          <ActivityItem
-            icon={Tag}
-            text="Code promo utilisé"
-            user="Omar Hassan"
-            time="Il y a 23 min"
-            color="blue"
-          />
-        </div>
-      </div>
     </div>
   );
 }
 
-// Composant StatCard
-function StatCard({ title, value, change, changeType, icon: Icon, color }) {
-  const colors = {
-    blue: 'from-blue-500 to-blue-600',
-    green: 'from-green-500 to-green-600',
-    purple: 'from-purple-500 to-purple-600',
-    emerald: 'from-emerald-500 to-emerald-600',
-    red: 'from-red-500 to-red-600'
+// StatCard Component
+function StatCard({ title, value, change, changeType, icon: Icon, color, isRTL }) {
+  const colorClasses = {
+    blue: 'from-blue-500 to-blue-600', green: 'from-green-500 to-green-600',
+    purple: 'from-purple-500 to-purple-600', emerald: 'from-emerald-500 to-emerald-600'
   };
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
-      <div className="flex items-center justify-between mb-4">
-        <div className={`w-12 h-12 bg-gradient-to-r ${colors[color]} rounded-lg flex items-center justify-center`}>
+      <div className={`flex items-start justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
+        <div className={isRTL ? 'text-right' : 'text-left'}>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{title}</p>
+          <p className="text-2xl font-bold text-gray-800 dark:text-gray-200 mt-1">{value}</p>
+          {change && (
+            <span className={`text-sm ${changeType === 'positive' ? 'text-green-500' : 'text-red-500'}`}>{change}</span>
+          )}
+        </div>
+        <div className={`w-12 h-12 bg-gradient-to-br ${colorClasses[color]} rounded-xl flex items-center justify-center`}>
           <Icon className="w-6 h-6 text-white" />
         </div>
-        <span className={`text-sm font-semibold ${
-          changeType === 'positive' ? 'text-green-600' : 'text-red-600'
-        }`}>
-          {change}
-        </span>
       </div>
-      <h3 className="text-sm text-gray-600 dark:text-gray-400 mb-1">{title}</h3>
-      <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">{value}</p>
     </div>
   );
 }
 
-// Composant SubscriptionBar
-function SubscriptionBar({ label, count, total, color }) {
-  const percentage = (count / total * 100).toFixed(1);
-  const colors = {
-    gray: 'bg-gray-400',
-    blue: 'bg-blue-500',
-    purple: 'bg-purple-500'
-  };
+// SubscriptionBar Component
+function SubscriptionBar({ label, count, total, color, isRTL }) {
+  const percentage = ((count / total) * 100).toFixed(1);
+  const colorClasses = { gray: 'bg-gray-500', blue: 'bg-blue-500', purple: 'bg-purple-500' };
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}</span>
-        <span className="text-sm text-gray-600 dark:text-gray-400">{count} ({percentage}%)</span>
+      <div className={`flex justify-between mb-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
+        <span className="text-sm text-gray-600 dark:text-gray-400">{label}</span>
+        <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{count} ({percentage}%)</span>
       </div>
-      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-        <div className={`${colors[color]} h-2 rounded-full`} style={{ width: `${percentage}%` }} />
+      <div className={`w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 ${isRTL ? 'rotate-180' : ''}`}>
+        <div className={`${colorClasses[color]} h-2 rounded-full`} style={{ width: `${percentage}%` }} />
       </div>
     </div>
   );
 }
 
-// Composant ActivityItem
-function ActivityItem({ icon: Icon, text, user, time, color }) {
-  const colors = {
-    green: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400',
-    blue: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
-    purple: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'
-  };
-
+// Placeholder tabs
+function SubscriptionsTab({ txt, isRTL }) {
   return (
-    <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-      <div className={`w-10 h-10 ${colors[color]} rounded-lg flex items-center justify-center flex-shrink-0`}>
-        <Icon className="w-5 h-5" />
-      </div>
-      <div className="flex-1">
-        <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{text}</p>
-        <p className="text-xs text-gray-600 dark:text-gray-400">{user}</p>
-      </div>
-      <span className="text-xs text-gray-500 dark:text-gray-500">{time}</span>
-    </div>
-  );
-}
-
-// Placeholder pour les autres onglets
-function SubscriptionsTab() {
-  return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm border border-gray-200 dark:border-gray-700 text-center">
+    <div className={`text-center py-16 ${isRTL ? 'text-right' : 'text-left'}`}>
       <CreditCard className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-      <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">
-        Gestion des Abonnements
-      </h3>
-      <p className="text-gray-600 dark:text-gray-400">
-        Onglet en développement
-      </p>
+      <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200">{txt.subscriptionSettings}</h3>
+      <p className="text-gray-500 dark:text-gray-400">{txt.comingSoon}</p>
     </div>
   );
 }
 
-function AnalyticsTab({ stats }) {
+function AnalyticsTab({ stats, txt, isRTL }) {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm border border-gray-200 dark:border-gray-700 text-center">
+    <div className={`text-center py-16 ${isRTL ? 'text-right' : 'text-left'}`}>
       <TrendingUp className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-      <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">
-        Analytique Détaillée
-      </h3>
-      <p className="text-gray-600 dark:text-gray-400">
-        Graphiques et rapports détaillés (en développement)
-      </p>
+      <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200">{txt.analyticsSettings}</h3>
+      <p className="text-gray-500 dark:text-gray-400">{txt.comingSoon}</p>
     </div>
   );
 }
 
-function SettingsTab() {
+function SettingsTab({ txt, isRTL }) {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm border border-gray-200 dark:border-gray-700 text-center">
+    <div className={`text-center py-16 ${isRTL ? 'text-right' : 'text-left'}`}>
       <Settings className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-      <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">
-        Paramètres
-      </h3>
-      <p className="text-gray-600 dark:text-gray-400">
-        Configuration du système (en développement)
-      </p>
+      <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200">{txt.systemSettings}</h3>
+      <p className="text-gray-500 dark:text-gray-400">{txt.comingSoon}</p>
     </div>
   );
 }
