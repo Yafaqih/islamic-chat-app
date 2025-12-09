@@ -114,10 +114,29 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { message } = req.body;
+  // ✅ CORRECTION: Accepter les deux formats (message string OU messages array)
+  const { message, messages } = req.body;
   const userId = session.user.id;
 
-  if (!message) {
+  // Extraire le dernier message utilisateur
+  let userMessage;
+  let conversationHistory = [];
+
+  if (message) {
+    // Format simple: { message: "string" }
+    userMessage = message;
+  } else if (messages && Array.isArray(messages) && messages.length > 0) {
+    // Format avec historique: { messages: [{role, content}, ...] }
+    // Trouver le dernier message de l'utilisateur
+    const userMessages = messages.filter(m => m.role === 'user');
+    if (userMessages.length > 0) {
+      userMessage = userMessages[userMessages.length - 1].content;
+    }
+    // Garder l'historique pour le contexte (limité aux 10 derniers messages)
+    conversationHistory = messages.slice(-10);
+  }
+
+  if (!userMessage) {
     return res.status(400).json({ error: 'Message requis' });
   }
 
@@ -177,16 +196,24 @@ Pour les khutbas, utilise cette structure:
 
     console.log('Calling Anthropic API...');
     
+    // ✅ Construire les messages pour l'API avec l'historique
+    let apiMessages;
+    if (conversationHistory.length > 0) {
+      // Utiliser l'historique de conversation pour le contexte
+      apiMessages = conversationHistory.map(m => ({
+        role: m.role,
+        content: m.content
+      }));
+    } else {
+      // Juste le message actuel
+      apiMessages = [{ role: 'user', content: userMessage }];
+    }
+    
     const completion = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: maxTokens,
       system: systemPrompt,
-      messages: [
-        {
-          role: 'user',
-          content: message
-        }
-      ]
+      messages: apiMessages
     });
 
     console.log('Anthropic API response received');
@@ -218,7 +245,7 @@ Pour les khutbas, utilise cette structure:
       }
     }
 
-    const conversationId = await saveConversation(userId, message, response, references);
+    const conversationId = await saveConversation(userId, userMessage, response, references);
 
     try {
       await prisma.user.update({
@@ -233,10 +260,13 @@ Pour les khutbas, utilise cette structure:
       console.error('Error updating message count:', dbError);
     }
 
+    // ✅ CORRECTION: Retourner "message" au lieu de "response" pour le frontend
     return res.status(200).json({
-      response,
+      message: response,  // Le frontend attend "message"
+      response: response, // Garder "response" pour compatibilité
       references: [...new Set(references)].slice(0, 5),
       conversationId,
+      messageCount: user.messageCount + 1,
       usage: {
         messagesUsed: user.messageCount + 1,
         messagesLimit: messageLimit,
