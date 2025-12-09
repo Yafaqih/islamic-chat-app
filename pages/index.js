@@ -367,7 +367,7 @@ export default function IslamicChatApp() {
   return (
     <div className={`min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800`} dir={dir}>
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-gradient-to-r from-emerald-600 to-teal-600 shadow-lg">
+      <header className="fixed top-0 left-0 right-0 z-40 bg-gradient-to-r from-emerald-600 to-teal-600 shadow-lg" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             {/* Logo et titre */}
@@ -569,8 +569,8 @@ export default function IslamicChatApp() {
         </div>
       )}
 
-      {/* Zone de messages */}
-      <div className="max-w-4xl mx-auto p-4 pb-40">
+      {/* Zone de messages - pt-20 pour compenser le header fixed */}
+      <div className="max-w-4xl mx-auto p-4 pb-40 pt-20">
         <div className="space-y-6">
           {messages.map((msg) => (
             <div key={msg.id} className={`flex gap-4 ${msg.role === 'user' ? (isRTL ? '' : 'flex-row-reverse') : (isRTL ? 'flex-row-reverse' : '')}`}>
