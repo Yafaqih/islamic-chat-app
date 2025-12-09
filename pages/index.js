@@ -17,6 +17,7 @@ export default function IslamicChatApp() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const isAuthenticated = status === "authenticated";
+  const isSessionLoading = status === "loading";
   const user = session?.user;
   
   // Hook de langue
@@ -525,6 +526,20 @@ export default function IslamicChatApp() {
     }
     return null;
   };
+
+  // === CHARGEMENT DE LA SESSION ===
+  if (isSessionLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="bg-gradient-to-br from-emerald-500 to-teal-600 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg animate-pulse">
+            <BookOpen className="w-10 h-10 text-white" />
+          </div>
+          <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+        </div>
+      </div>
+    );
+  }
 
   // === PAGE NON AUTHENTIFIÉE ===
   if (!isAuthenticated) {
