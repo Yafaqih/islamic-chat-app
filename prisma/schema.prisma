@@ -71,6 +71,7 @@ model User {
   // ✅ NOUVELLES RELATIONS
   promoUsage             PromoUsage[]
   adminLogs              AdminLog[]     @relation("AdminActions")
+  preferences            UserPreferences?
   
   // ✅ INDEX POUR PERFORMANCE
   @@index([subscriptionTier])
@@ -200,4 +201,28 @@ model AdminLog {
   @@index([action])
   @@index([createdAt])
   @@map("admin_logs")
+}
+
+// ============================================
+// 🆕 MODÈLE USER PREFERENCES (Suggestions intelligentes)
+// ============================================
+model UserPreferences {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Thèmes préférés avec scores (JSON: { "companions": 5, "quran": 3, ... })
+  themes      Json      @default("{}")
+  
+  // Historique des dernières questions (pour analyse plus poussée)
+  recentTopics String[] @default([])
+  
+  // Langue préférée
+  preferredLanguage String @default("ar")
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("user_preferences")
 }
