@@ -478,22 +478,16 @@ export default function IslamicChatApp() {
 
       {/* Qibla Modal */}
       {showQiblaModal && (
-        <QiblaModal onClose={() => setShowQiblaModal(false)} />
+        <QiblaModal isOpen={true} onClose={() => setShowQiblaModal(false)} />
       )}
 
       {/* Prayer Modal */}
       {showPrayerModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-3xl max-w-md w-full p-6 shadow-2xl">
-            <div className={`flex justify-between items-center mb-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('prayerTimes')}</h2>
-              <button onClick={() => setShowPrayerModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            <PrayerNotification embedded={true} />
-          </div>
-        </div>
+        <PrayerNotification 
+          isOpen={true} 
+          onClose={() => setShowPrayerModal(false)} 
+          showFloatingButton={false}
+        />
       )}
 
       {/* Modal Historique */}
