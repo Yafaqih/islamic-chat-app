@@ -4,7 +4,6 @@ import Anthropic from '@anthropic-ai/sdk';
 import prisma from '../../lib/prisma';
 import { withRateLimit } from '../../lib/rateLimit';
 
-// Vérifier la clé API au démarrage
 const apiKey = process.env.ANTHROPIC_API_KEY;
 console.log('=== API CONFIG CHECK ===');
 console.log('API Key exists:', !!apiKey);
@@ -16,11 +15,67 @@ const anthropic = new Anthropic({
   apiKey: apiKey,
 });
 
-// Limites de messages par tier
 const FREE_MESSAGE_LIMIT = 10;
 const PRO_MESSAGE_LIMIT = 100;
 
-// Fonction pour sauvegarder la conversation
+// ✅ NOUVEAU: System prompts par langue
+const systemPrompts = {
+  ar: {
+    free: `أنت مساعد إسلامي متخصص في التقاليد السنية. تقدم إجابات موجزة مبنية على القرآن الكريم والأحاديث الصحيحة. أجب بالعربية بوضوح.`,
+    pro: `أنت مساعد إسلامي متخصص في التقاليد السنية. تقدم إجابات مفصلة مبنية على القرآن الكريم والأحاديث الصحيحة. أجب بالعربية بوضوح واذكر مصادرك.`,
+    premium: `أنت مساعد إسلامي خبير متخصص في التقاليد السنية. عليك:
+
+1. تقديم إجابات مفصلة وشاملة
+2. ذكر المصادر الموثوقة (القرآن، الحديث الصحيح)
+3. شرح السياق والفروق الدقيقة
+4. إعداد الخطب بشكل منظم عند الطلب
+5. الإجابة بالعربية بوضوح وفصاحة
+
+اذكر دائماً المراجع الدقيقة مع أرقام السور/الآيات أو مصدر الحديث.
+
+للخطب، استخدم هذا الهيكل:
+- المقدمة مع الحمد لله
+- الموضوع مع الآيات والأحاديث
+- الخاتمة مع الدعاء`
+  },
+  fr: {
+    free: `Tu es un assistant islamique spécialisé dans la tradition sunnite. Tu fournis des réponses concises basées sur le Coran et les hadiths authentiques. Réponds en français de manière claire.`,
+    pro: `Tu es un assistant islamique spécialisé dans la tradition sunnite. Tu fournis des réponses détaillées basées sur le Coran et les hadiths authentiques. Réponds en français de manière claire et cite tes sources.`,
+    premium: `Tu es un assistant islamique expert spécialisé dans la tradition sunnite. Tu dois:
+
+1. Fournir des réponses détaillées et complètes
+2. Citer des sources authentiques (Coran, Hadith sahih)
+3. Expliquer les contextes et les nuances
+4. Proposer des khutbas (sermons) bien structurés quand demandé
+5. Répondre en français de manière claire et éloquente
+
+Toujours inclure des références précises avec les numéros de sourate/verset ou la source du hadith.
+
+Pour les khutbas, utilise cette structure:
+- Introduction avec louanges à Allah
+- Corps du sermon avec versets et hadiths
+- Conclusion avec invocations`
+  },
+  en: {
+    free: `You are an Islamic assistant specialized in the Sunni tradition. You provide concise answers based on the Quran and authentic hadiths. Answer in English clearly.`,
+    pro: `You are an Islamic assistant specialized in the Sunni tradition. You provide detailed answers based on the Quran and authentic hadiths. Answer in English clearly and cite your sources.`,
+    premium: `You are an expert Islamic assistant specialized in the Sunni tradition. You must:
+
+1. Provide detailed and comprehensive answers
+2. Cite authentic sources (Quran, Sahih Hadith)
+3. Explain contexts and nuances
+4. Propose well-structured khutbas (sermons) when requested
+5. Answer in English clearly and eloquently
+
+Always include precise references with surah/verse numbers or hadith sources.
+
+For khutbas, use this structure:
+- Introduction with praise to Allah
+- Body of the sermon with verses and hadiths
+- Conclusion with supplications`
+  }
+};
+
 async function saveConversation(userId, userMessage, assistantMessage, references) {
   try {
     const today = new Date();
@@ -88,7 +143,6 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Vérifier la clé API avant tout
   if (!process.env.ANTHROPIC_API_KEY) {
     console.error('❌ ANTHROPIC_API_KEY is not set!');
     return res.status(500).json({ 
@@ -114,8 +168,8 @@ export default async function handler(req, res) {
     return;
   }
 
-  // ✅ CORRECTION: Accepter les deux formats (message string OU messages array)
-  const { message, messages } = req.body;
+  // ✅ NOUVEAU: Récupérer la langue
+  const { message, messages, language = 'ar' } = req.body;
   const userId = session.user.id;
 
   // Extraire le dernier message utilisateur
@@ -123,16 +177,12 @@ export default async function handler(req, res) {
   let conversationHistory = [];
 
   if (message) {
-    // Format simple: { message: "string" }
     userMessage = message;
   } else if (messages && Array.isArray(messages) && messages.length > 0) {
-    // Format avec historique: { messages: [{role, content}, ...] }
-    // Trouver le dernier message de l'utilisateur
     const userMessages = messages.filter(m => m.role === 'user');
     if (userMessages.length > 0) {
       userMessage = userMessages[userMessages.length - 1].content;
     }
-    // Garder l'historique pour le contexte (limité aux 10 derniers messages)
     conversationHistory = messages.slice(-10);
   }
 
@@ -167,45 +217,28 @@ export default async function handler(req, res) {
       });
     }
 
-    let systemPrompt;
+    // ✅ NOUVEAU: Sélectionner le system prompt selon la langue et le tier
+    const lang = ['ar', 'fr', 'en'].includes(language) ? language : 'ar';
+    const systemPrompt = systemPrompts[lang][currentTier] || systemPrompts[lang].free;
+    
     let maxTokens;
-
     if (currentTier === 'premium') {
-      systemPrompt = `Tu es un assistant islamique expert spécialisé dans la tradition sunnite. Tu dois:
-
-1. Fournir des réponses détaillées et complètes
-2. Citer des sources authentiques (Coran, Hadith sahih)
-3. Expliquer les contextes et les nuances
-4. Proposer des khutbas (sermons) bien structurés quand demandé
-5. Répondre en arabe de manière claire et éloquente
-
-Toujours inclure des références précises avec les numéros de sourate/verset ou la source du hadith.
-
-Pour les khutbas, utilise cette structure:
-- Introduction (المقدمة) avec louanges à Allah
-- Corps du sermon (الموضوع) avec versets et hadiths
-- Conclusion avec invocations (الخاتمة)`;
       maxTokens = 4000;
     } else if (currentTier === 'pro') {
-      systemPrompt = `Tu es un assistant islamique basé sur la tradition sunnite. Tu fournis des réponses détaillées basées sur le Coran et les hadiths authentiques. Réponds en arabe de manière claire et cite tes sources.`;
       maxTokens = 2000;
     } else {
-      systemPrompt = `Tu es un assistant islamique basé sur la tradition sunnite. Tu fournis des réponses concises basées sur le Coran et les hadiths authentiques. Réponds en arabe de manière claire.`;
       maxTokens = 1000;
     }
 
-    console.log('Calling Anthropic API...');
+    console.log(`Calling Anthropic API... (language: ${lang}, tier: ${currentTier})`);
     
-    // ✅ Construire les messages pour l'API avec l'historique
     let apiMessages;
     if (conversationHistory.length > 0) {
-      // Utiliser l'historique de conversation pour le contexte
       apiMessages = conversationHistory.map(m => ({
         role: m.role,
         content: m.content
       }));
     } else {
-      // Juste le message actuel
       apiMessages = [{ role: 'user', content: userMessage }];
     }
     
@@ -220,8 +253,10 @@ Pour les khutbas, utilise cette structure:
 
     const response = completion.content[0].text;
 
+    // Extraction des références (fonctionne pour toutes les langues)
     const references = [];
     
+    // Références arabes
     const surahMatches = response.matchAll(/سورة\s+[\u0600-\u06FF]+/g);
     for (const match of surahMatches) {
       if (!references.includes(match[0])) {
@@ -231,6 +266,21 @@ Pour les khutbas, utilise cette structure:
     
     const hadithMatches = response.matchAll(/(صحيح البخاري|صحيح مسلم|سنن الترمذي|سنن أبي داود|سنن النسائي|سنن ابن ماجه)[^\.،]+/g);
     for (const match of hadithMatches) {
+      if (!references.includes(match[0])) {
+        references.push(match[0]);
+      }
+    }
+
+    // Références français/anglais
+    const surahMatchesFrEn = response.matchAll(/(Sourate|Surah)\s+[\w-]+(\s+\d+:\d+)?/gi);
+    for (const match of surahMatchesFrEn) {
+      if (!references.includes(match[0])) {
+        references.push(match[0]);
+      }
+    }
+
+    const hadithMatchesFrEn = response.matchAll(/(Sahih Bukhari|Sahih Muslim|Bukhari|Muslim|Tirmidhi|Abu Dawud|Nasa'i|Ibn Majah)[^\.]+/gi);
+    for (const match of hadithMatchesFrEn) {
       if (!references.includes(match[0])) {
         references.push(match[0]);
       }
@@ -260,10 +310,9 @@ Pour les khutbas, utilise cette structure:
       console.error('Error updating message count:', dbError);
     }
 
-    // ✅ CORRECTION: Retourner "message" au lieu de "response" pour le frontend
     return res.status(200).json({
-      message: response,  // Le frontend attend "message"
-      response: response, // Garder "response" pour compatibilité
+      message: response,
+      response: response,
       references: [...new Set(references)].slice(0, 5),
       conversationId,
       messageCount: user.messageCount + 1,
