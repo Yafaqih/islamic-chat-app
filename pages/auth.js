@@ -2,9 +2,13 @@ import React, { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import { BookOpen, Mail, Lock, User, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
+import LanguageSelector from '../components/LanguageSelector';
 
 export default function AuthPage() {
   const router = useRouter();
+  const { language, isRTL } = useLanguage();
+  
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -15,6 +19,89 @@ export default function AuthPage() {
     email: '',
     password: ''
   });
+
+  // Traductions AR/FR/EN
+  const txt = {
+    ar: {
+      appName: 'المساعد الإسلامي',
+      tagline: 'خطب، قرآن وأحاديث - السنة النبوية',
+      login: 'تسجيل الدخول',
+      signup: 'إنشاء حساب',
+      fullName: 'الاسم الكامل',
+      email: 'البريد الإلكتروني',
+      password: 'كلمة المرور',
+      fullNamePlaceholder: 'أدخل اسمك الكامل',
+      emailPlaceholder: 'exemple@email.com',
+      passwordPlaceholder: '••••••••',
+      minChars: 'على الأقل 6 أحرف',
+      processing: 'جاري المعالجة...',
+      or: 'أو',
+      continueWithGoogle: 'المتابعة مع Google',
+      errorSignup: 'خطأ أثناء التسجيل',
+      errorLogin: 'البريد الإلكتروني أو كلمة المرور غير صحيحة',
+      errorConnection: 'خطأ في الاتصال',
+      accountCreatedError: 'تم إنشاء الحساب ولكن حدث خطأ في تسجيل الدخول'
+    },
+    fr: {
+      appName: 'Assistant Islamique',
+      tagline: 'Sermons, Coran et Hadiths - Tradition Prophétique',
+      login: 'Connexion',
+      signup: 'Créer un compte',
+      fullName: 'Nom complet',
+      email: 'Email',
+      password: 'Mot de passe',
+      fullNamePlaceholder: 'Entrez votre nom complet',
+      emailPlaceholder: 'exemple@email.com',
+      passwordPlaceholder: '••••••••',
+      minChars: 'Au moins 6 caractères',
+      processing: 'Traitement en cours...',
+      or: 'ou',
+      continueWithGoogle: 'Continuer avec Google',
+      errorSignup: 'Erreur lors de l\'inscription',
+      errorLogin: 'Email ou mot de passe incorrect',
+      errorConnection: 'Erreur de connexion',
+      accountCreatedError: 'Compte créé mais erreur de connexion'
+    },
+    en: {
+      appName: 'Islamic Assistant',
+      tagline: 'Sermons, Quran & Hadiths - Prophetic Tradition',
+      login: 'Log in',
+      signup: 'Create account',
+      fullName: 'Full name',
+      email: 'Email',
+      password: 'Password',
+      fullNamePlaceholder: 'Enter your full name',
+      emailPlaceholder: 'example@email.com',
+      passwordPlaceholder: '••••••••',
+      minChars: 'At least 6 characters',
+      processing: 'Processing...',
+      or: 'or',
+      continueWithGoogle: 'Continue with Google',
+      errorSignup: 'Error during registration',
+      errorLogin: 'Incorrect email or password',
+      errorConnection: 'Connection error',
+      accountCreatedError: 'Account created but login error'
+    }
+  }[language] || {
+    appName: 'المساعد الإسلامي',
+    tagline: 'خطب، قرآن وأحاديث - السنة النبوية',
+    login: 'تسجيل الدخول',
+    signup: 'إنشاء حساب',
+    fullName: 'الاسم الكامل',
+    email: 'البريد الإلكتروني',
+    password: 'كلمة المرور',
+    fullNamePlaceholder: 'أدخل اسمك الكامل',
+    emailPlaceholder: 'exemple@email.com',
+    passwordPlaceholder: '••••••••',
+    minChars: 'على الأقل 6 أحرف',
+    processing: 'جاري المعالجة...',
+    or: 'أو',
+    continueWithGoogle: 'المتابعة مع Google',
+    errorSignup: 'خطأ أثناء التسجيل',
+    errorLogin: 'البريد الإلكتروني أو كلمة المرور غير صحيحة',
+    errorConnection: 'خطأ في الاتصال',
+    accountCreatedError: 'تم إنشاء الحساب ولكن حدث خطأ في تسجيل الدخول'
+  };
 
   const handleChange = (e) => {
     setFormData({
@@ -39,7 +126,7 @@ export default function AuthPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Erreur lors de l\'inscription');
+        throw new Error(data.error || txt.errorSignup);
       }
 
       // Connexion automatique après inscription
@@ -50,7 +137,7 @@ export default function AuthPage() {
       });
 
       if (result?.error) {
-        setError('Compte créé mais erreur de connexion');
+        setError(txt.accountCreatedError);
       } else {
         router.push('/');
       }
@@ -75,13 +162,13 @@ export default function AuthPage() {
       });
 
       if (result?.error) {
-        setError('Email ou mot de passe incorrect');
+        setError(txt.errorLogin);
       } else {
         router.push('/');
       }
 
     } catch (error) {
-      setError('Erreur lors de la connexion');
+      setError(txt.errorConnection);
     } finally {
       setLoading(false);
     }
@@ -92,46 +179,53 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4" dir="rtl">
-      <div className="bg-white dark:bg-gray-800 rounded-3xl max-w-md w-full p-8 shadow-2xl">
+    <div 
+      className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4" 
+      dir={isRTL ? 'rtl' : 'ltr'}
+    >
+      <div className="bg-white dark:bg-gray-800 rounded-3xl max-w-md w-full p-8 shadow-2xl relative">
+        
+        {/* Sélecteur de langue */}
+        <div className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'}`}>
+          <LanguageSelector />
+        </div>
+
         {/* Logo et titre */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-8 mt-4">
           <div className="bg-gradient-to-br from-emerald-500 to-teal-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <BookOpen className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">المساعد الإسلامي</h1>
-          <p className="text-gray-600 dark:text-gray-300">خطب، قرآن وأحاديث - السنة النبوية</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{txt.appName}</h1>
+          <p className="text-gray-600 dark:text-gray-300">{txt.tagline}</p>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-6 bg-gray-100 dark:bg-gray-700 rounded-xl p-1">
+        <div className={`flex gap-2 mb-6 bg-gray-100 dark:bg-gray-700 rounded-xl p-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
           <button
             onClick={() => setIsLogin(true)}
-            className={`flex-1 py-2 rounded-lg font-semibold transition-all ${
+            className={`flex-1 py-3 rounded-lg font-semibold transition-all ${
               isLogin 
                 ? 'bg-white dark:bg-gray-600 text-emerald-600 dark:text-emerald-400 shadow-sm' 
                 : 'text-gray-600 dark:text-gray-400'
             }`}
           >
-            <span className="block">تسجيل الدخول</span>
-            <span className="block text-xs opacity-70">Log in</span>
+            {txt.login}
           </button>
           <button
             onClick={() => setIsLogin(false)}
-            className={`flex-1 py-2 rounded-lg font-semibold transition-all ${
+            className={`flex-1 py-3 rounded-lg font-semibold transition-all ${
               !isLogin 
                 ? 'bg-white dark:bg-gray-600 text-emerald-600 dark:text-emerald-400 shadow-sm' 
                 : 'text-gray-600 dark:text-gray-400'
             }`}
           >
-            <span className="block">إنشاء حساب</span>
-            <span className="block text-xs opacity-70">Create account</span>
+            {txt.signup}
           </button>
         </div>
 
         {/* Error message */}
         {error && (
-          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-start gap-2">
+          <div className={`mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-start gap-2 ${isRTL ? 'flex-row-reverse text-right' : ''}`}>
             <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
             <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
           </div>
@@ -141,9 +235,8 @@ export default function AuthPage() {
         <form onSubmit={isLogin ? handleLogin : handleSignup} className="space-y-4 mb-6">
           {!isLogin && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 text-right">
-                <span>الاسم الكامل</span>
-                <span className="text-xs text-gray-400 mr-2">Full name</span>
+              <label className={`block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 ${isRTL ? 'text-right' : 'text-left'}`}>
+                {txt.fullName}
               </label>
               <div className="relative">
                 <input
@@ -152,19 +245,18 @@ export default function AuthPage() {
                   value={formData.name}
                   onChange={handleChange}
                   required={!isLogin}
-                  className="w-full pr-12 pl-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  placeholder="أدخل اسمك الكامل / Enter your full name"
-                  dir="rtl"
+                  className={`w-full ${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white`}
+                  placeholder={txt.fullNamePlaceholder}
+                  dir={isRTL ? 'rtl' : 'ltr'}
                 />
-                <User className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <User className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400`} />
               </div>
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 text-right">
-              <span>البريد الإلكتروني</span>
-              <span className="text-xs text-gray-400 mr-2">Email</span>
+            <label className={`block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 ${isRTL ? 'text-right' : 'text-left'}`}>
+              {txt.email}
             </label>
             <div className="relative">
               <input
@@ -173,18 +265,17 @@ export default function AuthPage() {
                 value={formData.email}
                 onChange={handleChange}
                 required
-                className="w-full pr-12 pl-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                placeholder="exemple@email.com"
+                className={`w-full ${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white`}
+                placeholder={txt.emailPlaceholder}
                 dir="ltr"
               />
-              <Mail className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Mail className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400`} />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 text-right">
-              <span>كلمة المرور</span>
-              <span className="text-xs text-gray-400 mr-2">Password</span>
+            <label className={`block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 ${isRTL ? 'text-right' : 'text-left'}`}>
+              {txt.password}
             </label>
             <div className="relative">
               <input
@@ -193,23 +284,23 @@ export default function AuthPage() {
                 value={formData.password}
                 onChange={handleChange}
                 required
-                className="w-full pr-12 pl-12 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                placeholder="••••••••"
+                className={`w-full ${isRTL ? 'pr-12 pl-12' : 'pl-12 pr-12'} py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white`}
+                placeholder={txt.passwordPlaceholder}
                 dir="ltr"
                 minLength={6}
               />
-              <Lock className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Lock className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400`} />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                className={`absolute ${isRTL ? 'left-4' : 'right-4'} top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300`}
               >
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
             {!isLogin && (
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-right">
-                على الأقل 6 أحرف <span className="text-gray-400">/ At least 6 characters</span>
+              <p className={`text-xs text-gray-500 dark:text-gray-400 mt-1 ${isRTL ? 'text-right' : 'text-left'}`}>
+                {txt.minChars}
               </p>
             )}
           </div>
@@ -222,13 +313,10 @@ export default function AuthPage() {
             {loading ? (
               <div className="flex items-center justify-center gap-2">
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                جاري المعالجة...
+                {txt.processing}
               </div>
             ) : (
-              <div>
-                <span className="block">{isLogin ? 'تسجيل الدخول' : 'إنشاء حساب'}</span>
-                <span className="block text-xs text-emerald-100">{isLogin ? 'Log in' : 'Create account'}</span>
-              </div>
+              isLogin ? txt.login : txt.signup
             )}
           </button>
         </form>
@@ -240,7 +328,7 @@ export default function AuthPage() {
           </div>
           <div className="relative flex justify-center text-sm">
             <span className="px-4 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">
-              أو
+              {txt.or}
             </span>
           </div>
         </div>
@@ -248,7 +336,7 @@ export default function AuthPage() {
         {/* Google Sign In */}
         <button
           onClick={handleGoogleSignIn}
-          className="w-full bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-semibold py-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600 transition-all flex items-center justify-center gap-3"
+          className={`w-full bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-semibold py-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600 transition-all flex items-center justify-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -256,10 +344,7 @@ export default function AuthPage() {
             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
           </svg>
-          <div className="text-right">
-            <span className="block">المتابعة مع Google</span>
-            <span className="block text-xs text-gray-500 dark:text-gray-400">Continue with Google</span>
-          </div>
+          {txt.continueWithGoogle}
         </button>
       </div>
     </div>
