@@ -12,12 +12,15 @@ import AdminDashboard from '../components/AdminDashboard';
 import SubscriptionModal from '../components/SubscriptionModal';
 import InputBar from '../components/InputBar'; // ✅ NOUVEAU: Barre d'input style Claude
 import QiblaModal from '../components/QiblaModal'; // ✅ NOUVEAU: Modal Qibla
+import LanguageSelector from '../components/LanguageSelector'; // 🌍 Sélecteur de langue
+import { useLanguage } from '../contexts/LanguageContext'; // 🌍 Hook langue
 
 export default function IslamicChatApp() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const isAuthenticated = status === "authenticated";
   const user = session?.user;
+  const { language, isRTL } = useLanguage(); // 🌍 Hook langue
 
   const [darkMode, setDarkMode] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -396,6 +399,9 @@ export default function IslamicChatApp() {
             <div className="flex items-center gap-1 sm:gap-2">
               {/* Desktop actions */}
               <div className="hidden md:flex items-center gap-2">
+                {/* 🌍 Sélecteur de langue */}
+                <LanguageSelector />
+                
                 <button onClick={toggleDarkMode} className="p-2 hover:bg-white/10 rounded-lg transition-colors" title={darkMode ? "الوضع الفاتح" : "الوضع الداكن"}>
                   {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                 </button>
@@ -486,6 +492,10 @@ export default function IslamicChatApp() {
           {/* Menu mobile */}
           {showMobileMenu && (
             <div className="md:hidden mt-3 pt-3 border-t border-white/20 space-y-2">
+              {/* 🌍 Sélecteur de langue mobile */}
+              <div className="px-3 py-2">
+                <LanguageSelector />
+              </div>
               <button onClick={() => { setShowHistory(!showHistory); setShowMobileMenu(false); }} className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/10 rounded-lg transition-colors text-right">
                 <MessageSquare className="w-5 h-5" /><span>المحادثات السابقة</span>
               </button>
