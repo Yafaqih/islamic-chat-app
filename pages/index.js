@@ -4,33 +4,37 @@ import { useRouter } from 'next/router';
 import { Send, BookOpen, Sparkles, Star, X, Crown, Check, Zap, LogOut, MessageSquare, Shield, AlertCircle, Moon, Sun, Download, User, Navigation, Menu, Tag } from 'lucide-react';
 import { exportCurrentConversationToPDF, exportConversationToPDF } from '../lib/pdfExport';
 import PrayerNotification from '../components/PrayerNotification';
-// ✨ Import du composant TTS
 import ArabicTTS from '../components/ArabicTTS';
 import AboutPage from '../components/AboutPage';
-
 import AdminDashboard from '../components/AdminDashboard';
 import SubscriptionModal from '../components/SubscriptionModal';
-import InputBar from '../components/InputBar'; // ✅ NOUVEAU: Barre d'input style Claude
-import QiblaModal from '../components/QiblaModal'; // ✅ NOUVEAU: Modal Qibla
+import InputBar from '../components/InputBar';
+import QiblaModal from '../components/QiblaModal';
+import LanguageSelector from '../components/LanguageSelector';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export default function IslamicChatApp() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const isAuthenticated = status === "authenticated";
   const user = session?.user;
+  
+  // Hook de langue
+  const { t, language, dir, isRTL } = useLanguage();
 
   const [darkMode, setDarkMode] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
 
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      role: 'assistant',
-      content: 'السلام عليكم ورحمة الله وبركاته\n\nمرحباً بك! أنا مساعدك الإسلامي المتخصص في التقاليد السنية. يمكنني مساعدتك في:\n\n• تفسير آيات القرآن الكريم\n• شرح الأحاديث الصحيحة\n• إعداد الخطب\n• أسئلة الفقه الإسلامي\n\nكيف يمكنني مساعدتك اليوم؟',
-      isFavorite: false,
-      references: []
-    }
-  ]);
+  // Message de bienvenue dynamique selon la langue
+  const getWelcomeMessage = () => ({
+    id: 1,
+    role: 'assistant',
+    content: `${t('welcome')}\n\n${t('welcomeIntro')}\n\n• ${t('welcomeFeature1')}\n• ${t('welcomeFeature2')}\n• ${t('welcomeFeature3')}\n• ${t('welcomeFeature4')}\n\n${t('welcomeQuestion')}`,
+    isFavorite: false,
+    references: []
+  });
+
+  const [messages, setMessages] = useState([getWelcomeMessage()]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showFavorites, setShowFavorites] = useState(false);
@@ -50,6 +54,21 @@ export default function IslamicChatApp() {
 
   const FREE_MESSAGE_LIMIT = 10;
   const PRO_MESSAGE_LIMIT = 100;
+
+  // Mettre à jour le message de bienvenue quand la langue change
+  useEffect(() => {
+    if (messages.length === 1 && messages[0].id === 1) {
+      setMessages([getWelcomeMessage()]);
+    }
+  }, [language]);
+
+  // Suggestions dynamiques selon la langue
+  const suggestions = [
+    t('suggestion1'),
+    t('suggestion2'),
+    t('suggestion3'),
+    t('suggestion4')
+  ];
 
   // Initialiser le mode sombre
   useEffect(() => {
@@ -82,7 +101,7 @@ export default function IslamicChatApp() {
       setShowPremiumModal(true);
       return;
     }
-    const title = messages.length > 1 ? messages[1].content.substring(0, 60) : 'محادثة جديدة';
+    const title = messages.length > 1 ? messages[1].content.substring(0, 60) : t('newConversation');
     exportCurrentConversationToPDF(messages, user?.name, title);
   };
 
@@ -99,7 +118,7 @@ export default function IslamicChatApp() {
       }
     } catch (error) {
       console.error('Error exporting PDF:', error);
-      alert('خطأ في تصدير المحادثة');
+      alert(t('errorOccurred'));
     }
   };
 
@@ -119,12 +138,63 @@ export default function IslamicChatApp() {
     }
   }, [isAuthenticated, user]);
 
-  const suggestions = [
-    "اشرح لي سورة الفاتحة",
-    "أعطني خطبة عن الصبر",
-    "اشرح حديث النية",
-    "ما أهمية يوم الجمعة؟"
-  ];
+  const loadConversations = async () => {
+    try {
+      const response = await fetch('/api/conversations');
+      const data = await response.json();
+      if (response.ok) {
+        setConversations(data.conversations || []);
+      }
+    } catch (error) {
+      console.error('Error loading conversations:', error);
+    }
+  };
+
+  const loadConversation = async (conversationId) => {
+    try {
+      const response = await fetch(`/api/conversations/${conversationId}`);
+      const data = await response.json();
+      if (response.ok && data.conversation) {
+        const loadedMessages = data.conversation.messages.map((msg, idx) => ({
+          id: idx + 1,
+          role: msg.role,
+          content: msg.content,
+          isFavorite: false,
+          references: msg.references ? JSON.parse(msg.references) : []
+        }));
+        setMessages(loadedMessages);
+        setCurrentConversationId(conversationId);
+        setNextId(loadedMessages.length + 1);
+        setShowHistory(false);
+      }
+    } catch (error) {
+      console.error('Error loading conversation:', error);
+    }
+  };
+
+  const deleteConversation = async (conversationId) => {
+    try {
+      const response = await fetch(`/api/conversations/${conversationId}`, {
+        method: 'DELETE'
+      });
+      if (response.ok) {
+        setConversations(prev => prev.filter(c => c.id !== conversationId));
+        if (currentConversationId === conversationId) {
+          setMessages([getWelcomeMessage()]);
+          setCurrentConversationId(null);
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting conversation:', error);
+    }
+  };
+
+  const startNewConversation = () => {
+    setMessages([getWelcomeMessage()]);
+    setCurrentConversationId(null);
+    setNextId(2);
+    setShowHistory(false);
+  };
 
   const handleFileUpload = (files) => {
     setUploadedFiles(prev => [...prev, ...files]);
@@ -164,7 +234,8 @@ export default function IslamicChatApp() {
             role: m.role,
             content: m.content
           })),
-          userId: user?.id
+          userId: user?.id,
+          language: language // Envoyer la langue pour adapter la réponse
         })
       });
 
@@ -174,29 +245,38 @@ export default function IslamicChatApp() {
         const assistantMessage = {
           id: nextId + 1,
           role: 'assistant',
-          content: data.message,
+          content: data.message || data.response,
           isFavorite: false,
           references: data.references || []
         };
-
         setMessages(prev => [...prev, assistantMessage]);
         setNextId(prev => prev + 2);
         setMessageCount(data.messageCount || messageCount + 1);
-
-        if (isAuthenticated) {
-          saveConversation([...messages, userMessage, assistantMessage]);
+        if (data.conversationId) {
+          setCurrentConversationId(data.conversationId);
         }
       } else {
-        throw new Error(data.error || 'Erreur serveur');
+        console.error('Erreur:', data.error);
+        const errorMessage = {
+          id: nextId + 1,
+          role: 'assistant',
+          content: `${t('errorOccurred')}: ${data.error}`,
+          isFavorite: false,
+          references: []
+        };
+        setMessages(prev => [...prev, errorMessage]);
+        setNextId(prev => prev + 2);
       }
     } catch (error) {
       console.error('Erreur:', error);
-      setMessages(prev => [...prev, {
+      const errorMessage = {
         id: nextId + 1,
         role: 'assistant',
-        content: 'عذراً، حدث خطأ. يرجى المحاولة مرة أخرى.',
-        isFavorite: false
-      }]);
+        content: t('connectionError'),
+        isFavorite: false,
+        references: []
+      };
+      setMessages(prev => [...prev, errorMessage]);
       setNextId(prev => prev + 2);
     } finally {
       setIsLoading(false);
@@ -204,123 +284,54 @@ export default function IslamicChatApp() {
   };
 
   const handleSuggestion = (suggestion) => {
-    setInput(suggestion);
     handleSend(suggestion);
   };
 
   const toggleFavorite = (messageId) => {
-    setMessages(prev => prev.map(msg =>
+    setMessages(prev => prev.map(msg => 
       msg.id === messageId ? { ...msg, isFavorite: !msg.isFavorite } : msg
     ));
   };
 
-  const saveConversation = async (msgs) => {
-    try {
-      const title = msgs.length > 1 ? msgs[1].content.substring(0, 60) : 'محادثة جديدة';
-      const response = await fetch('/api/conversations', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, messages: msgs })
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setCurrentConversationId(data.conversation?.id);
-        loadConversations();
-      }
-    } catch (error) {
-      console.error('Error saving conversation:', error);
-    }
-  };
-
-  const loadConversations = async () => {
-    try {
-      const response = await fetch('/api/conversations');
-      if (response.ok) {
-        const data = await response.json();
-        setConversations(data.conversations || []);
-      }
-    } catch (error) {
-      console.error('Error loading conversations:', error);
-    }
-  };
-
-  const loadConversation = async (conversationId) => {
-    try {
-      const response = await fetch(`/api/conversations/${conversationId}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.conversation && data.conversation.messages) {
-          setMessages(data.conversation.messages.map((m, idx) => ({
-            id: idx + 1,
-            role: m.role,
-            content: m.content,
-            isFavorite: false,
-            references: m.references || []
-          })));
-          setNextId(data.conversation.messages.length + 1);
-          setCurrentConversationId(conversationId);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading conversation:', error);
-    }
-    setShowHistory(false);
-  };
-
-  const deleteConversation = async (conversationId) => {
-    try {
-      const response = await fetch(`/api/conversations/${conversationId}`, { method: 'DELETE' });
-      if (response.ok) {
-        loadConversations();
-      }
-    } catch (error) {
-      console.error('Error deleting conversation:', error);
-    }
-  };
-
   const favoriteMessages = messages.filter(msg => msg.isFavorite);
 
-  const getAuthenticityLevel = (referenceText) => {
-    const text = referenceText.toLowerCase();
-    
-    if (text.includes('صحيح البخاري') || text.includes('صحيح مسلم')) {
-      return { label: 'صحيح', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300', icon: <Shield className="w-3 h-3" /> };
+  const getAuthenticityLevel = (reference) => {
+    const refLower = reference.toLowerCase();
+    if (refLower.includes('صحيح') || refLower.includes('sahih') || refLower.includes('authentique')) {
+      return { label: t('sahih'), color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400', icon: '✓' };
     }
-    if (text.includes('حديث صحيح') || text.includes('إسناده صحيح')) {
-      return { label: 'صحيح', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300', icon: <Shield className="w-3 h-3" /> };
+    if (refLower.includes('حسن') || refLower.includes('hasan') || refLower.includes('bon')) {
+      return { label: t('hasan'), color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400', icon: '○' };
     }
-    if (text.includes('حديث حسن') || text.includes('إسناده حسن') || text.includes('سنن الترمذي') || text.includes('سنن أبي داود') || text.includes('سنن النسائي') || text.includes('سنن ابن ماجه')) {
-      return { label: 'حسن', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300', icon: <Check className="w-3 h-3" /> };
-    }
-    if (text.includes('حديث ضعيف') || text.includes('إسناده ضعيف')) {
-      return { label: 'ضعيف', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300', icon: <AlertCircle className="w-3 h-3" /> };
-    }
-    if (text.includes('موضوع') || text.includes('مكذوب')) {
-      return { label: 'موضوع', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300', icon: <X className="w-3 h-3" /> };
-    }
-    if (text.includes('القرآن') || text.includes('قرآن') || text.includes('تفسير') || text.includes('آية')) {
-      return { label: 'قرآن كريم', color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300', icon: <BookOpen className="w-3 h-3" /> };
+    if (refLower.includes('ضعيف') || refLower.includes('daif') || refLower.includes('faible')) {
+      return { label: t('daif'), color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400', icon: '✗' };
     }
     return null;
   };
 
-  // Page de connexion
+  // === PAGE NON AUTHENTIFIÉE ===
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4" dir="rtl">
+      <div className={`min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4`} dir={dir}>
         <div className="bg-white dark:bg-gray-800 rounded-3xl max-w-md w-full p-8 shadow-2xl">
-          <div className="text-center mb-8">
-            <div className="bg-gradient-to-br from-emerald-500 to-teal-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <BookOpen className="w-8 h-8 text-white" />
+          {/* Language Selector */}
+          <div className="flex justify-center mb-6">
+            <div className="bg-emerald-500 rounded-xl p-1">
+              <LanguageSelector />
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">المساعد الإسلامي</h1>
-            <p className="text-gray-600 dark:text-gray-300">خطب، قرآن وأحاديث - السنة النبوية</p>
+          </div>
+
+          <div className="text-center mb-8">
+            <div className="bg-gradient-to-br from-emerald-500 to-teal-600 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+              <BookOpen className="w-10 h-10 text-white" />
+            </div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{t('appName')}</h1>
+            <p className="text-gray-600 dark:text-gray-300">Ya Faqih</p>
           </div>
 
           <button
             onClick={() => signIn('google', { callbackUrl: '/' })}
-            className="w-full bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-semibold py-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600 transition-all flex items-center justify-center gap-3"
+            className="w-full bg-white dark:bg-gray-700 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-semibold py-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600 transition-all flex items-center justify-center gap-3 mb-4"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -328,228 +339,202 @@ export default function IslamicChatApp() {
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
             </svg>
-            <div className="text-right">
-              <span className="block">المتابعة مع Google</span>
-              <span className="block text-xs text-gray-500 dark:text-gray-400">Continue with Google</span>
-            </div>
+            <span>{t('continueWithGoogle')}</span>
           </button>
-
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">أو</span>
-            </div>
-          </div>
 
           <button
             onClick={() => router.push('/auth')}
             className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold py-3 rounded-xl hover:from-emerald-600 hover:to-teal-700 transition-all"
           >
-            <span className="block">تسجيل الدخول بالبريد الإلكتروني</span>
-            <span className="block text-xs text-emerald-100">Log in with email</span>
+            {t('loginWithEmail')}
           </button>
 
-          <button
-            onClick={toggleDarkMode}
-            className="mt-4 w-full flex items-center justify-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
-          >
-            {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            <div>
-              <span>{darkMode ? 'الوضع الفاتح' : 'الوضع الداكن'}</span>
-              <span className="text-xs text-gray-400 mr-1">({darkMode ? 'Light mode' : 'Dark mode'})</span>
-            </div>
-          </button>
+          <div className="mt-6 flex justify-center">
+            <button
+              onClick={toggleDarkMode}
+              className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+            >
+              {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              <span>{darkMode ? t('lightMode') : t('darkMode')}</span>
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
-  // Application principale
+  // === PAGE AUTHENTIFIÉE ===
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors duration-200" dir="rtl">
-      
-      {/* Modals */}
-      <SubscriptionModal isOpen={showPremiumModal} onClose={() => setShowPremiumModal(false)} currentTier={subscriptionTier} />
-      <QiblaModal isOpen={showQiblaModal} onClose={() => setShowQiblaModal(false)} />
-      <PrayerNotification isOpen={showPrayerModal} onClose={() => setShowPrayerModal(false)} showFloatingButton={false} />
-
+    <div className={`min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800`} dir={dir}>
       {/* Header */}
-      <div className="bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-gray-800 dark:to-gray-900 text-white shadow-lg transition-colors duration-200">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
+      <header className="sticky top-0 z-40 bg-gradient-to-r from-emerald-600 to-teal-600 shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
-            {/* Logo */}
-            <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
-              <BookOpen className="w-6 h-6 sm:w-8 sm:h-8 flex-shrink-0" />
-              <div className="min-w-0">
-                <h1 className="text-base sm:text-xl font-bold truncate">المساعد الإسلامي</h1>
-                <p className="text-xs sm:text-sm text-emerald-100 dark:text-gray-400 truncate">
-                  {subscriptionTier === 'premium' && '⭐ مميز'}
-                  {subscriptionTier === 'pro' && '💎 احترافي'}
-                  {subscriptionTier === 'free' && `${messageCount}/${FREE_MESSAGE_LIMIT}`}
-                </p>
+            {/* Logo et titre */}
+            <div className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <div className="bg-white/20 p-2 rounded-xl">
+                <BookOpen className="w-6 h-6 text-white" />
               </div>
+              <h1 className="text-xl font-bold text-white">{t('appName')}</h1>
+              
+              {/* Language Selector dans le header */}
+              <LanguageSelector />
             </div>
 
             {/* Actions */}
-            <div className="flex items-center gap-1 sm:gap-2">
-              {/* Desktop actions */}
+            <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              {/* Boutons desktop */}
               <div className="hidden md:flex items-center gap-2">
-                <button onClick={toggleDarkMode} className="p-2 hover:bg-white/10 rounded-lg transition-colors" title={darkMode ? "الوضع الفاتح" : "الوضع الداكن"}>
-                  {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                </button>
-                <button onClick={handleExportPDF} className="p-2 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50" title="تصدير PDF" disabled={messages.length <= 1 || subscriptionTier !== 'premium'}>
-                  <Download className="w-5 h-5" />
-                </button>
-                <button onClick={() => router.push('/dashboard')} className="p-2 hover:bg-white/10 rounded-lg transition-colors" title="لوحة التحكم">
-                  <User className="w-5 h-5" />
-                </button>
-                <button onClick={() => setShowHistory(!showHistory)} className="p-2 hover:bg-white/10 rounded-lg transition-colors" title="المحادثات السابقة">
-                  <MessageSquare className="w-5 h-5" />
-                </button>
-                <button onClick={() => setShowFavorites(!showFavorites)} className="p-2 hover:bg-white/10 rounded-lg transition-colors" title="المفضلة">
+                <button onClick={() => setShowFavorites(true)} className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-colors" title={t('favorites')}>
                   <Star className="w-5 h-5" />
                 </button>
-                
-                {/* Menu utilisateur */}
-                <div className="relative group">
-                  <button className="flex items-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors">
-                    <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-                      <span className="text-white font-bold text-sm">{user?.name?.[0]?.toUpperCase() || 'U'}</span>
-                    </div>
-                    <span className="text-sm font-medium hidden lg:inline">{user?.name || 'User'}</span>
-                  </button>
-                  
-                  <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 overflow-hidden">
-                    {user?.isAdmin && (
-                      <>
-                        <button onClick={() => setShowAdminDashboard(true)} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all">
-                          <div className="w-9 h-9 bg-gradient-to-r from-amber-500 to-orange-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <Shield className="w-5 h-5 text-white" />
-                          </div>
-                          <div className="text-left flex-1">
-                            <div className="font-semibold">Dashboard Admin</div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">Management & statistics</div>
-                          </div>
-                        </button>
-                        <div className="border-t border-gray-200 dark:border-gray-700"></div>
-                      </>
-                    )}
-                    
-                    <button onClick={() => setShowPremiumModal(true)} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all">
-                      <div className="w-9 h-9 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Crown className="w-5 h-5 text-white" />
-                      </div>
-                      <div className="text-left flex-1">
-                        <div className="font-semibold">الاشتراكات</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">Subscriptions & promo codes</div>
-                      </div>
-                    </button>
-                    
-                    <button onClick={() => setShowAbout(true)} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all">
-                      <div className="w-9 h-9 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <BookOpen className="w-5 h-5 text-white" />
-                      </div>
-                      <div className="text-left flex-1">
-                        <div className="font-semibold">حول التطبيق</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">About</div>
-                      </div>
-                    </button>
-                    
-                    <div className="border-t border-gray-200 dark:border-gray-700"></div>
-                    
-                    <button onClick={() => signOut()} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all rounded-b-xl">
-                      <div className="w-9 h-9 bg-gradient-to-r from-red-500 to-red-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <LogOut className="w-5 h-5 text-white" />
-                      </div>
-                      <div className="text-left flex-1">
-                        <div className="font-semibold">تسجيل الخروج</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">Log out</div>
-                      </div>
-                    </button>
+                <button onClick={() => setShowHistory(true)} className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-colors" title={t('history')}>
+                  <MessageSquare className="w-5 h-5" />
+                </button>
+                <button onClick={handleExportPDF} className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-colors" title={t('exportPDF')}>
+                  <Download className="w-5 h-5" />
+                </button>
+                <button onClick={toggleDarkMode} className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-colors">
+                  {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                </button>
+              </div>
+
+              {/* User menu */}
+              <div className="relative group">
+                <button className="flex items-center gap-2 bg-white/20 hover:bg-white/30 px-3 py-2 rounded-xl transition-colors">
+                  <div className="w-8 h-8 bg-white/30 rounded-full flex items-center justify-center">
+                    <span className="text-white font-bold text-sm">{user?.name?.[0]?.toUpperCase() || 'U'}</span>
                   </div>
+                  <span className="text-sm font-medium text-white hidden lg:inline">{user?.name || 'User'}</span>
+                </button>
+
+                {/* Dropdown */}
+                <div className={`absolute ${isRTL ? 'left-0' : 'right-0'} top-full mt-2 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 min-w-[200px] z-50`}>
+                  {user?.role === 'admin' && (
+                    <button onClick={() => setShowAdminDashboard(true)} className={`w-full flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 ${isRTL ? 'flex-row-reverse text-right' : ''}`}>
+                      <Shield className="w-5 h-5 text-purple-500" />
+                      <div>
+                        <div className="font-semibold">{t('adminDashboard')}</div>
+                      </div>
+                    </button>
+                  )}
+                  <button onClick={() => setShowPremiumModal(true)} className={`w-full flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 ${isRTL ? 'flex-row-reverse text-right' : ''}`}>
+                    <Tag className="w-5 h-5 text-emerald-500" />
+                    <div>
+                      <div className="font-semibold">{t('subscriptions')}</div>
+                    </div>
+                  </button>
+                  <button onClick={() => setShowAbout(true)} className={`w-full flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 ${isRTL ? 'flex-row-reverse text-right' : ''}`}>
+                    <AlertCircle className="w-5 h-5 text-blue-500" />
+                    <div>
+                      <div className="font-semibold">{t('about')}</div>
+                    </div>
+                  </button>
+                  <div className="border-t border-gray-200 dark:border-gray-700"></div>
+                  <button onClick={() => signOut()} className={`w-full flex items-center gap-3 px-4 py-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 ${isRTL ? 'flex-row-reverse text-right' : ''}`}>
+                    <LogOut className="w-5 h-5" />
+                    <div>
+                      <div className="font-semibold">{t('logout')}</div>
+                    </div>
+                  </button>
                 </div>
               </div>
 
-              {/* Mobile actions */}
-              <button onClick={toggleDarkMode} className="md:hidden p-2 hover:bg-white/10 rounded-lg transition-colors">
-                {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-              </button>
-              <button onClick={() => setShowMobileMenu(!showMobileMenu)} className="md:hidden p-2 hover:bg-white/10 rounded-lg transition-colors">
+              {/* Mobile menu button */}
+              <button onClick={() => setShowMobileMenu(!showMobileMenu)} className="md:hidden p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-colors">
                 <Menu className="w-6 h-6" />
               </button>
             </div>
           </div>
 
-          {/* Menu mobile */}
+          {/* Mobile menu */}
           {showMobileMenu && (
-            <div className="md:hidden mt-3 pt-3 border-t border-white/20 space-y-2">
-              <button onClick={() => { setShowHistory(!showHistory); setShowMobileMenu(false); }} className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/10 rounded-lg transition-colors text-right">
-                <MessageSquare className="w-5 h-5" /><span>المحادثات السابقة</span>
+            <div className="md:hidden mt-3 pt-3 border-t border-white/20 flex gap-2">
+              <button onClick={() => { setShowFavorites(true); setShowMobileMenu(false); }} className="flex-1 flex items-center justify-center gap-2 p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl">
+                <Star className="w-5 h-5" />
+                <span className="text-sm">{t('favorites')}</span>
               </button>
-              <button onClick={() => { setShowFavorites(!showFavorites); setShowMobileMenu(false); }} className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/10 rounded-lg transition-colors text-right">
-                <Star className="w-5 h-5" /><span>المفضلة</span>
+              <button onClick={() => { setShowHistory(true); setShowMobileMenu(false); }} className="flex-1 flex items-center justify-center gap-2 p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl">
+                <MessageSquare className="w-5 h-5" />
+                <span className="text-sm">{t('history')}</span>
               </button>
-              {user?.isAdmin && (
-                <button onClick={() => { setShowAdminDashboard(true); setShowMobileMenu(false); }} className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/10 rounded-lg transition-colors text-right bg-amber-500/20">
-                  <Shield className="w-5 h-5 text-amber-300" /><span>Dashboard Admin</span>
-                </button>
-              )}
-              <button onClick={() => { setShowPremiumModal(true); setShowMobileMenu(false); }} className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/10 rounded-lg transition-colors text-right">
-                <Tag className="w-5 h-5" /><span>الاشتراكات وكود الخصم</span>
-              </button>
-              <button onClick={() => { setShowAbout(true); setShowMobileMenu(false); }} className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/10 rounded-lg transition-colors text-right">
-                <BookOpen className="w-5 h-5" /><span>حول التطبيق</span>
-              </button>
-              <button onClick={() => { handleExportPDF(); setShowMobileMenu(false); }} disabled={messages.length <= 1 || subscriptionTier !== 'premium'} className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/10 rounded-lg transition-colors text-right disabled:opacity-50">
-                <Download className="w-5 h-5" /><span>تصدير PDF</span>{subscriptionTier !== 'premium' && <span className="text-xs">(مميز)</span>}
-              </button>
-              <button onClick={() => { router.push('/dashboard'); setShowMobileMenu(false); }} className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/10 rounded-lg transition-colors text-right">
-                <User className="w-5 h-5" /><span>لوحة التحكم</span>
-              </button>
-              <button onClick={() => { signOut(); setShowMobileMenu(false); }} className="w-full flex items-center gap-3 px-3 py-2 hover:bg-red-500/20 rounded-lg transition-colors text-right text-red-200">
-                <LogOut className="w-5 h-5" /><span>تسجيل الخروج</span>
+              <button onClick={toggleDarkMode} className="flex-1 flex items-center justify-center gap-2 p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl">
+                {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                <span className="text-sm">{darkMode ? t('lightMode') : t('darkMode')}</span>
               </button>
             </div>
           )}
         </div>
-      </div>
+      </header>
 
-      {/* Historique */}
-      {showHistory && (
-        <div className="fixed inset-y-0 right-0 w-80 bg-white dark:bg-gray-800 shadow-2xl z-40 overflow-y-auto transition-colors duration-200">
-          <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
-              <button onClick={() => setShowHistory(false)} className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
+      {/* Subscription Modal */}
+      {showPremiumModal && (
+        <SubscriptionModal
+          isOpen={showPremiumModal}
+          onClose={() => setShowPremiumModal(false)}
+          currentTier={subscriptionTier}
+          user={user}
+        />
+      )}
+
+      {/* Qibla Modal */}
+      {showQiblaModal && (
+        <QiblaModal onClose={() => setShowQiblaModal(false)} />
+      )}
+
+      {/* Prayer Modal */}
+      {showPrayerModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl max-w-md w-full p-6 shadow-2xl">
+            <div className={`flex justify-between items-center mb-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('prayerTimes')}</h2>
+              <button onClick={() => setShowPrayerModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                 <X className="w-6 h-6" />
               </button>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">المحادثات المحفوظة</h2>
             </div>
-            
+            <PrayerNotification embedded={true} />
+          </div>
+        </div>
+      )}
+
+      {/* Modal Historique */}
+      {showHistory && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-8 shadow-2xl">
+            <div className={`flex justify-between items-center mb-6 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('history')}</h2>
+              <div className="flex items-center gap-2">
+                <button onClick={startNewConversation} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl transition-colors text-sm">
+                  {t('newConversation')}
+                </button>
+                <button onClick={() => setShowHistory(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
             {conversations.length === 0 ? (
-              <div className="text-center py-8">
-                <MessageSquare className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
-                <p className="text-gray-500 dark:text-gray-400 text-sm">لا توجد محادثات محفوظة</p>
+              <div className="text-center py-12">
+                <MessageSquare className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                <p className="text-gray-500 dark:text-gray-400">{t('noHistory')}</p>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {conversations.map((conv) => (
-                  <div key={conv.id} className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer group">
-                    <div className="flex justify-between items-start gap-2">
-                      <button onClick={() => deleteConversation(conv.id)} className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div key={conv.id} className={`bg-gray-50 dark:bg-gray-700/50 rounded-2xl p-4 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer border border-transparent hover:border-emerald-200 dark:hover:border-emerald-800 ${currentConversationId === conv.id ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' : ''}`}>
+                    <div className={`flex items-start gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                      <button onClick={() => deleteConversation(conv.id)} className="text-gray-400 hover:text-red-500 transition-colors p-1" title={t('deleteConversation')}>
                         <X className="w-4 h-4" />
                       </button>
                       {subscriptionTier === 'premium' && (
-                        <button onClick={(e) => { e.stopPropagation(); handleExportHistoricalPDF(conv.id); }} className="text-emerald-500 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 opacity-0 group-hover:opacity-100 transition-opacity" title="تصدير PDF">
+                        <button onClick={() => handleExportHistoricalPDF(conv.id)} className="text-gray-400 hover:text-emerald-500 transition-colors p-1" title={t('exportPDF')}>
                           <Download className="w-4 h-4" />
                         </button>
                       )}
-                      <div onClick={() => loadConversation(conv.id)} className="flex-1 text-right">
-                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 line-clamp-2 mb-2">{conv.title || 'محادثة جديدة'}</p>
-                        <div className="flex items-center gap-2 justify-end text-xs">
-                          {conv.messageCount && (<><span className="text-emerald-600 dark:text-emerald-400 font-medium">{conv.messageCount} رسائل</span><span className="text-gray-400 dark:text-gray-500">•</span></>)}
-                          <span className="text-gray-500 dark:text-gray-400">{new Date(conv.updatedAt || conv.createdAt).toLocaleDateString('ar-SA', { day: 'numeric', month: 'short' })}</span>
+                      <div onClick={() => loadConversation(conv.id)} className={`flex-1 ${isRTL ? 'text-right' : 'text-left'}`}>
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 line-clamp-2 mb-2">{conv.title || t('newConversation')}</p>
+                        <div className={`flex items-center gap-2 ${isRTL ? 'justify-end' : 'justify-start'} text-xs`}>
+                          {conv.messageCount && (<><span className="text-emerald-600 dark:text-emerald-400 font-medium">{conv.messageCount} {t('messages')}</span><span className="text-gray-400 dark:text-gray-500">•</span></>)}
+                          <span className="text-gray-500 dark:text-gray-400">{new Date(conv.updatedAt || conv.createdAt).toLocaleDateString(language === 'ar' ? 'ar-SA' : language === 'fr' ? 'fr-FR' : 'en-US', { day: 'numeric', month: 'short' })}</span>
                         </div>
                       </div>
                     </div>
@@ -565,24 +550,24 @@ export default function IslamicChatApp() {
       {showFavorites && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-8 shadow-2xl">
-            <div className="flex justify-between items-center mb-6 flex-row-reverse">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">المفضلة</h2>
+            <div className={`flex justify-between items-center mb-6 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('favorites')}</h2>
               <button onClick={() => setShowFavorites(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><X className="w-6 h-6" /></button>
             </div>
             {favoriteMessages.length === 0 ? (
               <div className="text-center py-12">
                 <Star className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-                <p className="text-gray-500 dark:text-gray-400">لا توجد رسائل مفضلة بعد</p>
+                <p className="text-gray-500 dark:text-gray-400">{t('noFavorites')}</p>
               </div>
             ) : (
               <div className="space-y-4">
                 {favoriteMessages.map((msg) => (
                   <div key={msg.id} className="bg-gray-50 dark:bg-gray-700/50 rounded-2xl p-6">
-                    <div className="flex justify-between items-start mb-2 flex-row-reverse">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">{msg.role === 'user' ? 'أنت' : 'المساعد'}</span>
+                    <div className={`flex justify-between items-start mb-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">{msg.role === 'user' ? t('you') : t('assistant')}</span>
                       <button onClick={() => toggleFavorite(msg.id)} className="text-yellow-500"><Star className="w-5 h-5 fill-current" /></button>
                     </div>
-                    <p className="text-gray-800 dark:text-gray-200 text-right whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                    <p className={`text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed ${isRTL ? 'text-right' : 'text-left'}`}>{msg.content}</p>
                   </div>
                 ))}
               </div>
@@ -595,15 +580,15 @@ export default function IslamicChatApp() {
       <div className="max-w-4xl mx-auto p-4 pb-40">
         <div className="space-y-6">
           {messages.map((msg) => (
-            <div key={msg.id} className={`flex gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+            <div key={msg.id} className={`flex gap-4 ${msg.role === 'user' ? (isRTL ? '' : 'flex-row-reverse') : (isRTL ? 'flex-row-reverse' : '')}`}>
               <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${msg.role === 'user' ? 'bg-gradient-to-br from-blue-500 to-blue-600' : 'bg-gradient-to-br from-emerald-500 to-teal-600'}`}>
                 {msg.role === 'user' ? <span className="text-white font-bold text-sm">{user?.name?.[0]?.toUpperCase() || 'U'}</span> : <BookOpen className="w-5 h-5 text-white" />}
               </div>
 
               <div className="flex-1 max-w-3xl">
                 <div className={`rounded-2xl p-6 ${msg.role === 'user' ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50' : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm'}`}>
-                  <div className="flex justify-between items-start mb-2 flex-row-reverse">
-                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{msg.role === 'user' ? 'أنت' : 'المساعد الإسلامي'}</span>
+                  <div className={`flex justify-between items-start mb-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{msg.role === 'user' ? t('you') : t('assistant')}</span>
                     <div className="flex items-center gap-2">
                       {msg.role === 'assistant' && <ArabicTTS text={msg.content} />}
                       {msg.role === 'assistant' && (
@@ -614,20 +599,20 @@ export default function IslamicChatApp() {
                     </div>
                   </div>
 
-                  <p className="text-gray-800 dark:text-gray-200 text-right whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                  <p className={`text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed ${isRTL ? 'text-right' : 'text-left'}`}>{msg.content}</p>
 
                   {msg.references && msg.references.length > 0 && (
                     <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                      <div className="flex items-center gap-2 mb-3 flex-row-reverse">
+                      <div className={`flex items-center gap-2 mb-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
                         <BookOpen className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">المراجع</span>
+                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('references')}</span>
                       </div>
                       <div className="space-y-2">
                         {msg.references.map((ref, idx) => {
                           const authenticity = getAuthenticityLevel(ref);
                           return (
-                            <div key={idx} className="bg-emerald-50/50 dark:bg-emerald-900/10 rounded-lg p-3 text-right border border-emerald-100/50 dark:border-emerald-800/30">
-                              <div className="flex items-start gap-2 flex-row-reverse mb-1">
+                            <div key={idx} className={`bg-emerald-50/50 dark:bg-emerald-900/10 rounded-lg p-3 border border-emerald-100/50 dark:border-emerald-800/30 ${isRTL ? 'text-right' : 'text-left'}`}>
+                              <div className={`flex items-start gap-2 mb-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
                                 {authenticity && (
                                   <span className={`px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1 ${authenticity.color}`}>
                                     {authenticity.icon}{authenticity.label}
@@ -647,7 +632,7 @@ export default function IslamicChatApp() {
           ))}
 
           {isLoading && (
-            <div className="flex gap-4">
+            <div className={`flex gap-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
               <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
                 <BookOpen className="w-5 h-5 text-white" />
               </div>
@@ -673,8 +658,8 @@ export default function IslamicChatApp() {
             <div className="flex-1 max-w-3xl">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {suggestions.map((suggestion, idx) => (
-                  <button key={idx} onClick={() => handleSuggestion(suggestion)} className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-emerald-500 dark:hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all group">
-                    <div className="flex items-center gap-3 flex-row-reverse justify-end">
+                  <button key={idx} onClick={() => handleSuggestion(suggestion)} className={`p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-emerald-500 dark:hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all group ${isRTL ? 'text-right' : 'text-left'}`}>
+                    <div className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse justify-end' : ''}`}>
                       <Sparkles className="w-4 h-4 flex-shrink-0 text-gray-400 dark:text-gray-500 group-hover:text-emerald-500 dark:group-hover:text-emerald-400" />
                       <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-400">{suggestion}</span>
                     </div>
@@ -696,7 +681,7 @@ export default function IslamicChatApp() {
             onFileUpload={handleFileUpload}
             isLoading={isLoading}
             disabled={false}
-            placeholder="اكتب سؤالك هنا..."
+            placeholder={t('placeholder')}
             onQiblaClick={() => setShowQiblaModal(true)}
             onPrayerClick={() => setShowPrayerModal(true)}
           />

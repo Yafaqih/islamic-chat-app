@@ -1,33 +1,75 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Loader2 } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
 
 /**
- * Composant de Reconnaissance Vocale Arabe pour Ya Faqih
+ * Composant de Reconnaissance Vocale Multilingue pour Ya Faqih
  * Permet aux utilisateurs de dicter leurs questions au lieu de les taper
  * Utilise Web Speech API - 100% GRATUIT
  */
-export default function VoiceRecognition({ onTranscript, language = 'ar-SA' }) {
+export default function VoiceRecognition({ onTranscript }) {
+  const { language } = useLanguage();
+  
   const [isListening, setIsListening] = useState(false);
   const [isSupported, setIsSupported] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [interimTranscript, setInterimTranscript] = useState('');
   const recognitionRef = useRef(null);
 
+  // Mapping des langues pour la reconnaissance vocale
+  const languageMapping = {
+    ar: 'ar-SA',
+    fr: 'fr-FR',
+    en: 'en-US'
+  };
+
+  // Traductions pour le composant
+  const voiceTranslations = {
+    ar: {
+      startRecording: 'بدء التسجيل الصوتي',
+      stopRecording: 'إيقاف التسجيل',
+      listening: 'جاري الاستماع...',
+      recorded: 'تم التسجيل',
+      speakClearly: '💡 تحدث بوضوح... اضغط على الميكروفون للإيقاف',
+      micPermission: '❌ يرجى السماح بالوصول إلى الميكروفون في إعدادات المتصفح.',
+      noSpeech: 'لم يتم اكتشاف كلام، استمر في التحدث...'
+    },
+    fr: {
+      startRecording: 'Démarrer l\'enregistrement',
+      stopRecording: 'Arrêter l\'enregistrement',
+      listening: 'Écoute en cours...',
+      recorded: 'Enregistré',
+      speakClearly: '💡 Parlez clairement... Cliquez sur le micro pour arrêter',
+      micPermission: '❌ Veuillez autoriser l\'accès au microphone dans les paramètres du navigateur.',
+      noSpeech: 'Aucune parole détectée, continuez à parler...'
+    },
+    en: {
+      startRecording: 'Start recording',
+      stopRecording: 'Stop recording',
+      listening: 'Listening...',
+      recorded: 'Recorded',
+      speakClearly: '💡 Speak clearly... Click the mic to stop',
+      micPermission: '❌ Please allow microphone access in your browser settings.',
+      noSpeech: 'No speech detected, keep talking...'
+    }
+  };
+
+  const voice = voiceTranslations[language] || voiceTranslations.ar;
+  const currentLangCode = languageMapping[language] || 'ar-SA';
+
   // Vérifier le support et initialiser
   useEffect(() => {
-    // Vérifier si la reconnaissance vocale est supportée
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     
     if (SpeechRecognition) {
       setIsSupported(true);
       
-      // Créer l'instance de reconnaissance vocale
       const recognition = new SpeechRecognition();
       
       // Configuration
-      recognition.continuous = true; // Continue d'écouter
-      recognition.interimResults = true; // Résultats intermédiaires
-      recognition.lang = language; // Langue arabe
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = currentLangCode;
       recognition.maxAlternatives = 1;
 
       // Événement : Résultat de la reconnaissance
@@ -45,12 +87,10 @@ export default function VoiceRecognition({ onTranscript, language = 'ar-SA' }) {
           }
         }
 
-        // Mettre à jour les états
         if (finalText) {
           setTranscript(prev => prev + finalText);
           setInterimTranscript('');
           
-          // Envoyer le texte final au parent
           if (onTranscript) {
             onTranscript(transcript + finalText);
           }
@@ -64,10 +104,9 @@ export default function VoiceRecognition({ onTranscript, language = 'ar-SA' }) {
         console.error('Erreur de reconnaissance vocale:', event.error);
         
         if (event.error === 'no-speech') {
-          // Pas de parole détectée, continuer d'écouter
-          console.log('Aucune parole détectée, continuez de parler...');
+          console.log(voice.noSpeech);
         } else if (event.error === 'not-allowed') {
-          alert('❌ Veuillez autoriser l\'accès au microphone dans les paramètres de votre navigateur.');
+          alert(voice.micPermission);
           setIsListening(false);
         } else {
           setIsListening(false);
@@ -77,7 +116,6 @@ export default function VoiceRecognition({ onTranscript, language = 'ar-SA' }) {
       // Événement : Fin de la reconnaissance
       recognition.onend = () => {
         if (isListening) {
-          // Redémarrer automatiquement si on est censé écouter
           try {
             recognition.start();
           } catch (e) {
@@ -92,13 +130,19 @@ export default function VoiceRecognition({ onTranscript, language = 'ar-SA' }) {
       console.warn('La reconnaissance vocale n\'est pas supportée par ce navigateur.');
     }
 
-    // Cleanup
     return () => {
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       }
     };
-  }, [language, isListening, transcript, onTranscript]);
+  }, [language, currentLangCode, isListening, transcript, onTranscript]);
+
+  // Mettre à jour la langue quand elle change
+  useEffect(() => {
+    if (recognitionRef.current) {
+      recognitionRef.current.lang = currentLangCode;
+    }
+  }, [language, currentLangCode]);
 
   // Démarrer l'écoute
   const startListening = () => {
@@ -107,6 +151,7 @@ export default function VoiceRecognition({ onTranscript, language = 'ar-SA' }) {
     try {
       setTranscript('');
       setInterimTranscript('');
+      recognitionRef.current.lang = currentLangCode;
       recognitionRef.current.start();
       setIsListening(true);
     } catch (error) {
@@ -121,7 +166,6 @@ export default function VoiceRecognition({ onTranscript, language = 'ar-SA' }) {
     recognitionRef.current.stop();
     setIsListening(false);
 
-    // Envoyer le texte final au parent
     const finalText = (transcript + ' ' + interimTranscript).trim();
     if (finalText && onTranscript) {
       onTranscript(finalText);
@@ -143,7 +187,7 @@ export default function VoiceRecognition({ onTranscript, language = 'ar-SA' }) {
             ? 'bg-red-500 hover:bg-red-600 text-white animate-pulse'
             : 'bg-emerald-500 hover:bg-emerald-600 text-white'
         }`}
-        title={isListening ? 'إيقاف التسجيل' : 'بدء التسجيل الصوتي'}
+        title={isListening ? voice.stopRecording : voice.startRecording}
       >
         {isListening ? (
           <MicOff className="w-5 h-5" />
@@ -162,19 +206,20 @@ export default function VoiceRecognition({ onTranscript, language = 'ar-SA' }) {
 
       {/* Affichage du texte en cours de reconnaissance */}
       {(isListening || transcript || interimTranscript) && (
-        <div className="absolute bottom-full mb-2 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 min-w-[300px] max-w-[400px]">
+        <div 
+          className="absolute bottom-full mb-2 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 min-w-[300px] max-w-[400px]"
+          dir={language === 'ar' ? 'rtl' : 'ltr'}
+        >
           <div className="flex items-center gap-2 mb-2">
             <Loader2 className={`w-4 h-4 text-emerald-600 ${isListening ? 'animate-spin' : 'hidden'}`} />
             <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-              {isListening ? 'جاري الاستماع...' : 'تم التسجيل'}
+              {isListening ? voice.listening : voice.recorded}
             </span>
           </div>
           
-          <div className="text-right">
-            {/* Texte final */}
+          <div className={language === 'ar' ? 'text-right' : 'text-left'}>
             <p className="text-sm text-gray-800 dark:text-gray-200">
               {transcript}
-              {/* Texte intermédiaire (en cours) */}
               <span className="text-gray-400 dark:text-gray-500 italic">
                 {interimTranscript}
               </span>
@@ -183,8 +228,8 @@ export default function VoiceRecognition({ onTranscript, language = 'ar-SA' }) {
 
           {isListening && (
             <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-              <p className="text-xs text-gray-500 dark:text-gray-400 text-right">
-                💡 تحدث بوضوح... اضغط على الميكروفون للإيقاف
+              <p className={`text-xs text-gray-500 dark:text-gray-400 ${language === 'ar' ? 'text-right' : 'text-left'}`}>
+                {voice.speakClearly}
               </p>
             </div>
           )}

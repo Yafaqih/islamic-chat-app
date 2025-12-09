@@ -1,6 +1,7 @@
 // pages/_app.js
 import { SessionProvider } from 'next-auth/react';
 import { useState, useEffect } from 'react';
+import { LanguageProvider } from '../contexts/LanguageContext'; // ✅ NOUVEAU
 // ⚠️ SERVICE WORKER DÉSACTIVÉ TEMPORAIREMENT
 // import useServiceWorker from '../lib/useServiceWorker';
 // import UpdateNotification from '../components/UpdateNotification';
@@ -68,27 +69,30 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }) {
 
   return (
     <SessionProvider session={session}>
-      {/* ⚠️ CACHE BUSTER - SUPPRIMER POUR LA PRODUCTION */}
-      <CacheBuster />
+      {/* ✅ NOUVEAU: Language Provider pour multilingue */}
+      <LanguageProvider>
+        {/* ⚠️ CACHE BUSTER - SUPPRIMER POUR LA PRODUCTION */}
+        <CacheBuster />
 
-      {/* ⚠️ NOTIFICATION MISE À JOUR DÉSACTIVÉE TEMPORAIREMENT */}
-      {/* <UpdateNotification 
-        show={showUpdateNotification}
-        onUpdate={handleUpdate}
-        onDismiss={handleDismiss}
-      /> */}
+        {/* ⚠️ NOTIFICATION MISE À JOUR DÉSACTIVÉE TEMPORAIREMENT */}
+        {/* <UpdateNotification 
+          show={showUpdateNotification}
+          onUpdate={handleUpdate}
+          onDismiss={handleDismiss}
+        /> */}
 
-      {/* Hors ligne */}
-      {!isOnline && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-[100] text-sm">
-          📡 غير متصل بالإنترنت
+        {/* Hors ligne */}
+        {!isOnline && (
+          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-[100] text-sm">
+            📡 غير متصل بالإنترنت
+          </div>
+        )}
+
+        {/* Conteneur principal */}
+        <div className="min-h-screen w-full">
+          <Component {...pageProps} />
         </div>
-      )}
-
-      {/* Conteneur principal */}
-      <div className="min-h-screen w-full">
-        <Component {...pageProps} />
-      </div>
+      </LanguageProvider>
     </SessionProvider>
   );
 }
@@ -104,6 +108,7 @@ export default MyApp;
 // pages/_app.js
 import { SessionProvider } from 'next-auth/react';
 import { useState, useEffect } from 'react';
+import { LanguageProvider } from '../contexts/LanguageContext';
 import useServiceWorker from '../lib/useServiceWorker';
 import UpdateNotification from '../components/UpdateNotification';
 import '../styles/globals.css';
@@ -123,21 +128,23 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }) {
 
   return (
     <SessionProvider session={session}>
-      <UpdateNotification 
-        show={showUpdateNotification}
-        onUpdate={handleUpdate}
-        onDismiss={handleDismiss}
-      />
+      <LanguageProvider>
+        <UpdateNotification 
+          show={showUpdateNotification}
+          onUpdate={handleUpdate}
+          onDismiss={handleDismiss}
+        />
 
-      {!isOnline && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-[100] text-sm">
-          📡 غير متصل بالإنترنت
+        {!isOnline && (
+          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-[100] text-sm">
+            📡 غير متصل بالإنترنت
+          </div>
+        )}
+
+        <div className="min-h-screen w-full">
+          <Component {...pageProps} />
         </div>
-      )}
-
-      <div className="min-h-screen w-full">
-        <Component {...pageProps} />
-      </div>
+      </LanguageProvider>
     </SessionProvider>
   );
 }
