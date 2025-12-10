@@ -24,6 +24,7 @@ export const authOptions = {
             throw new Error('Email et mot de passe requis');
           }
 
+          // Trouver l'utilisateur
           const user = await prisma.user.findUnique({
             where: { email: credentials.email }
           });
@@ -32,16 +33,19 @@ export const authOptions = {
             throw new Error('Email ou mot de passe incorrect');
           }
 
+          // ✅ Vérifier si l'utilisateur est bloqué
           if (user.isBlocked) {
             throw new Error('Votre compte a été suspendu');
           }
 
+          // Vérifier le mot de passe
           const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
 
           if (!isPasswordValid) {
             throw new Error('Email ou mot de passe incorrect');
           }
 
+          // ✅ Mettre à jour lastActivity
           await prisma.user.update({
             where: { id: user.id },
             data: { lastActivity: new Date() }
@@ -54,7 +58,7 @@ export const authOptions = {
             image: user.image,
             subscriptionTier: user.subscriptionTier,
             messageCount: user.messageCount,
-            isAdmin: user.isAdmin || false,
+            isAdmin: user.isAdmin || false, // ✅ AJOUT isAdmin
           };
         } catch (error) {
           console.error('Auth error:', error);
@@ -63,30 +67,26 @@ export const authOptions = {
       }
     })
   ],
+  useSecureCookies: true,
   callbacks: {
     async redirect({ url, baseUrl }) {
-      // Permettre les redirections internes
-      if (url.startsWith('/')) {
-        return `${baseUrl}${url}`;
-      }
-      // Permettre les redirections vers le même domaine
-      if (url.startsWith(baseUrl)) {
-        return url;
-      }
-      // Par défaut, retourner la base URL
-      return baseUrl;
+      // Force toujours www.yafaqih.app
+      return 'https://www.yafaqih.app';
     },
     async jwt({ token, user, trigger, session }) {
+      // Lors de la connexion initiale
       if (user) {
         token.id = user.id;
         token.subscriptionTier = user.subscriptionTier;
         token.messageCount = user.messageCount;
-        token.isAdmin = user.isAdmin || false;
+        token.isAdmin = user.isAdmin || false; // ✅ AJOUT isAdmin
       }
 
+      // Lors de la mise à jour de la session
       if (trigger === "update" && session) {
         token.subscriptionTier = session.subscriptionTier;
         token.messageCount = session.messageCount;
+        // ✅ Permettre mise à jour isAdmin si nécessaire
         if (session.isAdmin !== undefined) {
           token.isAdmin = session.isAdmin;
         }
@@ -96,47 +96,32 @@ export const authOptions = {
     },
     async session({ session, token, user }) {
       if (session?.user) {
+        // Pour les sessions avec adapter (Google)
         if (user) {
           session.user.id = user.id;
           session.user.subscriptionTier = user.subscriptionTier || 'free';
           session.user.messageCount = user.messageCount || 0;
-          session.user.isAdmin = user.isAdmin || false;
+          session.user.isAdmin = user.isAdmin || false; // ✅ AJOUT isAdmin
         }
+        // Pour les sessions JWT (Credentials)
         else if (token) {
           session.user.id = token.id;
           session.user.subscriptionTier = token.subscriptionTier || 'free';
           session.user.messageCount = token.messageCount || 0;
-          session.user.isAdmin = token.isAdmin || false;
+          session.user.isAdmin = token.isAdmin || false; // ✅ AJOUT isAdmin
         }
       }
       return session;
     },
-    async signIn({ user, account, profile }) {
-      // Mettre à jour lastActivity pour Google sign-in
-      if (account?.provider === 'google' && user?.email) {
-        try {
-          await prisma.user.update({
-            where: { email: user.email },
-            data: { lastActivity: new Date() }
-          });
-        } catch (e) {
-          // Nouvel utilisateur, sera créé par l'adapter
-        }
-      }
-      return true;
-    }
   },
   pages: {
     signIn: '/',
-    signOut: '/',
     error: '/',
   },
   session: {
-    strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 jours
+    strategy: "jwt", // Utiliser JWT pour supporter Credentials
   },
   secret: process.env.NEXTAUTH_SECRET,
-  debug: process.env.NODE_ENV === 'development',
 }
 
 export default NextAuth(authOptions)

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import { Send, BookOpen, Sparkles, Star, X, Crown, Check, Zap, LogOut, MessageSquare, Shield, AlertCircle, Moon, Sun, Download, User, Navigation, Menu, Tag } from 'lucide-react';
@@ -17,7 +17,6 @@ export default function IslamicChatApp() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const isAuthenticated = status === "authenticated";
-  const isSessionLoading = status === "loading";
   const user = session?.user;
   
   // Hook de langue
@@ -63,227 +62,13 @@ export default function IslamicChatApp() {
     }
   }, [language]);
 
-  // Suggestions par défaut selon la langue
-  const defaultSuggestions = [
+  // Suggestions dynamiques selon la langue
+  const suggestions = [
     t('suggestion1'),
     t('suggestion2'),
     t('suggestion3'),
     t('suggestion4')
   ];
-
-  // ===== SYSTÈME DE SUGGESTIONS INTELLIGENTES =====
-  const [smartSuggestions, setSmartSuggestions] = useState(defaultSuggestions);
-
-  // Thèmes islamiques avec mots-clés et suggestions personnalisées
-  const islamicThemes = {
-    companions: {
-      keywords: ['صحابة', 'صحابي', 'أبو بكر', 'عمر', 'عثمان', 'علي', 'خالد', 'بلال', 'عائشة', 'خديجة', 'فاطمة',
-                 'compagnon', 'sahaba', 'sahabi', 'companion', 'abu bakr', 'omar', 'uthman', 'ali', 'khalid', 'bilal', 'aisha', 'khadija', 'fatima'],
-      suggestions: {
-        ar: ['من هم العشرة المبشرون بالجنة؟', 'أخبرني عن سيرة أبي بكر الصديق', 'ما قصة إسلام عمر بن الخطاب؟', 'ما دور خالد بن الوليد في الفتوحات؟'],
-        fr: ['Qui sont les 10 compagnons promis au Paradis ?', 'Parle-moi de la vie d\'Abu Bakr', 'Comment Omar ibn al-Khattab s\'est-il converti ?', 'Quel était le rôle de Khalid ibn al-Walid ?'],
-        en: ['Who are the 10 companions promised Paradise?', 'Tell me about Abu Bakr\'s life', 'How did Omar ibn al-Khattab convert?', 'What was Khalid ibn al-Walid\'s role?']
-      }
-    },
-    quran: {
-      keywords: ['قرآن', 'سورة', 'آية', 'تفسير', 'تلاوة', 'حفظ', 'قراءة',
-                 'coran', 'sourate', 'verset', 'tafsir', 'quran', 'surah', 'ayah', 'verse', 'recitation'],
-      suggestions: {
-        ar: ['فسر لي سورة الملك', 'ما معنى آية الكرسي؟', 'ما فضل سورة البقرة؟', 'اشرح لي سورة يس'],
-        fr: ['Explique-moi la sourate Al-Mulk', 'Que signifie Ayat al-Kursi ?', 'Quels sont les mérites de sourate Al-Baqara ?', 'Explique-moi sourate Ya-Sin'],
-        en: ['Explain Surah Al-Mulk to me', 'What does Ayat al-Kursi mean?', 'What are the virtues of Surah Al-Baqara?', 'Explain Surah Ya-Sin to me']
-      }
-    },
-    hadith: {
-      keywords: ['حديث', 'أحاديث', 'البخاري', 'مسلم', 'سنة', 'رواية',
-                 'hadith', 'hadiths', 'bukhari', 'muslim', 'sunna', 'sunnah', 'narration'],
-      suggestions: {
-        ar: ['اشرح حديث "إنما الأعمال بالنيات"', 'ما صحة حديث "من غشنا فليس منا"؟', 'أحاديث عن فضل الصدقة', 'حديث جبريل عن الإسلام والإيمان'],
-        fr: ['Explique le hadith sur les intentions', 'Quels hadiths parlent de la patience ?', 'Hadiths sur les mérites de l\'aumône', 'Le hadith de Jibril sur l\'Islam'],
-        en: ['Explain the hadith about intentions', 'What hadiths speak about patience?', 'Hadiths about the virtues of charity', 'The hadith of Jibril about Islam']
-      }
-    },
-    fiqh: {
-      keywords: ['فقه', 'حكم', 'حلال', 'حرام', 'مذهب', 'فتوى', 'صلاة', 'زكاة', 'صيام', 'حج',
-                 'fiqh', 'jurisprudence', 'halal', 'haram', 'madhab', 'fatwa', 'prière', 'prayer', 'zakat', 'jeûne', 'fasting', 'hajj', 'pèlerinage'],
-      suggestions: {
-        ar: ['ما شروط صحة الصلاة؟', 'كيف أحسب زكاة المال؟', 'ما هي مبطلات الصيام؟', 'ما حكم الموسيقى في الإسلام؟'],
-        fr: ['Quelles sont les conditions de la prière ?', 'Comment calculer la Zakat ?', 'Qu\'est-ce qui annule le jeûne ?', 'Quel est le statut de la musique en Islam ?'],
-        en: ['What are the conditions for valid prayer?', 'How to calculate Zakat?', 'What invalidates fasting?', 'What is the ruling on music in Islam?']
-      }
-    },
-    seerah: {
-      keywords: ['سيرة', 'النبي', 'محمد', 'رسول', 'هجرة', 'غزوة', 'بدر', 'أحد', 'مكة', 'المدينة',
-                 'sira', 'sirah', 'prophète', 'prophet', 'muhammad', 'hijra', 'migration', 'battle', 'badr', 'uhud', 'mecca', 'medina'],
-      suggestions: {
-        ar: ['كيف كانت طفولة النبي ﷺ؟', 'ما قصة الإسراء والمعراج؟', 'أخبرني عن غزوة بدر', 'كيف تمت الهجرة إلى المدينة؟'],
-        fr: ['Comment était l\'enfance du Prophète ﷺ ?', 'Raconte-moi l\'Isra et le Mi\'raj', 'Parle-moi de la bataille de Badr', 'Comment s\'est passée l\'Hégire ?'],
-        en: ['How was the Prophet\'s ﷺ childhood?', 'Tell me about Isra and Mi\'raj', 'Tell me about the Battle of Badr', 'How did the Hijra happen?']
-      }
-    },
-    akhlaq: {
-      keywords: ['أخلاق', 'صبر', 'شكر', 'توكل', 'إحسان', 'تقوى', 'خشوع',
-                 'éthique', 'morale', 'patience', 'gratitude', 'ethics', 'morals', 'character', 'tawakkul', 'ihsan'],
-      suggestions: {
-        ar: ['كيف أحقق الصبر في حياتي؟', 'ما معنى التوكل على الله؟', 'كيف أتحلى بالأخلاق الحسنة؟', 'ما فضل الشكر في الإسلام؟'],
-        fr: ['Comment cultiver la patience ?', 'Que signifie le Tawakkul ?', 'Comment avoir un bon caractère ?', 'Quels sont les mérites de la gratitude ?'],
-        en: ['How to cultivate patience?', 'What does Tawakkul mean?', 'How to have good character?', 'What are the virtues of gratitude?']
-      }
-    },
-    khutba: {
-      keywords: ['خطبة', 'موعظة', 'درس', 'محاضرة', 'جمعة',
-                 'sermon', 'khutba', 'prêche', 'friday', 'vendredi', 'lesson', 'lecture'],
-      suggestions: {
-        ar: ['اكتب لي خطبة عن التوبة', 'خطبة جمعة عن بر الوالدين', 'موعظة عن الموت والآخرة', 'خطبة عن فضل رمضان'],
-        fr: ['Écris-moi un sermon sur le repentir', 'Sermon du vendredi sur les parents', 'Sermon sur la mort et l\'au-delà', 'Sermon sur les mérites du Ramadan'],
-        en: ['Write me a sermon about repentance', 'Friday sermon about honoring parents', 'Sermon about death and the hereafter', 'Sermon about the virtues of Ramadan']
-      }
-    }
-  };
-
-  // Analyser une question et retourner les thèmes détectés
-  const analyzeQuestion = (question) => {
-    const lowerQuestion = question.toLowerCase();
-    const detectedThemes = [];
-    
-    Object.entries(islamicThemes).forEach(([theme, data]) => {
-      const matchCount = data.keywords.filter(keyword => 
-        lowerQuestion.includes(keyword.toLowerCase())
-      ).length;
-      if (matchCount > 0) {
-        detectedThemes.push({ theme, score: matchCount });
-      }
-    });
-    
-    return detectedThemes.sort((a, b) => b.score - a.score);
-  };
-
-  // Charger et mettre à jour les préférences utilisateur (localStorage + DB)
-  const updateUserPreferences = useCallback(async (question) => {
-    if (!user?.email) return;
-    
-    const storageKey = `yafaqih_prefs_${user.email}`;
-    let prefs = {};
-    
-    try {
-      const saved = localStorage.getItem(storageKey);
-      if (saved) prefs = JSON.parse(saved);
-    } catch (e) {}
-    
-    // Analyser la question
-    const themes = analyzeQuestion(question);
-    
-    // Mettre à jour les scores localement
-    themes.forEach(({ theme, score }) => {
-      prefs[theme] = (prefs[theme] || 0) + score;
-    });
-    
-    // Sauvegarder en localStorage (immédiat)
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(prefs));
-    } catch (e) {}
-    
-    // Synchroniser avec la base de données (en arrière-plan)
-    try {
-      const mainTheme = themes[0];
-      if (mainTheme) {
-        fetch('/api/preferences', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            theme: mainTheme.theme,
-            score: mainTheme.score,
-            topic: question.substring(0, 100)
-          })
-        }).catch(() => {});
-      }
-    } catch (e) {}
-    
-    return prefs;
-  }, [user?.email]);
-
-  // Générer des suggestions à partir des préférences
-  const buildSuggestionsFromPrefs = useCallback((prefs) => {
-    const totalScore = Object.values(prefs).reduce((a, b) => a + b, 0);
-    if (totalScore < 3) {
-      return defaultSuggestions;
-    }
-    
-    const sortedThemes = Object.entries(prefs)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 4)
-      .map(([theme]) => theme);
-    
-    const newSuggestions = [];
-    
-    sortedThemes.forEach(theme => {
-      if (islamicThemes[theme] && newSuggestions.length < 4) {
-        const themeSuggestions = islamicThemes[theme].suggestions[language] || islamicThemes[theme].suggestions.ar;
-        const randomIdx = Math.floor(Math.random() * themeSuggestions.length);
-        const suggestion = themeSuggestions[randomIdx];
-        if (!newSuggestions.includes(suggestion)) {
-          newSuggestions.push(suggestion);
-        }
-      }
-    });
-    
-    while (newSuggestions.length < 4) {
-      const remaining = defaultSuggestions.filter(s => !newSuggestions.includes(s));
-      if (remaining.length > 0) {
-        newSuggestions.push(remaining[0]);
-      } else break;
-    }
-    
-    return newSuggestions;
-  }, [language, defaultSuggestions]);
-
-  // Charger les suggestions - localStorage IMMÉDIAT, DB en arrière-plan
-  const generateSmartSuggestions = useCallback(() => {
-    if (!user?.email) {
-      setSmartSuggestions(defaultSuggestions);
-      return;
-    }
-    
-    const storageKey = `yafaqih_prefs_${user.email}`;
-    let prefs = {};
-    
-    // 1. Charger depuis localStorage IMMÉDIATEMENT (pas de latence)
-    try {
-      const saved = localStorage.getItem(storageKey);
-      if (saved) {
-        prefs = JSON.parse(saved);
-        setSmartSuggestions(buildSuggestionsFromPrefs(prefs));
-      }
-    } catch (e) {}
-    
-    // 2. Sync avec DB en ARRIÈRE-PLAN (non-bloquant)
-    fetch('/api/preferences')
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
-        if (data?.preferences && typeof data.preferences === 'object') {
-          let updated = false;
-          Object.entries(data.preferences).forEach(([theme, score]) => {
-            if ((prefs[theme] || 0) < score) {
-              prefs[theme] = score;
-              updated = true;
-            }
-          });
-          if (updated) {
-            localStorage.setItem(storageKey, JSON.stringify(prefs));
-            setSmartSuggestions(buildSuggestionsFromPrefs(prefs));
-          }
-        }
-      })
-      .catch(() => {}); // Silencieux si erreur
-      
-  }, [user?.email, defaultSuggestions, buildSuggestionsFromPrefs]);
-
-  // Générer suggestions au chargement
-  useEffect(() => {
-    generateSmartSuggestions();
-  }, [generateSmartSuggestions]);
-
-  // ===== FIN SUGGESTIONS INTELLIGENTES =====
 
   // Initialiser le mode sombre
   useEffect(() => {
@@ -420,9 +205,6 @@ export default function IslamicChatApp() {
     const messageText = directMessage || input;
     if (!messageText.trim() || isLoading) return;
 
-    // Mettre à jour les préférences (suggestions intelligentes)
-    updateUserPreferences(messageText);
-
     const messageLimit = subscriptionTier === 'free' ? FREE_MESSAGE_LIMIT : 
                         subscriptionTier === 'pro' ? PRO_MESSAGE_LIMIT : Infinity;
 
@@ -526,20 +308,6 @@ export default function IslamicChatApp() {
     }
     return null;
   };
-
-  // === CHARGEMENT DE LA SESSION ===
-  if (isSessionLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="bg-gradient-to-br from-emerald-500 to-teal-600 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg animate-pulse">
-            <BookOpen className="w-10 h-10 text-white" />
-          </div>
-          <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-        </div>
-      </div>
-    );
-  }
 
   // === PAGE NON AUTHENTIFIÉE ===
   if (!isAuthenticated) {
@@ -662,7 +430,7 @@ export default function IslamicChatApp() {
                     </div>
                   </button>
                   <div className="border-t border-gray-200 dark:border-gray-700"></div>
-                  <button onClick={() => signOut({ callbackUrl: '/' })} className={`w-full flex items-center gap-3 px-4 py-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 ${isRTL ? 'flex-row-reverse text-right' : ''}`}>
+                  <button onClick={() => signOut()} className={`w-full flex items-center gap-3 px-4 py-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 ${isRTL ? 'flex-row-reverse text-right' : ''}`}>
                     <LogOut className="w-5 h-5" />
                     <div>
                       <div className="font-semibold">{t('logout')}</div>
@@ -876,13 +644,13 @@ export default function IslamicChatApp() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Suggestions intelligentes */}
+        {/* Suggestions */}
         {messages.length === 1 && (
           <div className="mt-8 flex gap-4">
             <div className="flex-shrink-0 w-10"></div>
             <div className="flex-1 max-w-3xl">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {smartSuggestions.map((suggestion, idx) => (
+                {suggestions.map((suggestion, idx) => (
                   <button key={idx} onClick={() => handleSuggestion(suggestion)} className={`p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-emerald-500 dark:hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all group ${isRTL ? 'text-right' : 'text-left'}`}>
                     <div className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse justify-end' : ''}`}>
                       <Sparkles className="w-4 h-4 flex-shrink-0 text-gray-400 dark:text-gray-500 group-hover:text-emerald-500 dark:group-hover:text-emerald-400" />
@@ -918,7 +686,7 @@ export default function IslamicChatApp() {
       
       {showAdminDashboard && (
         <div className="fixed inset-0 z-[9999] bg-gray-900/95">
-          <AdminDashboard user={user} onLogout={() => { setShowAdminDashboard(false); signOut({ callbackUrl: '/' }); }} onClose={() => setShowAdminDashboard(false)} />
+          <AdminDashboard user={user} onLogout={() => { setShowAdminDashboard(false); signOut(); }} onClose={() => setShowAdminDashboard(false)} />
         </div>
       )}
     </div>
