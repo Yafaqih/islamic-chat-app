@@ -235,7 +235,9 @@ export default function IslamicChatApp() {
         id: nextId + 1,
         role: 'assistant',
         content: `🕌 ${msg.playing}: ${surahNames}\n\n${msg.enjoy}`,
-        isFavorite: false
+        isFavorite: false,
+        quranPlaylist: quranRequest.playlist, // Stocker la playlist pour rejouer
+        surahNames: surahNames
       };
       
       setMessages(prev => [...prev, userMessage, assistantMessage]);
@@ -647,6 +649,29 @@ export default function IslamicChatApp() {
                   </div>
 
                   <p className={`text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed ${isRTL ? 'text-right' : 'text-left'}`}>{msg.content}</p>
+
+                  {/* Bouton Play pour rouvrir le Quran Player */}
+                  {msg.quranPlaylist && msg.quranPlaylist.length > 0 && (
+                    <button
+                      onClick={() => {
+                        setQuranPlaylist(msg.quranPlaylist);
+                        setShowQuranPlayer(true);
+                      }}
+                      className={`mt-4 flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl transition-all shadow-md hover:shadow-lg ${isRTL ? 'flex-row-reverse' : ''}`}
+                    >
+                      <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M8 5v14l11-7z"/>
+                        </svg>
+                      </div>
+                      <div className={`${isRTL ? 'text-right' : 'text-left'}`}>
+                        <div className="font-semibold text-sm">
+                          {language === 'ar' ? 'إعادة تشغيل التلاوة' : language === 'fr' ? 'Relancer la récitation' : 'Replay recitation'}
+                        </div>
+                        <div className="text-xs text-white/80">{msg.surahNames}</div>
+                      </div>
+                    </button>
+                  )}
 
                   {msg.references && msg.references.length > 0 && (
                     <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
