@@ -491,7 +491,7 @@ export default function IslamicChatApp() {
 
                 {/* Dropdown */}
                 <div className={`absolute ${isRTL ? 'left-0' : 'right-0'} top-full mt-2 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 min-w-[200px] z-50`}>
-                  {user?.role === 'admin' && (
+                  {(user?.isAdmin || user?.role === 'admin') && (
                     <button onClick={() => setShowAdminDashboard(true)} className={`w-full flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 ${isRTL ? 'flex-row-reverse text-right' : ''}`}>
                       <Shield className="w-5 h-5 text-purple-500" />
                       <div>

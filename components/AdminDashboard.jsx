@@ -196,7 +196,7 @@ export default function AdminDashboard({ user, onLogout, onClose }) {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900" dir={isRTL ? 'rtl' : 'ltr'}>
+    <div className="min-h-screen max-h-screen overflow-y-auto bg-gray-50 dark:bg-gray-900" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Header */}
       <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40">
         <div className="px-4 sm:px-6 lg:px-8 py-4">
@@ -248,7 +248,7 @@ export default function AdminDashboard({ user, onLogout, onClose }) {
       </header>
 
       {/* Navigation Tabs */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-[72px] z-30">
         <div className="px-4 sm:px-6 lg:px-8">
           <nav className={`flex gap-1 overflow-x-auto ${isRTL ? 'flex-row-reverse' : ''}`}>
             {tabs.map((tab) => (
@@ -270,7 +270,7 @@ export default function AdminDashboard({ user, onLogout, onClose }) {
       </div>
 
       {/* Content */}
-      <main className="px-4 sm:px-6 lg:px-8 py-8">
+      <main className="px-4 sm:px-6 lg:px-8 py-8 pb-24">
         {activeTab === 'overview' && <OverviewTab stats={stats} loading={loading} txt={txt} isRTL={isRTL} />}
         {activeTab === 'users' && <UsersTab />}
         {activeTab === 'subscriptions' && <SubscriptionsTab txt={txt} isRTL={isRTL} />}

@@ -840,7 +840,7 @@ export default function IslamicChatApp() {
       />
       
       {showAdminDashboard && (
-        <div className="fixed inset-0 z-[9999] bg-gray-900/95">
+        <div className="fixed inset-0 z-[9999] overflow-hidden">
           <AdminDashboard user={user} onLogout={() => { setShowAdminDashboard(false); signOut(); }} onClose={() => setShowAdminDashboard(false)} />
         </div>
       )}
