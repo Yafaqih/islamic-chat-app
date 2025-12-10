@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import { Send, BookOpen, Sparkles, Star, X, Crown, Check, Zap, LogOut, MessageSquare, Shield, AlertCircle, Moon, Sun, Download, User, Navigation, Menu, Tag } from 'lucide-react';
@@ -10,6 +10,7 @@ import AdminDashboard from '../components/AdminDashboard';
 import SubscriptionModal from '../components/SubscriptionModal';
 import InputBar from '../components/InputBar';
 import QiblaModal from '../components/QiblaModal';
+import QuranPlayer, { detectQuranRequest } from '../components/QuranPlayer';
 import LanguageSelector from '../components/LanguageSelector';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -50,6 +51,8 @@ export default function IslamicChatApp() {
   const [showQiblaModal, setShowQiblaModal] = useState(false);
   const [showPrayerModal, setShowPrayerModal] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [showQuranPlayer, setShowQuranPlayer] = useState(false);
+  const [quranPlaylist, setQuranPlaylist] = useState([]);
   const messagesEndRef = useRef(null);
 
   const FREE_MESSAGE_LIMIT = 10;
@@ -201,9 +204,56 @@ export default function IslamicChatApp() {
     console.log('Files uploaded:', files);
   };
 
-  const handleSend = async (directMessage = null) => {
-    const messageText = directMessage || input;
-    if (!messageText.trim() || isLoading) return;
+  const handleSend = async (filesFromInput = []) => {
+    const messageText = input;
+    const attachedFiles = Array.isArray(filesFromInput) ? filesFromInput : [];
+    
+    // Si pas de texte et pas de fichiers, ne rien faire
+    if (!messageText.trim() && attachedFiles.length === 0) return;
+    if (isLoading) return;
+
+    // Message par défaut si fichiers sans texte
+    const displayMessage = messageText.trim() || (attachedFiles.length > 0 ? 
+      (language === 'ar' ? '📎 ملف مرفق' : language === 'fr' ? '📎 Fichier joint' : '📎 Attached file') : '');
+
+    // 🕌 DÉTECTION RÉCITATION CORAN
+    const quranRequest = messageText.trim() ? detectQuranRequest(messageText) : null;
+    if (quranRequest) {
+      // Ouvrir le player avec la playlist
+      setQuranPlaylist(quranRequest.playlist);
+      setShowQuranPlayer(true);
+      
+      // Messages multilingues
+      const quranMessages = {
+        ar: { playing: 'جاري تشغيل', enjoy: 'استمتع بالتلاوة! يمكنك التحكم في المشغل.' },
+        fr: { playing: 'Lecture en cours', enjoy: 'Profitez de la récitation ! Vous pouvez contrôler le lecteur.' },
+        en: { playing: 'Now playing', enjoy: 'Enjoy the recitation! You can control the player.' }
+      };
+      const msg = quranMessages[language] || quranMessages.ar;
+      
+      // Ajouter les messages dans le chat
+      const surahNames = quranRequest.surahs.map(s => s.name).join(' و ');
+      const userMessage = {
+        id: nextId,
+        role: 'user',
+        content: displayMessage,
+        isFavorite: false,
+        attachments: attachedFiles.length > 0 ? attachedFiles : undefined
+      };
+      const assistantMessage = {
+        id: nextId + 1,
+        role: 'assistant',
+        content: `🕌 ${msg.playing}: ${surahNames}\n\n${msg.enjoy}`,
+        isFavorite: false,
+        quranPlaylist: quranRequest.playlist, // Stocker la playlist pour rejouer
+        surahNames: surahNames
+      };
+      
+      setMessages(prev => [...prev, userMessage, assistantMessage]);
+      setNextId(prev => prev + 2);
+      setInput('');
+      return; // Ne pas envoyer à l'API
+    }
 
     const messageLimit = subscriptionTier === 'free' ? FREE_MESSAGE_LIMIT : 
                         subscriptionTier === 'pro' ? PRO_MESSAGE_LIMIT : Infinity;
@@ -216,8 +266,9 @@ export default function IslamicChatApp() {
     const userMessage = {
       id: nextId,
       role: 'user',
-      content: messageText,
-      isFavorite: false
+      content: displayMessage,
+      isFavorite: false,
+      attachments: attachedFiles.length > 0 ? attachedFiles : undefined
     };
 
     setMessages(prev => [...prev, userMessage]);
@@ -490,6 +541,21 @@ export default function IslamicChatApp() {
         />
       )}
 
+      {/* Quran Player Modal */}
+      {showQuranPlayer && (
+        <QuranPlayer
+          isOpen={showQuranPlayer}
+          onClose={() => {
+            setShowQuranPlayer(false);
+            setQuranPlaylist([]);
+          }}
+          isRTL={isRTL}
+          language={language}
+          playlist={quranPlaylist}
+          autoPlay={true}
+        />
+      )}
+
       {/* Modal Historique */}
       {showHistory && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -594,6 +660,52 @@ export default function IslamicChatApp() {
 
                   <p className={`text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed ${isRTL ? 'text-right' : 'text-left'}`}>{msg.content}</p>
 
+                  {/* Afficher les fichiers attachés */}
+                  {msg.attachments && msg.attachments.length > 0 && (
+                    <div className={`mt-3 flex flex-wrap gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                      {msg.attachments.map((file, idx) => (
+                        <div key={idx} className="bg-gray-100 dark:bg-gray-700 rounded-xl p-2 flex items-center gap-2 max-w-[200px]">
+                          {file.preview ? (
+                            <img src={file.preview} alt={file.name} className="w-12 h-12 object-cover rounded-lg" />
+                          ) : (
+                            <div className="w-12 h-12 bg-gray-200 dark:bg-gray-600 rounded-lg flex items-center justify-center">
+                              <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{file.name}</p>
+                            <p className="text-xs text-gray-500">{file.source === 'google-drive' ? 'Google Drive' : 'Local'}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Bouton Play pour rouvrir le Quran Player */}
+                  {msg.quranPlaylist && msg.quranPlaylist.length > 0 && (
+                    <button
+                      onClick={() => {
+                        setQuranPlaylist(msg.quranPlaylist);
+                        setShowQuranPlayer(true);
+                      }}
+                      className={`mt-4 flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl transition-all shadow-md hover:shadow-lg ${isRTL ? 'flex-row-reverse' : ''}`}
+                    >
+                      <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M8 5v14l11-7z"/>
+                        </svg>
+                      </div>
+                      <div className={`${isRTL ? 'text-right' : 'text-left'}`}>
+                        <div className="font-semibold text-sm">
+                          {language === 'ar' ? 'إعادة تشغيل التلاوة' : language === 'fr' ? 'Relancer la récitation' : 'Replay recitation'}
+                        </div>
+                        <div className="text-xs text-white/80">{msg.surahNames}</div>
+                      </div>
+                    </button>
+                  )}
+
                   {msg.references && msg.references.length > 0 && (
                     <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                       <div className={`flex items-center gap-2 mb-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
@@ -670,13 +782,17 @@ export default function IslamicChatApp() {
           <InputBar
             value={input}
             onChange={setInput}
-            onSend={() => handleSend()}
+            onSend={(files) => handleSend(files)}
             onFileUpload={handleFileUpload}
             isLoading={isLoading}
             disabled={false}
             placeholder={t('placeholder')}
             onQiblaClick={() => setShowQiblaModal(true)}
             onPrayerClick={() => setShowPrayerModal(true)}
+            onQuranClick={() => {
+              setQuranPlaylist([]);
+              setShowQuranPlayer(true);
+            }}
           />
         </div>
       </div>
