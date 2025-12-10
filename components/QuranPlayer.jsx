@@ -119,15 +119,16 @@ const SURAHS = [
   { number: 114, name: "الناس", englishName: "An-Nas", ayahs: 6, aliases: ["nas", "ناس", "hommes"] },
 ];
 
-// Récitateurs populaires
+// Récitateurs populaires avec URLs MP3Quran
 const RECITERS = [
-  { id: "alafasy", name: "مشاري العفاسي", englishName: "Mishary Alafasy" },
-  { id: "abdulbasitmurattal", name: "عبد الباسط عبد الصمد", englishName: "Abdul Basit" },
-  { id: "abdurrahmaansudais", name: "عبد الرحمن السديس", englishName: "Sudais" },
-  { id: "ahmedajamy", name: "أحمد العجمي", englishName: "Al-Ajamy" },
-  { id: "muhammadayyoub", name: "محمد أيوب", englishName: "Muhammad Ayyub" },
-  { id: "husary", name: "محمود خليل الحصري", englishName: "Al-Husary" },
-  { id: "minshawi", name: "محمد صديق المنشاوي", englishName: "Al-Minshawi" },
+  { id: "alafasy", name: "مشاري العفاسي", englishName: "Mishary Alafasy", server: "server8.mp3quran.net", path: "afs" },
+  { id: "abdulbasit", name: "عبد الباسط عبد الصمد", englishName: "Abdul Basit", server: "server7.mp3quran.net", path: "basit" },
+  { id: "sudais", name: "عبد الرحمن السديس", englishName: "Sudais", server: "server11.mp3quran.net", path: "sds" },
+  { id: "shuraim", name: "سعود الشريم", englishName: "Shuraim", server: "server7.mp3quran.net", path: "shur" },
+  { id: "ajamy", name: "أحمد العجمي", englishName: "Al-Ajamy", server: "server10.mp3quran.net", path: "ajm" },
+  { id: "husary", name: "محمود خليل الحصري", englishName: "Al-Husary", server: "server13.mp3quran.net", path: "husr" },
+  { id: "minshawi", name: "محمد صديق المنشاوي", englishName: "Al-Minshawi", server: "server10.mp3quran.net", path: "minsh" },
+  { id: "maher", name: "ماهر المعيقلي", englishName: "Maher Al-Muaiqly", server: "server12.mp3quran.net", path: "maher" },
 ];
 
 // ===== FONCTION EXPORTÉE POUR DÉTECTER LES DEMANDES DE RÉCITATION =====
@@ -246,14 +247,18 @@ export default function QuranPlayer({ isOpen, onClose, isRTL = true, playlist = 
     setShowSurahList(false);
 
     try {
-      const audioUrl = `https://cdn.islamic.network/quran/audio-surah/128/${selectedReciter.id}/${surah.number}.mp3`;
+      // Format du numéro de sourate (001, 002, etc.)
+      const surahNum = surah.number.toString().padStart(3, '0');
+      
+      // URL MP3Quran - très fiable
+      const audioUrl = `https://${selectedReciter.server}/${selectedReciter.path}/${surahNum}.mp3`;
+      
+      console.log('Loading audio:', audioUrl);
       
       if (audioRef.current) {
         audioRef.current.src = audioUrl;
         audioRef.current.load();
         
-        // iOS nécessite une interaction utilisateur pour jouer
-        // On essaie de jouer, si ça échoue on attend le clic sur Play
         try {
           await audioRef.current.play();
           setIsPlaying(true);
@@ -269,7 +274,7 @@ export default function QuranPlayer({ isOpen, onClose, isRTL = true, playlist = 
     } finally {
       setIsLoading(false);
     }
-  }, [selectedReciter.id]);
+  }, [selectedReciter]);
 
   // Initialiser avec la playlist si fournie
   useEffect(() => {
@@ -286,7 +291,8 @@ export default function QuranPlayer({ isOpen, onClose, isRTL = true, playlist = 
           setTimeout(() => playSurah(firstSurah), 100);
         } else if (autoPlay && isIOS) {
           // Préparer l'audio mais ne pas jouer
-          const audioUrl = `https://cdn.islamic.network/quran/audio-surah/128/${selectedReciter.id}/${firstSurah.number}.mp3`;
+          const surahNum = firstSurah.number.toString().padStart(3, '0');
+          const audioUrl = `https://${selectedReciter.server}/${selectedReciter.path}/${surahNum}.mp3`;
           if (audioRef.current) {
             audioRef.current.src = audioUrl;
             audioRef.current.load();
@@ -294,7 +300,7 @@ export default function QuranPlayer({ isOpen, onClose, isRTL = true, playlist = 
         }
       }
     }
-  }, [isOpen, playlist, autoPlay, playSurah, isIOS, selectedReciter.id]);
+  }, [isOpen, playlist, autoPlay, playSurah, isIOS, selectedReciter]);
 
   // Filtrer les sourates
   const filteredSurahs = SURAHS.filter(surah => 
