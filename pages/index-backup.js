@@ -204,6 +204,16 @@ export default function IslamicChatApp() {
     console.log('Files uploaded:', files);
   };
 
+  // Convertir un fichier en base64
+  const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
   const handleSend = async (filesFromInput = []) => {
     const messageText = input;
     const attachedFiles = Array.isArray(filesFromInput) ? filesFromInput : [];
@@ -215,6 +225,24 @@ export default function IslamicChatApp() {
     // Message par défaut si fichiers sans texte
     const displayMessage = messageText.trim() || (attachedFiles.length > 0 ? 
       (language === 'ar' ? '📎 ملف مرفق' : language === 'fr' ? '📎 Fichier joint' : '📎 Attached file') : '');
+
+    // Convertir les images en base64 pour l'API
+    const imageAttachments = [];
+    for (const file of attachedFiles) {
+      if (file.file && file.type?.startsWith('image/')) {
+        try {
+          const base64 = await fileToBase64(file.file);
+          imageAttachments.push({
+            type: 'image',
+            name: file.name,
+            mimeType: file.type,
+            data: base64
+          });
+        } catch (err) {
+          console.error('Error converting file to base64:', err);
+        }
+      }
+    }
 
     // 🕌 DÉTECTION RÉCITATION CORAN
     const quranRequest = messageText.trim() ? detectQuranRequest(messageText) : null;
@@ -286,7 +314,8 @@ export default function IslamicChatApp() {
             content: m.content
           })),
           userId: user?.id,
-          language: language // Envoyer la langue pour adapter la réponse
+          language: language,
+          images: imageAttachments.length > 0 ? imageAttachments : undefined
         })
       });
 

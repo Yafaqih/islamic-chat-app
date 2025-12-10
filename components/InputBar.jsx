@@ -11,7 +11,8 @@ import {
   FileText,
   Plus,
   Bell,
-  BookOpen
+  BookOpen,
+  MapPin
 } from 'lucide-react';
 import useGoogleDrivePicker from '../hooks/useGoogleDrivePicker';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -29,7 +30,8 @@ export default function InputBar({
   placeholder,
   onQiblaClick,
   onPrayerClick,
-  onQuranClick
+  onQuranClick,
+  onMosqueClick
 }) {
   const { language, isRTL } = useLanguage();
   
@@ -58,6 +60,7 @@ export default function InputBar({
       prayerTimes: 'الصلاة',
       qiblaDirection: 'القبلة',
       quranPlayer: 'القرآن',
+      mosques: 'المساجد',
       hint: 'اضغط Enter للإرسال • Shift+Enter لسطر جديد',
       voiceNotSupported: 'التعرف على الصوت غير مدعوم في هذا المتصفح',
       screenshotNotSupported: 'التقاط الشاشة غير مدعوم في هذا المتصفح',
@@ -79,6 +82,7 @@ export default function InputBar({
       prayerTimes: 'Prière',
       qiblaDirection: 'Qibla',
       quranPlayer: 'Coran',
+      mosques: 'Mosquées',
       hint: 'Entrée pour envoyer • Shift+Entrée nouvelle ligne',
       voiceNotSupported: 'La reconnaissance vocale n\'est pas prise en charge',
       screenshotNotSupported: 'La capture d\'écran n\'est pas prise en charge',
@@ -100,6 +104,7 @@ export default function InputBar({
       prayerTimes: 'Prayer',
       qiblaDirection: 'Qibla',
       quranPlayer: 'Quran',
+      mosques: 'Mosques',
       hint: 'Enter to send • Shift+Enter new line',
       voiceNotSupported: 'Voice recognition not supported',
       screenshotNotSupported: 'Screenshot not supported',
@@ -350,6 +355,17 @@ export default function InputBar({
               >
                 <BookOpen className="w-4 h-4 flex-shrink-0" />
                 <span className="text-xs font-medium truncate max-w-[50px] sm:max-w-none">{txt.quranPlayer}</span>
+              </button>
+            )}
+
+            {/* Bouton Mosquées */}
+            {onMosqueClick && (
+              <button 
+                onClick={onMosqueClick} 
+                className="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-all text-orange-600 dark:text-orange-400"
+              >
+                <MapPin className="w-4 h-4 flex-shrink-0" />
+                <span className="text-xs font-medium truncate max-w-[50px] sm:max-w-none">{txt.mosques}</span>
               </button>
             )}
           </div>
