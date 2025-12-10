@@ -450,21 +450,21 @@ export default function IslamicChatApp() {
     <div className={`min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800`} dir={dir}>
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-40 bg-gradient-to-r from-emerald-600 to-teal-600 shadow-lg" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
-        <div className="max-w-7xl mx-auto px-4 py-3">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3">
           <div className="flex items-center justify-between">
             {/* Logo et titre */}
-            <div className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
-              <div className="bg-white/20 p-2 rounded-xl">
-                <BookOpen className="w-6 h-6 text-white" />
+            <div className={`flex items-center gap-2 sm:gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <div className="bg-white/20 p-1.5 sm:p-2 rounded-xl">
+                <BookOpen className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
-              <h1 className="text-xl font-bold text-white">{t('appName')}</h1>
-              
-              {/* Language Selector dans le header */}
-              <LanguageSelector />
+              <h1 className="text-lg sm:text-xl font-bold text-white">{t('appName')}</h1>
             </div>
 
-            {/* Actions */}
-            <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+            {/* Actions droite */}
+            <div className={`flex items-center gap-1 sm:gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              {/* Language Selector */}
+              <LanguageSelector />
+              
               {/* Boutons desktop */}
               <div className="hidden md:flex items-center gap-2">
                 <button onClick={() => setShowFavorites(true)} className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-colors" title={t('favorites')}>

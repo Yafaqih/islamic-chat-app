@@ -11,6 +11,7 @@ import SubscriptionModal from '../components/SubscriptionModal';
 import InputBar from '../components/InputBar';
 import QiblaModal from '../components/QiblaModal';
 import QuranPlayer, { detectQuranRequest } from '../components/QuranPlayer';
+import MosqueMap from '../components/MosqueMap';
 import LanguageSelector from '../components/LanguageSelector';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -53,6 +54,7 @@ export default function IslamicChatApp() {
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [showQuranPlayer, setShowQuranPlayer] = useState(false);
   const [quranPlaylist, setQuranPlaylist] = useState([]);
+  const [showMosqueMap, setShowMosqueMap] = useState(false);
   const messagesEndRef = useRef(null);
 
   const FREE_MESSAGE_LIMIT = 10;
@@ -822,12 +824,20 @@ export default function IslamicChatApp() {
               setQuranPlaylist([]);
               setShowQuranPlayer(true);
             }}
+            onMosqueClick={() => setShowMosqueMap(true)}
           />
         </div>
       </div>
 
       {/* Modals */}
       {showAbout && <AboutPage onClose={() => setShowAbout(false)} />}
+      
+      {/* Carte des mosquées */}
+      <MosqueMap
+        isOpen={showMosqueMap}
+        onClose={() => setShowMosqueMap(false)}
+        language={language}
+      />
       
       {showAdminDashboard && (
         <div className="fixed inset-0 z-[9999] bg-gray-900/95">

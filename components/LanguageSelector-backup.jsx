@@ -1,6 +1,6 @@
 // components/LanguageSelector.jsx
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Globe } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
 export default function LanguageSelector() {
@@ -31,40 +31,31 @@ export default function LanguageSelector() {
     en: 'EN'
   };
 
-  // Drapeaux pour chaque langue
-  const flags = {
-    ar: '🇸🇦',
-    fr: '🇫🇷',
-    en: '🇬🇧'
-  };
-
   return (
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors text-white"
+        className="flex items-center gap-1 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors text-white"
       >
-        <span className="text-sm">{flags[language]}</span>
-        <span className="text-xs sm:text-sm font-bold">{shortCodes[language]}</span>
-        <ChevronDown className={`w-3 h-3 sm:w-4 sm:h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <span className="text-sm font-bold">{shortCodes[language]}</span>
+        <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
-        <div className="absolute top-full mt-2 right-0 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden min-w-[100px] z-50">
+        <div className="absolute top-full mt-2 right-0 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden min-w-[80px] z-50">
           {availableLanguages.map((lang) => (
             <button
               key={lang}
               onClick={() => handleSelect(lang)}
-              className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+              className={`w-full flex items-center justify-center px-4 py-3 text-sm font-bold transition-colors ${
                 language === lang
                   ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
                   : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
               }`}
             >
-              <span>{flags[lang]}</span>
               <span>{shortCodes[lang]}</span>
               {language === lang && (
-                <span className="ml-auto text-emerald-500">✓</span>
+                <span className="ml-2 text-emerald-500">✓</span>
               )}
             </button>
           ))}
