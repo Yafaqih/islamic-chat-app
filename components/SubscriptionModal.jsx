@@ -1,13 +1,16 @@
-import React, { useState } from 'react';
-import { X, Crown, Check, Sparkles, Zap, Star, Tag, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Crown, Check, Sparkles, Zap, Star, Tag, Loader2, CheckCircle, XCircle, User, RefreshCw } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
 /**
- * SubscriptionModal - Modal d'abonnement multilingue avec prix fixes en USD
+ * SubscriptionModal - Modal d'abonnement multilingue
+ * ✅ Charge les plans depuis l'API (seuls les plans actifs sont affichés)
  */
 export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free' }) {
   const { language, isRTL } = useLanguage();
   
+  const [plans, setPlans] = useState([]);
+  const [loadingPlans, setLoadingPlans] = useState(true);
   const [promoCode, setPromoCode] = useState('');
   const [promoStatus, setPromoStatus] = useState(null);
   const [promoData, setPromoData] = useState(null);
@@ -38,32 +41,10 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
       choose: 'اختر',
       securePayment: '🔒 الدفع آمن ومشفر • يمكنك إلغاء اشتراكك في أي وقت',
       termsAgree: 'بالاشتراك، أنت توافق على شروط الخدمة وسياسة الخصوصية',
-      free: 'مجاني',
-      freePrice: 'مجاني',
-      freeDesc: 'للتجربة والاستكشاف',
-      pro: 'احترافي',
-      proDesc: 'للاستخدام المتقدم',
-      premium: 'مميز',
-      premiumDesc: 'للمحترفين والمؤسسات',
-      messagesDay: 'رسالة يومياً',
-      unlimitedMessages: 'رسائل غير محدودة',
-      basicAnswers: 'إجابات أساسية',
-      advancedAnswers: 'إجابات متقدمة ومفصلة',
-      advancedWithRefs: 'إجابات متقدمة مع المراجع',
-      quranAccess: 'الوصول للقرآن الكريم',
-      quranHadithAccess: 'الوصول للقرآن والأحاديث',
-      fullAccess: 'الوصول الكامل لجميع المصادر',
-      prayerTimes: 'أوقات الصلاة',
-      prayerQibla: 'أوقات الصلاة واتجاه القبلة',
-      saveConversations: 'حفظ المحادثات',
-      fastSupport: 'دعم سريع',
-      prioritySupport: 'أولوية الدعم الفني',
-      exportPDF: 'تصدير المحادثات PDF',
-      noPDF: 'بدون تصدير PDF',
-      noPriority: 'بدون أولوية الدعم',
-      exclusiveFeatures: 'ميزات حصرية قادمة',
-      advancedKhutba: 'إعداد الخطب المتقدم',
-      month: '/شهر'
+      loading: 'جاري التحميل...',
+      noPlans: 'لا توجد خطط متاحة حالياً',
+      month: '/شهر',
+      free: 'مجاني'
     },
     fr: {
       choosePlan: 'Choisissez votre plan',
@@ -81,32 +62,10 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
       choose: 'Choisir',
       securePayment: '🔒 Paiement sécurisé • Annulez à tout moment',
       termsAgree: 'En vous abonnant, vous acceptez les conditions d\'utilisation',
-      free: 'Gratuit',
-      freePrice: 'Gratuit',
-      freeDesc: 'Pour découvrir',
-      pro: 'Pro',
-      proDesc: 'Utilisation avancée',
-      premium: 'Premium',
-      premiumDesc: 'Pour les professionnels',
-      messagesDay: 'messages/jour',
-      unlimitedMessages: 'Messages illimités',
-      basicAnswers: 'Réponses basiques',
-      advancedAnswers: 'Réponses détaillées',
-      advancedWithRefs: 'Réponses avec références',
-      quranAccess: 'Accès au Coran',
-      quranHadithAccess: 'Accès Coran et Hadiths',
-      fullAccess: 'Accès complet',
-      prayerTimes: 'Heures de prière',
-      prayerQibla: 'Prière et Qibla',
-      saveConversations: 'Sauvegarder les conversations',
-      fastSupport: 'Support rapide',
-      prioritySupport: 'Support prioritaire',
-      exportPDF: 'Export PDF',
-      noPDF: 'Sans export PDF',
-      noPriority: 'Sans support prioritaire',
-      exclusiveFeatures: 'Fonctionnalités exclusives',
-      advancedKhutba: 'Préparation de Khutba avancée',
-      month: '/mois'
+      loading: 'Chargement...',
+      noPlans: 'Aucun forfait disponible',
+      month: '/mois',
+      free: 'Gratuit'
     },
     en: {
       choosePlan: 'Choose your plan',
@@ -124,119 +83,109 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
       choose: 'Choose',
       securePayment: '🔒 Secure payment • Cancel anytime',
       termsAgree: 'By subscribing, you agree to our Terms of Service',
-      free: 'Free',
-      freePrice: 'Free',
-      freeDesc: 'To explore',
-      pro: 'Pro',
-      proDesc: 'Advanced usage',
-      premium: 'Premium',
-      premiumDesc: 'For professionals',
-      messagesDay: 'messages/day',
-      unlimitedMessages: 'Unlimited messages',
-      basicAnswers: 'Basic answers',
-      advancedAnswers: 'Detailed answers',
-      advancedWithRefs: 'Answers with references',
-      quranAccess: 'Quran access',
-      quranHadithAccess: 'Quran & Hadith access',
-      fullAccess: 'Full access',
-      prayerTimes: 'Prayer times',
-      prayerQibla: 'Prayer & Qibla',
-      saveConversations: 'Save conversations',
-      fastSupport: 'Fast support',
-      prioritySupport: 'Priority support',
-      exportPDF: 'PDF export',
-      noPDF: 'No PDF export',
-      noPriority: 'No priority support',
-      exclusiveFeatures: 'Exclusive features',
-      advancedKhutba: 'Advanced Khutba preparation',
-      month: '/mo'
+      loading: 'Loading...',
+      noPlans: 'No plans available',
+      month: '/mo',
+      free: 'Free'
     }
   }[language] || {
-    choosePlan: 'اختر خطتك', upgradeExperience: 'ارتقِ بتجربتك مع المساعد الإسلامي', havePromoCode: 'هل لديك رمز خصم؟', enterCodeForDiscount: 'أدخل الرمز للحصول على خصم', enterPromoCode: 'أدخل رمز الخصم', verify: 'تحقق', discountApplied: 'تم تطبيق الخصم', invalidCode: 'رمز غير صالح', errorVerifying: 'خطأ في التحقق من الرمز', mostPopular: 'الأكثر شعبية ⭐', currentPlan: 'خطتك الحالية', startFree: 'البدء مجاناً', choose: 'اختر', securePayment: '🔒 الدفع آمن ومشفر', termsAgree: 'بالاشتراك، أنت توافق على شروط الخدمة', free: 'مجاني', freePrice: 'مجاني', freeDesc: 'للتجربة والاستكشاف', pro: 'احترافي', proDesc: 'للاستخدام المتقدم', premium: 'مميز', premiumDesc: 'للمحترفين والمؤسسات', messagesDay: 'رسالة يومياً', unlimitedMessages: 'رسائل غير محدودة', basicAnswers: 'إجابات أساسية', advancedAnswers: 'إجابات متقدمة ومفصلة', advancedWithRefs: 'إجابات متقدمة مع المراجع', quranAccess: 'الوصول للقرآن الكريم', quranHadithAccess: 'الوصول للقرآن والأحاديث', fullAccess: 'الوصول الكامل لجميع المصادر', prayerTimes: 'أوقات الصلاة', prayerQibla: 'أوقات الصلاة واتجاه القبلة', saveConversations: 'حفظ المحادثات', fastSupport: 'دعم سريع', prioritySupport: 'أولوية الدعم الفني', exportPDF: 'تصدير المحادثات PDF', noPDF: 'بدون تصدير PDF', noPriority: 'بدون أولوية الدعم', exclusiveFeatures: 'ميزات حصرية قادمة', advancedKhutba: 'إعداد الخطب المتقدم', month: '/شهر'
+    choosePlan: 'اختر خطتك', upgradeExperience: 'ارتقِ بتجربتك مع المساعد الإسلامي', havePromoCode: 'هل لديك رمز خصم؟', enterCodeForDiscount: 'أدخل الرمز للحصول على خصم', enterPromoCode: 'أدخل رمز الخصم', verify: 'تحقق', discountApplied: 'تم تطبيق الخصم', invalidCode: 'رمز غير صالح', errorVerifying: 'خطأ في التحقق من الرمز', mostPopular: 'الأكثر شعبية ⭐', currentPlan: 'خطتك الحالية', startFree: 'البدء مجاناً', choose: 'اختر', securePayment: '🔒 الدفع آمن ومشفر', termsAgree: 'بالاشتراك، أنت توافق على شروط الخدمة', loading: 'جاري التحميل...', noPlans: 'لا توجد خطط متاحة', month: '/شهر', free: 'مجاني'
   };
 
-  // Configuration des plans
-  const plans = [
-    {
-      id: 'free',
-      name: txt.free,
-      price: 0,
-      priceFormatted: txt.freePrice,
-      description: txt.freeDesc,
-      features: [
-        `10 ${txt.messagesDay}`,
-        txt.basicAnswers,
-        txt.quranAccess,
-        txt.prayerTimes,
-      ],
-      limitations: [txt.noPDF, txt.noPriority],
-      icon: Sparkles,
-      color: 'from-gray-500 to-gray-600',
-      buttonColor: 'bg-gray-500 hover:bg-gray-600',
-      popular: false,
-    },
-    {
-      id: 'pro',
-      name: txt.pro,
-      price: 3.99,
-      priceFormatted: `$3.99${txt.month}`,
-      description: txt.proDesc,
-      features: [
-        `100 ${txt.messagesDay}`,
-        txt.advancedAnswers,
-        txt.quranHadithAccess,
-        txt.prayerQibla,
-        txt.saveConversations,
-        txt.fastSupport,
-      ],
-      limitations: [txt.noPDF],
-      icon: Zap,
-      color: 'from-blue-500 to-blue-600',
-      buttonColor: 'bg-blue-500 hover:bg-blue-600',
-      popular: true,
-      checkoutUrl: CHECKOUT_URLS.pro,
-    },
-    {
-      id: 'premium',
-      name: txt.premium,
-      price: 5.99,
-      priceFormatted: `$5.99${txt.month}`,
-      description: txt.premiumDesc,
-      features: [
-        txt.unlimitedMessages,
-        txt.advancedWithRefs,
-        txt.fullAccess,
-        txt.exportPDF,
-        txt.prioritySupport,
-        txt.exclusiveFeatures,
-        txt.advancedKhutba,
-      ],
-      limitations: [],
-      icon: Crown,
-      color: 'from-amber-500 to-orange-600',
-      buttonColor: 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700',
-      popular: false,
-      checkoutUrl: CHECKOUT_URLS.premium,
-    },
-  ];
+  // ✅ Charger les plans depuis l'API quand le modal s'ouvre
+  useEffect(() => {
+    if (isOpen) {
+      loadPlans();
+    }
+  }, [isOpen]);
 
+  const loadPlans = async () => {
+    setLoadingPlans(true);
+    try {
+      const res = await fetch('/api/plans');
+      if (res.ok) {
+        const data = await res.json();
+        setPlans(data.plans || []);
+      }
+    } catch (error) {
+      console.error('Erreur chargement plans:', error);
+    } finally {
+      setLoadingPlans(false);
+    }
+  };
+
+  // Obtenir l'icône du plan
+  const getPlanIcon = (planId) => {
+    switch (planId) {
+      case 'pro': return Zap;
+      case 'premium': return Crown;
+      default: return Sparkles;
+    }
+  };
+
+  // Obtenir la couleur du plan
+  const getPlanColor = (planId) => {
+    switch (planId) {
+      case 'pro': return 'from-blue-500 to-blue-600';
+      case 'premium': return 'from-purple-500 to-purple-600';
+      default: return 'from-gray-400 to-gray-500';
+    }
+  };
+
+  // Obtenir la couleur du bouton
+  const getButtonColor = (planId) => {
+    switch (planId) {
+      case 'pro': return 'bg-blue-500 hover:bg-blue-600';
+      case 'premium': return 'bg-purple-500 hover:bg-purple-600';
+      default: return 'bg-emerald-500 hover:bg-emerald-600';
+    }
+  };
+
+  // Obtenir le nom du plan selon la langue
+  const getPlanName = (plan) => {
+    if (language === 'ar') return plan.nameAr || plan.name;
+    if (language === 'fr') return plan.nameFr || plan.name;
+    return plan.name;
+  };
+
+  // Obtenir la description du plan
+  const getPlanDescription = (plan) => {
+    if (language === 'ar') return plan.descriptionAr || plan.description || '';
+    if (language === 'fr') return plan.descriptionFr || plan.description || '';
+    return plan.description || '';
+  };
+
+  // Obtenir les features du plan
+  const getPlanFeatures = (plan) => {
+    if (language === 'ar') return plan.featuresAr || plan.features || [];
+    if (language === 'fr') return plan.featuresFr || plan.features || [];
+    return plan.features || [];
+  };
+
+  // Obtenir les limitations du plan
+  const getPlanLimitations = (plan) => {
+    if (language === 'ar') return plan.notIncludedAr || plan.notIncluded || [];
+    if (language === 'fr') return plan.notIncludedFr || plan.notIncluded || [];
+    return plan.notIncluded || [];
+  };
+
+  // Vérifier le code promo
   const verifyPromoCode = async () => {
     if (!promoCode.trim()) return;
-
+    
     setPromoStatus('checking');
     setPromoError('');
-    setPromoData(null);
 
     try {
-      const response = await fetch('/api/promo/verify', {
+      const res = await fetch('/api/promo/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: promoCode.trim().toUpperCase() }),
+        body: JSON.stringify({ code: promoCode.trim() })
       });
 
-      const data = await response.json();
+      const data = await res.json();
 
-      if (response.ok && data.valid) {
+      if (res.ok && data.valid) {
         setPromoStatus('valid');
         setPromoData(data);
       } else {
@@ -244,69 +193,84 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
         setPromoError(data.error || txt.invalidCode);
       }
     } catch (error) {
+      console.error('Erreur vérification promo:', error);
       setPromoStatus('invalid');
       setPromoError(txt.errorVerifying);
     }
   };
 
-  const getDiscountedPrice = (originalPrice) => {
-    if (!promoData || promoStatus !== 'valid') return originalPrice;
+  // Calculer le prix avec réduction
+  const getDiscountedPrice = (price) => {
+    if (!promoData || promoStatus !== 'valid' || price === 0) return price;
 
     if (promoData.discountType === 'percentage') {
-      return originalPrice * (1 - promoData.discountValue / 100);
+      return price * (1 - promoData.discountValue / 100);
     } else {
-      return Math.max(0, originalPrice - promoData.discountValue);
+      return Math.max(0, price - promoData.discountValue);
     }
   };
 
-  const handleCheckout = (plan) => {
-    if (plan.id === 'free' || plan.id === currentTier) {
-      onClose();
-      return;
-    }
+  // Gérer le checkout
+  const handleCheckout = async (plan) => {
+    if (plan.id === 'free' || plan.id === currentTier) return;
 
     setIsLoading(true);
-
-    let checkoutUrl = plan.checkoutUrl;
     
-    if (promoStatus === 'valid' && promoData?.lemonSqueezyCode) {
-      checkoutUrl += `?discount_code=${promoData.lemonSqueezyCode}`;
+    try {
+      let checkoutUrl = CHECKOUT_URLS[plan.id];
+      
+      if (checkoutUrl) {
+        // Ajouter le code promo à l'URL si valide
+        if (promoStatus === 'valid' && promoCode) {
+          checkoutUrl += `?checkout[discount_code]=${encodeURIComponent(promoCode)}`;
+        }
+        
+        window.open(checkoutUrl, '_blank');
+      }
+    } catch (error) {
+      console.error('Erreur checkout:', error);
+    } finally {
+      setIsLoading(false);
     }
-
-    window.location.href = checkoutUrl;
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" dir={isRTL ? 'rtl' : 'ltr'}>
-      <div className="bg-white dark:bg-gray-900 rounded-3xl max-w-5xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-        {/* Header */}
-        <div className={`sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex items-center justify-between z-10 ${isRTL ? 'flex-row-reverse' : ''}`}>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors">
-            <X className="w-6 h-6 text-gray-500 dark:text-gray-400" />
-          </button>
-          <div className="text-center flex-1">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{txt.choosePlan}</h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400">{txt.upgradeExperience}</p>
-          </div>
-          <div className="w-10"></div>
-        </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div 
+        className="relative w-full max-w-5xl max-h-[90vh] bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 rounded-3xl shadow-2xl overflow-y-auto"
+        dir={isRTL ? 'rtl' : 'ltr'}
+      >
+        {/* Close Button */}
+        <button
+          onClick={onClose}
+          className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'} z-10 p-2 bg-white/80 dark:bg-gray-700/80 rounded-full hover:bg-white dark:hover:bg-gray-600 transition-all shadow-lg`}
+        >
+          <X className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+        </button>
 
-        {/* Contenu */}
-        <div className="p-6">
-          {/* Section Code Promo */}
-          <div className="mb-8 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-2xl p-6 border border-emerald-200 dark:border-emerald-800">
-            <div className={`flex items-center gap-3 mb-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
-              <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center">
-                <Tag className="w-5 h-5 text-white" />
+        <div className="p-6 md:p-8">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <h2 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-2">
+              {txt.choosePlan}
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400">{txt.upgradeExperience}</p>
+          </div>
+
+          {/* Promo Code Section */}
+          <div className="mb-8 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl border border-emerald-100 dark:border-emerald-800">
+            <div className={`flex items-center gap-3 mb-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center">
+                <Tag className="w-5 h-5 text-emerald-600" />
               </div>
               <div className={isRTL ? 'text-right' : 'text-left'}>
-                <h3 className="font-bold text-gray-900 dark:text-white">{txt.havePromoCode}</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{txt.enterCodeForDiscount}</p>
+                <p className="font-semibold text-gray-800 dark:text-gray-200">{txt.havePromoCode}</p>
+                <p className="text-sm text-gray-500">{txt.enterCodeForDiscount}</p>
               </div>
             </div>
-
+            
             <div className={`flex gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
               <div className="flex-1 relative">
                 <input
@@ -351,116 +315,137 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
           </div>
 
           {/* Plans */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {plans.map((plan) => {
-              const Icon = plan.icon;
-              const isCurrentPlan = plan.id === currentTier;
-              const discountedPrice = getDiscountedPrice(plan.price);
-              const hasDiscount = promoStatus === 'valid' && discountedPrice < plan.price && plan.id !== 'free';
+          {loadingPlans ? (
+            <div className="flex items-center justify-center py-20">
+              <RefreshCw className="w-8 h-8 text-emerald-500 animate-spin" />
+              <span className="ml-3 text-gray-500">{txt.loading}</span>
+            </div>
+          ) : plans.length === 0 ? (
+            <div className="text-center py-20 text-gray-500">
+              <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>{txt.noPlans}</p>
+            </div>
+          ) : (
+            <div className={`grid grid-cols-1 md:grid-cols-${Math.min(plans.length, 3)} gap-6`}>
+              {plans.map((plan) => {
+                const Icon = getPlanIcon(plan.id);
+                const isCurrentPlan = plan.id === currentTier;
+                const discountedPrice = getDiscountedPrice(plan.price);
+                const hasDiscount = promoStatus === 'valid' && discountedPrice < plan.price && plan.id !== 'free';
+                const features = getPlanFeatures(plan);
+                const limitations = getPlanLimitations(plan);
 
-              return (
-                <div
-                  key={plan.id}
-                  className={`relative bg-white dark:bg-gray-800 rounded-2xl border-2 transition-all duration-300 ${
-                    plan.popular
-                      ? 'border-blue-500 shadow-xl shadow-blue-500/20 scale-105'
-                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                  }`}
-                >
-                  {plan.popular && (
-                    <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                      <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm font-bold px-4 py-1 rounded-full shadow-lg">
-                        {txt.mostPopular}
-                      </div>
-                    </div>
-                  )}
-
-                  {isCurrentPlan && (
-                    <div className={`absolute -top-4 ${isRTL ? 'right-4' : 'left-4'}`}>
-                      <div className="bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-full">
-                        {txt.currentPlan}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="p-6">
-                    <div className={`flex items-center gap-3 mb-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                      <div className={`w-12 h-12 bg-gradient-to-br ${plan.color} rounded-xl flex items-center justify-center`}>
-                        <Icon className="w-6 h-6 text-white" />
-                      </div>
-                      <div className={isRTL ? 'text-right' : 'text-left'}>
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">{plan.name}</h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{plan.description}</p>
-                      </div>
-                    </div>
-
-                    {/* Prix */}
-                    <div className={`mb-6 ${isRTL ? 'text-right' : 'text-left'}`}>
-                      {hasDiscount ? (
-                        <div className={`flex items-baseline gap-2 flex-wrap ${isRTL ? 'flex-row-reverse' : ''}`}>
-                          <span className="text-3xl font-bold text-gray-900 dark:text-white">
-                            ${discountedPrice.toFixed(2)}
-                          </span>
-                          <span className="text-lg text-gray-500 dark:text-gray-400 line-through">
-                            ${plan.price}
-                          </span>
-                          <span className="text-gray-500 dark:text-gray-400">{txt.month}</span>
+                return (
+                  <div
+                    key={plan.id}
+                    className={`relative bg-white dark:bg-gray-800 rounded-2xl border-2 transition-all duration-300 ${
+                      plan.isPopular
+                        ? 'border-blue-500 shadow-xl shadow-blue-500/20 scale-105'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                    }`}
+                  >
+                    {plan.isPopular && (
+                      <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                        <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm font-bold px-4 py-1 rounded-full shadow-lg">
+                          {txt.mostPopular}
                         </div>
-                      ) : (
-                        <div className={`flex items-baseline gap-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                          <span className="text-3xl font-bold text-gray-900 dark:text-white">
-                            {plan.priceFormatted}
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
 
-                    <div className="space-y-3 mb-6">
-                      {plan.features.map((feature, idx) => (
-                        <div key={idx} className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                          <div className="w-5 h-5 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center flex-shrink-0">
-                            <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                    {isCurrentPlan && (
+                      <div className={`absolute -top-4 ${isRTL ? 'right-4' : 'left-4'}`}>
+                        <div className="bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-full">
+                          {txt.currentPlan}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="p-6">
+                      <div className={`flex items-center gap-3 mb-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                        <div className={`w-12 h-12 bg-gradient-to-br ${getPlanColor(plan.id)} rounded-xl flex items-center justify-center`}>
+                          <Icon className="w-6 h-6 text-white" />
+                        </div>
+                        <div className={isRTL ? 'text-right' : 'text-left'}>
+                          <h3 className="text-xl font-bold text-gray-900 dark:text-white">{getPlanName(plan)}</h3>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">{getPlanDescription(plan)}</p>
+                        </div>
+                      </div>
+
+                      {/* Prix */}
+                      <div className={`mb-6 ${isRTL ? 'text-right' : 'text-left'}`}>
+                        {plan.price === 0 ? (
+                          <div className={`flex items-baseline gap-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                            <span className="text-3xl font-bold text-gray-900 dark:text-white">
+                              {txt.free}
+                            </span>
                           </div>
-                          <span className={`text-sm text-gray-700 dark:text-gray-300 ${isRTL ? 'text-right' : 'text-left'}`}>{feature}</span>
-                        </div>
-                      ))}
-                      {plan.limitations.map((limitation, idx) => (
-                        <div key={idx} className={`flex items-center gap-3 opacity-50 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                          <div className="w-5 h-5 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center flex-shrink-0">
-                            <X className="w-3 h-3 text-gray-400" />
+                        ) : hasDiscount ? (
+                          <div className={`flex items-baseline gap-2 flex-wrap ${isRTL ? 'flex-row-reverse' : ''}`}>
+                            <span className="text-3xl font-bold text-gray-900 dark:text-white">
+                              ${discountedPrice.toFixed(2)}
+                            </span>
+                            <span className="text-lg text-gray-500 dark:text-gray-400 line-through">
+                              ${plan.price}
+                            </span>
+                            <span className="text-gray-500 dark:text-gray-400">{txt.month}</span>
                           </div>
-                          <span className={`text-sm text-gray-500 dark:text-gray-400 ${isRTL ? 'text-right' : 'text-left'}`}>{limitation}</span>
-                        </div>
-                      ))}
-                    </div>
+                        ) : (
+                          <div className={`flex items-baseline gap-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                            <span className="text-3xl font-bold text-gray-900 dark:text-white">
+                              ${plan.price}
+                            </span>
+                            <span className="text-gray-500 dark:text-gray-400">{txt.month}</span>
+                          </div>
+                        )}
+                      </div>
 
-                    <button
-                      onClick={() => handleCheckout(plan)}
-                      disabled={isCurrentPlan || isLoading}
-                      className={`w-full py-3 px-4 rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-2 ${
-                        isCurrentPlan
-                          ? 'bg-gray-300 dark:bg-gray-600 cursor-not-allowed'
-                          : plan.buttonColor
-                      }`}
-                    >
-                      {isLoading ? (
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                      ) : isCurrentPlan ? (
-                        txt.currentPlan
-                      ) : plan.id === 'free' ? (
-                        txt.startFree
-                      ) : (
-                        <>
-                          <span>{txt.choose} {plan.name}</span>
-                          <Star className="w-4 h-4" />
-                        </>
-                      )}
-                    </button>
+                      <div className="space-y-3 mb-6">
+                        {features.map((feature, idx) => (
+                          <div key={idx} className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                            <div className="w-5 h-5 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center flex-shrink-0">
+                              <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                            </div>
+                            <span className={`text-sm text-gray-700 dark:text-gray-300 ${isRTL ? 'text-right' : 'text-left'}`}>{feature}</span>
+                          </div>
+                        ))}
+                        {limitations.map((limitation, idx) => (
+                          <div key={idx} className={`flex items-center gap-3 opacity-50 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                            <div className="w-5 h-5 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center flex-shrink-0">
+                              <X className="w-3 h-3 text-gray-400" />
+                            </div>
+                            <span className={`text-sm text-gray-500 dark:text-gray-400 ${isRTL ? 'text-right' : 'text-left'}`}>{limitation}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <button
+                        onClick={() => handleCheckout(plan)}
+                        disabled={isCurrentPlan || isLoading}
+                        className={`w-full py-3 px-4 rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-2 ${
+                          isCurrentPlan
+                            ? 'bg-gray-300 dark:bg-gray-600 cursor-not-allowed'
+                            : getButtonColor(plan.id)
+                        }`}
+                      >
+                        {isLoading ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : isCurrentPlan ? (
+                          txt.currentPlan
+                        ) : plan.id === 'free' ? (
+                          txt.startFree
+                        ) : (
+                          <>
+                            <span>{txt.choose} {getPlanName(plan)}</span>
+                            <Star className="w-4 h-4" />
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Footer */}
           <div className="mt-8 text-center">
