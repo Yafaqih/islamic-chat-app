@@ -9,6 +9,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 
 import UsersTab from './admin/UsersTab';
 import PromoCodesTab from './admin/PromoCodesTab';
+import AnalyticsTab from './admin/AnalyticsTab';
 
 /**
  * Dashboard Admin Multilingue pour Ya Faqih
@@ -167,7 +168,10 @@ export default function AdminDashboard({ user, onLogout, onClose }) {
     }
   };
 
-  if (!user?.isAdmin) {
+  // Vérification admin - supporte isAdmin et role === 'admin'
+  const isAdminUser = user?.isAdmin || user?.role === 'admin';
+  
+  if (!isAdminUser) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center" dir={isRTL ? 'rtl' : 'ltr'}>
         <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg text-center">
@@ -271,7 +275,7 @@ export default function AdminDashboard({ user, onLogout, onClose }) {
         {activeTab === 'users' && <UsersTab />}
         {activeTab === 'subscriptions' && <SubscriptionsTab txt={txt} isRTL={isRTL} />}
         {activeTab === 'promo' && <PromoCodesTab />}
-        {activeTab === 'analytics' && <AnalyticsTab stats={stats} txt={txt} isRTL={isRTL} />}
+        {activeTab === 'analytics' && <AnalyticsTab />}
         {activeTab === 'settings' && <SettingsTab txt={txt} isRTL={isRTL} />}
       </main>
     </div>
@@ -387,16 +391,6 @@ function SubscriptionsTab({ txt, isRTL }) {
     <div className={`text-center py-16 ${isRTL ? 'text-right' : 'text-left'}`}>
       <CreditCard className="w-16 h-16 text-gray-400 mx-auto mb-4" />
       <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200">{txt.subscriptionSettings}</h3>
-      <p className="text-gray-500 dark:text-gray-400">{txt.comingSoon}</p>
-    </div>
-  );
-}
-
-function AnalyticsTab({ stats, txt, isRTL }) {
-  return (
-    <div className={`text-center py-16 ${isRTL ? 'text-right' : 'text-left'}`}>
-      <TrendingUp className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-      <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200">{txt.analyticsSettings}</h3>
       <p className="text-gray-500 dark:text-gray-400">{txt.comingSoon}</p>
     </div>
   );
