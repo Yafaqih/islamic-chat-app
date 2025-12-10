@@ -231,9 +231,20 @@ export default function InputBar({
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      if (value.trim() && !isLoading && !disabled) onSend();
+      if (canSend) handleSendWithFiles();
     }
   };
+
+  // Fonction pour envoyer avec les fichiers
+  const handleSendWithFiles = () => {
+    if (onSend && (value.trim() || uploadedFiles.length > 0)) {
+      onSend(uploadedFiles); // Passer les fichiers au parent
+      setUploadedFiles([]); // Effacer les fichiers après envoi
+    }
+  };
+
+  // Peut envoyer si texte OU fichiers
+  const canSend = (value.trim() || uploadedFiles.length > 0) && !isLoading && !disabled;
 
   const handleTextareaChange = (e) => {
     onChange(e.target.value);
@@ -467,10 +478,10 @@ export default function InputBar({
           <div className={`flex flex-col gap-1 pb-1 ${isRTL ? 'items-start' : 'items-end'}`}>
             {/* Bouton Envoyer */}
             <button 
-              onClick={onSend} 
-              disabled={!value.trim() || isLoading || disabled}
+              onClick={handleSendWithFiles} 
+              disabled={!canSend}
               className={`w-10 h-10 rounded-xl transition-all flex items-center justify-center ${
-                value.trim() && !isLoading 
+                canSend 
                   ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/30' 
                   : 'bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
               }`}

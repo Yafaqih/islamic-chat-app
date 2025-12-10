@@ -204,12 +204,20 @@ export default function IslamicChatApp() {
     console.log('Files uploaded:', files);
   };
 
-  const handleSend = async (directMessage = null) => {
-    const messageText = directMessage || input;
-    if (!messageText.trim() || isLoading) return;
+  const handleSend = async (filesFromInput = []) => {
+    const messageText = input;
+    const attachedFiles = Array.isArray(filesFromInput) ? filesFromInput : [];
+    
+    // Si pas de texte et pas de fichiers, ne rien faire
+    if (!messageText.trim() && attachedFiles.length === 0) return;
+    if (isLoading) return;
+
+    // Message par défaut si fichiers sans texte
+    const displayMessage = messageText.trim() || (attachedFiles.length > 0 ? 
+      (language === 'ar' ? '📎 ملف مرفق' : language === 'fr' ? '📎 Fichier joint' : '📎 Attached file') : '');
 
     // 🕌 DÉTECTION RÉCITATION CORAN
-    const quranRequest = detectQuranRequest(messageText);
+    const quranRequest = messageText.trim() ? detectQuranRequest(messageText) : null;
     if (quranRequest) {
       // Ouvrir le player avec la playlist
       setQuranPlaylist(quranRequest.playlist);
@@ -228,8 +236,9 @@ export default function IslamicChatApp() {
       const userMessage = {
         id: nextId,
         role: 'user',
-        content: messageText,
-        isFavorite: false
+        content: displayMessage,
+        isFavorite: false,
+        attachments: attachedFiles.length > 0 ? attachedFiles : undefined
       };
       const assistantMessage = {
         id: nextId + 1,
@@ -257,8 +266,9 @@ export default function IslamicChatApp() {
     const userMessage = {
       id: nextId,
       role: 'user',
-      content: messageText,
-      isFavorite: false
+      content: displayMessage,
+      isFavorite: false,
+      attachments: attachedFiles.length > 0 ? attachedFiles : undefined
     };
 
     setMessages(prev => [...prev, userMessage]);
@@ -650,6 +660,29 @@ export default function IslamicChatApp() {
 
                   <p className={`text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed ${isRTL ? 'text-right' : 'text-left'}`}>{msg.content}</p>
 
+                  {/* Afficher les fichiers attachés */}
+                  {msg.attachments && msg.attachments.length > 0 && (
+                    <div className={`mt-3 flex flex-wrap gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                      {msg.attachments.map((file, idx) => (
+                        <div key={idx} className="bg-gray-100 dark:bg-gray-700 rounded-xl p-2 flex items-center gap-2 max-w-[200px]">
+                          {file.preview ? (
+                            <img src={file.preview} alt={file.name} className="w-12 h-12 object-cover rounded-lg" />
+                          ) : (
+                            <div className="w-12 h-12 bg-gray-200 dark:bg-gray-600 rounded-lg flex items-center justify-center">
+                              <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{file.name}</p>
+                            <p className="text-xs text-gray-500">{file.source === 'google-drive' ? 'Google Drive' : 'Local'}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   {/* Bouton Play pour rouvrir le Quran Player */}
                   {msg.quranPlaylist && msg.quranPlaylist.length > 0 && (
                     <button
@@ -749,7 +782,7 @@ export default function IslamicChatApp() {
           <InputBar
             value={input}
             onChange={setInput}
-            onSend={() => handleSend()}
+            onSend={(files) => handleSend(files)}
             onFileUpload={handleFileUpload}
             isLoading={isLoading}
             disabled={false}
