@@ -12,9 +12,11 @@ import PromoCodesTab from './admin/PromoCodesTab';
 import AnalyticsTab from './admin/AnalyticsTab';
 import SubscriptionsTab from './admin/SubscriptionsTab';
 import SettingsTab from './admin/SettingsTab';
+import PermissionsTab from './admin/PermissionsTab'; // ✅ AJOUTÉ
 
 /**
  * Dashboard Admin Multilingue pour Ya Faqih
+ * ✅ Inclut: Overview, Users, Subscriptions, Permissions, Promo Codes, Analytics, Settings
  */
 export default function AdminDashboard({ user, onLogout, onClose }) {
   const { language, isRTL } = useLanguage();
@@ -42,6 +44,7 @@ export default function AdminDashboard({ user, onLogout, onClose }) {
       overview: 'نظرة عامة',
       users: 'المستخدمون',
       subscriptions: 'الاشتراكات',
+      permissions: 'الصلاحيات', // ✅ AJOUTÉ
       promoCodes: 'أكواد الخصم',
       analytics: 'التحليلات',
       settings: 'الإعدادات',
@@ -83,6 +86,7 @@ export default function AdminDashboard({ user, onLogout, onClose }) {
       overview: 'Vue d\'ensemble',
       users: 'Utilisateurs',
       subscriptions: 'Abonnements',
+      permissions: 'Permissions', // ✅ AJOUTÉ
       promoCodes: 'Codes Promo',
       analytics: 'Analytique',
       settings: 'Paramètres',
@@ -124,6 +128,7 @@ export default function AdminDashboard({ user, onLogout, onClose }) {
       overview: 'Overview',
       users: 'Users',
       subscriptions: 'Subscriptions',
+      permissions: 'Permissions', // ✅ AJOUTÉ
       promoCodes: 'Promo Codes',
       analytics: 'Analytics',
       settings: 'Settings',
@@ -150,7 +155,7 @@ export default function AdminDashboard({ user, onLogout, onClose }) {
       analyticsSettings: 'Analytics Settings'
     }
   }[language] || {
-    adminConsole: 'Console d\'administration', accessDenied: 'Accès Refusé', noPermission: 'Vous n\'avez pas les permissions.', back: 'Retour', today: 'Aujourd\'hui', last7Days: '7 derniers jours', last30Days: '30 derniers jours', last90Days: '90 derniers jours', allTime: 'Tout le temps', refresh: 'Rafraîchir', logout: 'Déconnexion', close: 'Fermer', overview: 'Vue d\'ensemble', users: 'Utilisateurs', subscriptions: 'Abonnements', promoCodes: 'Codes Promo', analytics: 'Analytique', settings: 'Paramètres', totalUsers: 'Utilisateurs Totaux', activeUsers: 'Utilisateurs Actifs', totalRevenue: 'Revenu Total', mrr: 'MRR', subscriptionDistribution: 'Répartition des Abonnements', messageActivity: 'Activité Messages', total: 'Total', todayLabel: 'Aujourd\'hui', avgPerUser: 'Moyenne/utilisateur', free: 'Free', pro: 'Pro', premium: 'Premium', recentActivity: 'Activité Récente', quickActions: 'Actions Rapides', exportData: 'Exporter', manageApiKeys: 'Clés API', viewReports: 'Rapports', systemSettings: 'Paramètres', comingSoon: 'À venir...', subscriptionSettings: 'Abonnements', analyticsSettings: 'Analytique'
+    adminConsole: 'Console d\'administration', accessDenied: 'Accès Refusé', noPermission: 'Vous n\'avez pas les permissions.', back: 'Retour', today: 'Aujourd\'hui', last7Days: '7 derniers jours', last30Days: '30 derniers jours', last90Days: '90 derniers jours', allTime: 'Tout le temps', refresh: 'Rafraîchir', logout: 'Déconnexion', close: 'Fermer', overview: 'Vue d\'ensemble', users: 'Utilisateurs', subscriptions: 'Abonnements', permissions: 'Permissions', promoCodes: 'Codes Promo', analytics: 'Analytique', settings: 'Paramètres', totalUsers: 'Utilisateurs Totaux', activeUsers: 'Utilisateurs Actifs', totalRevenue: 'Revenu Total', mrr: 'MRR', subscriptionDistribution: 'Répartition des Abonnements', messageActivity: 'Activité Messages', total: 'Total', todayLabel: 'Aujourd\'hui', avgPerUser: 'Moyenne/utilisateur', free: 'Free', pro: 'Pro', premium: 'Premium', recentActivity: 'Activité Récente', quickActions: 'Actions Rapides', exportData: 'Exporter', manageApiKeys: 'Clés API', viewReports: 'Rapports', systemSettings: 'Paramètres', comingSoon: 'À venir...', subscriptionSettings: 'Abonnements', analyticsSettings: 'Analytique'
   };
 
   useEffect(() => {
@@ -188,10 +193,12 @@ export default function AdminDashboard({ user, onLogout, onClose }) {
     );
   }
 
+  // ✅ PERMISSIONS AJOUTÉ dans les tabs
   const tabs = [
     { id: 'overview', label: txt.overview, icon: BarChart3 },
     { id: 'users', label: txt.users, icon: Users },
     { id: 'subscriptions', label: txt.subscriptions, icon: CreditCard },
+    { id: 'permissions', label: txt.permissions, icon: Shield }, // ✅ AJOUTÉ
     { id: 'promo', label: txt.promoCodes, icon: Tag },
     { id: 'analytics', label: txt.analytics, icon: TrendingUp },
     { id: 'settings', label: txt.settings, icon: Settings },
@@ -276,6 +283,7 @@ export default function AdminDashboard({ user, onLogout, onClose }) {
         {activeTab === 'overview' && <OverviewTab stats={stats} loading={loading} txt={txt} isRTL={isRTL} />}
         {activeTab === 'users' && <UsersTab />}
         {activeTab === 'subscriptions' && <SubscriptionsTab />}
+        {activeTab === 'permissions' && <PermissionsTab />}  {/* ✅ AJOUTÉ */}
         {activeTab === 'promo' && <PromoCodesTab />}
         {activeTab === 'analytics' && <AnalyticsTab />}
         {activeTab === 'settings' && <SettingsTab />}
