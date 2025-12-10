@@ -1,20 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { X, Crown, Check, Sparkles, Zap, Star, Tag, Loader2, CheckCircle, XCircle, User, RefreshCw } from 'lucide-react';
+import { X, Crown, Check, Sparkles, Zap, Star, Tag, Loader2, CheckCircle, XCircle, User, RefreshCw, Heart } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
 /**
  * SubscriptionModal - Modal d'abonnement multilingue
  * ✅ Charge les plans depuis l'API (seuls les plans actifs sont affichés)
+ * ✅ Bouton "Faire un Don" pour le plan gratuit
+ * ✅ Section code promo cachée
  */
 export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free' }) {
   const { language, isRTL } = useLanguage();
   
   const [plans, setPlans] = useState([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
-  const [promoCode, setPromoCode] = useState('');
-  const [promoStatus, setPromoStatus] = useState(null);
-  const [promoData, setPromoData] = useState(null);
-  const [promoError, setPromoError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   // URLs de checkout LemonSqueezy
@@ -23,21 +21,17 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
     premium: 'https://yafaqih.lemonsqueezy.com/buy/c1fd514d-562d-45b0-8dff-c5f1ab34743f'
   };
 
+  // ✅ URL pour les dons
+  const DONATION_URL = 'https://yafaqih.lemonsqueezy.com/buy/f61ce506-089b-476f-92a9-acbc7c050626';
+
   // Traductions
   const txt = {
     ar: {
       choosePlan: 'اختر خطتك',
       upgradeExperience: 'ارتقِ بتجربتك مع المساعد الإسلامي',
-      havePromoCode: 'هل لديك رمز خصم؟',
-      enterCodeForDiscount: 'أدخل الرمز للحصول على خصم',
-      enterPromoCode: 'أدخل رمز الخصم',
-      verify: 'تحقق',
-      discountApplied: 'تم تطبيق الخصم',
-      invalidCode: 'رمز غير صالح',
-      errorVerifying: 'خطأ في التحقق من الرمز',
       mostPopular: 'الأكثر شعبية ⭐',
       currentPlan: 'خطتك الحالية',
-      startFree: 'البدء مجاناً',
+      makeDonation: 'تبرع 💝', // ✅ NOUVEAU
       choose: 'اختر',
       securePayment: '🔒 الدفع آمن ومشفر • يمكنك إلغاء اشتراكك في أي وقت',
       termsAgree: 'بالاشتراك، أنت توافق على شروط الخدمة وسياسة الخصوصية',
@@ -49,16 +43,9 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
     fr: {
       choosePlan: 'Choisissez votre plan',
       upgradeExperience: 'Améliorez votre expérience avec l\'assistant islamique',
-      havePromoCode: 'Avez-vous un code promo ?',
-      enterCodeForDiscount: 'Entrez le code pour obtenir une réduction',
-      enterPromoCode: 'Entrez le code promo',
-      verify: 'Vérifier',
-      discountApplied: 'Réduction appliquée',
-      invalidCode: 'Code invalide',
-      errorVerifying: 'Erreur de vérification',
       mostPopular: 'Le plus populaire ⭐',
       currentPlan: 'Votre plan actuel',
-      startFree: 'Commencer gratuitement',
+      makeDonation: 'Faire un Don 💝', // ✅ NOUVEAU
       choose: 'Choisir',
       securePayment: '🔒 Paiement sécurisé • Annulez à tout moment',
       termsAgree: 'En vous abonnant, vous acceptez les conditions d\'utilisation',
@@ -70,16 +57,9 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
     en: {
       choosePlan: 'Choose your plan',
       upgradeExperience: 'Upgrade your experience with the Islamic assistant',
-      havePromoCode: 'Have a promo code?',
-      enterCodeForDiscount: 'Enter code for discount',
-      enterPromoCode: 'Enter promo code',
-      verify: 'Verify',
-      discountApplied: 'Discount applied',
-      invalidCode: 'Invalid code',
-      errorVerifying: 'Verification error',
       mostPopular: 'Most popular ⭐',
       currentPlan: 'Current plan',
-      startFree: 'Start free',
+      makeDonation: 'Make a Donation 💝', // ✅ NOUVEAU
       choose: 'Choose',
       securePayment: '🔒 Secure payment • Cancel anytime',
       termsAgree: 'By subscribing, you agree to our Terms of Service',
@@ -89,7 +69,7 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
       free: 'Free'
     }
   }[language] || {
-    choosePlan: 'اختر خطتك', upgradeExperience: 'ارتقِ بتجربتك مع المساعد الإسلامي', havePromoCode: 'هل لديك رمز خصم؟', enterCodeForDiscount: 'أدخل الرمز للحصول على خصم', enterPromoCode: 'أدخل رمز الخصم', verify: 'تحقق', discountApplied: 'تم تطبيق الخصم', invalidCode: 'رمز غير صالح', errorVerifying: 'خطأ في التحقق من الرمز', mostPopular: 'الأكثر شعبية ⭐', currentPlan: 'خطتك الحالية', startFree: 'البدء مجاناً', choose: 'اختر', securePayment: '🔒 الدفع آمن ومشفر', termsAgree: 'بالاشتراك، أنت توافق على شروط الخدمة', loading: 'جاري التحميل...', noPlans: 'لا توجد خطط متاحة', month: '/شهر', free: 'مجاني'
+    choosePlan: 'اختر خطتك', upgradeExperience: 'ارتقِ بتجربتك مع المساعد الإسلامي', mostPopular: 'الأكثر شعبية ⭐', currentPlan: 'خطتك الحالية', makeDonation: 'تبرع 💝', choose: 'اختر', securePayment: '🔒 الدفع آمن ومشفر', termsAgree: 'بالاشتراك، أنت توافق على شروط الخدمة', loading: 'جاري التحميل...', noPlans: 'لا توجد خطط متاحة', month: '/شهر', free: 'مجاني'
   };
 
   // ✅ Charger les plans depuis l'API quand le modal s'ouvre
@@ -169,150 +149,45 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
     return plan.notIncluded || [];
   };
 
-  // Vérifier le code promo
-  const verifyPromoCode = async () => {
-    if (!promoCode.trim()) return;
-    
-    setPromoStatus('checking');
-    setPromoError('');
-
-    try {
-      const res = await fetch('/api/promo/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: promoCode.trim() })
-      });
-
-      const data = await res.json();
-
-      if (res.ok && data.valid) {
-        setPromoStatus('valid');
-        setPromoData(data);
-      } else {
-        setPromoStatus('invalid');
-        setPromoError(data.error || txt.invalidCode);
-      }
-    } catch (error) {
-      console.error('Erreur vérification promo:', error);
-      setPromoStatus('invalid');
-      setPromoError(txt.errorVerifying);
+  // ✅ Gérer le checkout
+  const handleCheckout = (plan) => {
+    if (plan.id === 'free') {
+      // ✅ Pour le plan gratuit, ouvrir la page de don
+      window.open(DONATION_URL, '_blank');
+      return;
     }
-  };
 
-  // Calculer le prix avec réduction
-  const getDiscountedPrice = (price) => {
-    if (!promoData || promoStatus !== 'valid' || price === 0) return price;
-
-    if (promoData.discountType === 'percentage') {
-      return price * (1 - promoData.discountValue / 100);
-    } else {
-      return Math.max(0, price - promoData.discountValue);
-    }
-  };
-
-  // Gérer le checkout
-  const handleCheckout = async (plan) => {
-    if (plan.id === 'free' || plan.id === currentTier) return;
-
-    setIsLoading(true);
-    
-    try {
-      let checkoutUrl = CHECKOUT_URLS[plan.id];
-      
-      if (checkoutUrl) {
-        // Ajouter le code promo à l'URL si valide
-        if (promoStatus === 'valid' && promoCode) {
-          checkoutUrl += `?checkout[discount_code]=${encodeURIComponent(promoCode)}`;
-        }
-        
-        window.open(checkoutUrl, '_blank');
-      }
-    } catch (error) {
-      console.error('Erreur checkout:', error);
-    } finally {
-      setIsLoading(false);
+    // Pour les plans payants
+    const checkoutUrl = CHECKOUT_URLS[plan.id];
+    if (checkoutUrl) {
+      window.open(checkoutUrl, '_blank');
     }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
       <div 
-        className="relative w-full max-w-5xl max-h-[90vh] bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800 rounded-3xl shadow-2xl overflow-y-auto"
+        className="bg-gray-50 dark:bg-gray-900 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
         dir={isRTL ? 'rtl' : 'ltr'}
       >
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'} z-10 p-2 bg-white/80 dark:bg-gray-700/80 rounded-full hover:bg-white dark:hover:bg-gray-600 transition-all shadow-lg`}
-        >
-          <X className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-        </button>
-
         <div className="p-6 md:p-8">
           {/* Header */}
-          <div className="text-center mb-8">
-            <h2 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-2">
-              {txt.choosePlan}
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400">{txt.upgradeExperience}</p>
+          <div className={`flex items-start justify-between mb-8 ${isRTL ? 'flex-row-reverse' : ''}`}>
+            <div className={isRTL ? 'text-right' : 'text-left'}>
+              <h2 className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{txt.choosePlan}</h2>
+              <p className="text-gray-600 dark:text-gray-400 mt-2">{txt.upgradeExperience}</p>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl transition-all"
+            >
+              <X className="w-6 h-6" />
+            </button>
           </div>
 
-          {/* Promo Code Section */}
-          <div className="mb-8 p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl border border-emerald-100 dark:border-emerald-800">
-            <div className={`flex items-center gap-3 mb-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
-              <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center">
-                <Tag className="w-5 h-5 text-emerald-600" />
-              </div>
-              <div className={isRTL ? 'text-right' : 'text-left'}>
-                <p className="font-semibold text-gray-800 dark:text-gray-200">{txt.havePromoCode}</p>
-                <p className="text-sm text-gray-500">{txt.enterCodeForDiscount}</p>
-              </div>
-            </div>
-            
-            <div className={`flex gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
-              <div className="flex-1 relative">
-                <input
-                  type="text"
-                  value={promoCode}
-                  onChange={(e) => {
-                    setPromoCode(e.target.value.toUpperCase());
-                    setPromoStatus(null);
-                    setPromoError('');
-                  }}
-                  placeholder={txt.enterPromoCode}
-                  className={`w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all ${isRTL ? 'text-right' : 'text-left'}`}
-                  dir="ltr"
-                />
-                {promoStatus === 'valid' && (
-                  <CheckCircle className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 w-5 h-5 text-green-500`} />
-                )}
-                {promoStatus === 'invalid' && (
-                  <XCircle className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 w-5 h-5 text-red-500`} />
-                )}
-              </div>
-              <button
-                onClick={verifyPromoCode}
-                disabled={!promoCode.trim() || promoStatus === 'checking'}
-                className="px-6 py-3 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
-              >
-                {promoStatus === 'checking' ? <Loader2 className="w-5 h-5 animate-spin" /> : txt.verify}
-              </button>
-            </div>
-
-            {promoStatus === 'valid' && promoData && (
-              <div className={`mt-3 p-3 bg-green-100 dark:bg-green-900/30 rounded-xl text-green-700 dark:text-green-300 text-sm ${isRTL ? 'text-right' : 'text-left'}`}>
-                ✅ {txt.discountApplied}: {promoData.discountType === 'percentage' ? `${promoData.discountValue}%` : `$${promoData.discountValue}`}
-                {promoData.description && ` - ${promoData.description}`}
-              </div>
-            )}
-            {promoStatus === 'invalid' && (
-              <div className={`mt-3 p-3 bg-red-100 dark:bg-red-900/30 rounded-xl text-red-700 dark:text-red-300 text-sm ${isRTL ? 'text-right' : 'text-left'}`}>
-                ❌ {promoError}
-              </div>
-            )}
-          </div>
+          {/* ✅ Section Code Promo SUPPRIMÉE */}
 
           {/* Plans */}
           {loadingPlans ? (
@@ -330,8 +205,6 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
               {plans.map((plan) => {
                 const Icon = getPlanIcon(plan.id);
                 const isCurrentPlan = plan.id === currentTier;
-                const discountedPrice = getDiscountedPrice(plan.price);
-                const hasDiscount = promoStatus === 'valid' && discountedPrice < plan.price && plan.id !== 'free';
                 const features = getPlanFeatures(plan);
                 const limitations = getPlanLimitations(plan);
 
@@ -379,16 +252,6 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
                               {txt.free}
                             </span>
                           </div>
-                        ) : hasDiscount ? (
-                          <div className={`flex items-baseline gap-2 flex-wrap ${isRTL ? 'flex-row-reverse' : ''}`}>
-                            <span className="text-3xl font-bold text-gray-900 dark:text-white">
-                              ${discountedPrice.toFixed(2)}
-                            </span>
-                            <span className="text-lg text-gray-500 dark:text-gray-400 line-through">
-                              ${plan.price}
-                            </span>
-                            <span className="text-gray-500 dark:text-gray-400">{txt.month}</span>
-                          </div>
                         ) : (
                           <div className={`flex items-baseline gap-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
                             <span className="text-3xl font-bold text-gray-900 dark:text-white">
@@ -418,21 +281,27 @@ export default function SubscriptionModal({ isOpen, onClose, currentTier = 'free
                         ))}
                       </div>
 
+                      {/* ✅ Bouton modifié */}
                       <button
                         onClick={() => handleCheckout(plan)}
-                        disabled={isCurrentPlan || isLoading}
+                        disabled={isCurrentPlan && plan.id !== 'free'}
                         className={`w-full py-3 px-4 rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-2 ${
-                          isCurrentPlan
+                          isCurrentPlan && plan.id !== 'free'
                             ? 'bg-gray-300 dark:bg-gray-600 cursor-not-allowed'
-                            : getButtonColor(plan.id)
+                            : plan.id === 'free'
+                              ? 'bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600'
+                              : getButtonColor(plan.id)
                         }`}
                       >
                         {isLoading ? (
                           <Loader2 className="w-5 h-5 animate-spin" />
-                        ) : isCurrentPlan ? (
+                        ) : isCurrentPlan && plan.id !== 'free' ? (
                           txt.currentPlan
                         ) : plan.id === 'free' ? (
-                          txt.startFree
+                          <>
+                            <Heart className="w-5 h-5" />
+                            <span>{txt.makeDonation}</span>
+                          </>
                         ) : (
                           <>
                             <span>{txt.choose} {getPlanName(plan)}</span>
