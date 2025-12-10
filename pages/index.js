@@ -666,8 +666,8 @@ export default function IslamicChatApp() {
         </div>
       )}
 
-      {/* Zone de messages - pt-20 pour compenser le header fixed */}
-      <div className="max-w-4xl mx-auto p-4 pb-40 pt-20">
+      {/* Zone de messages - pt pour header fixed, pb pour InputBar fixed */}
+      <div className="max-w-4xl mx-auto p-4 pb-52 pt-16 sm:pt-20">
         <div className="space-y-6">
           {messages.map((msg) => (
             <div key={msg.id} className={`flex gap-4 ${msg.role === 'user' ? (isRTL ? '' : 'flex-row-reverse') : (isRTL ? 'flex-row-reverse' : '')}`}>
@@ -808,7 +808,7 @@ export default function IslamicChatApp() {
       </div>
 
       {/* Input Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-white dark:from-gray-900 via-white/95 dark:via-gray-900/95 to-transparent p-3 sm:p-4">
+      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-white dark:from-gray-900 via-white/95 dark:via-gray-900/95 to-transparent p-3 sm:p-4" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom, 12px))' }}>
         <div className="max-w-4xl mx-auto">
           <InputBar
             value={input}
