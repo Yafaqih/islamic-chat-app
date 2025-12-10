@@ -215,6 +215,14 @@ export default function IslamicChatApp() {
       setQuranPlaylist(quranRequest.playlist);
       setShowQuranPlayer(true);
       
+      // Messages multilingues
+      const quranMessages = {
+        ar: { playing: 'جاري تشغيل', enjoy: 'استمتع بالتلاوة! يمكنك التحكم في المشغل.' },
+        fr: { playing: 'Lecture en cours', enjoy: 'Profitez de la récitation ! Vous pouvez contrôler le lecteur.' },
+        en: { playing: 'Now playing', enjoy: 'Enjoy the recitation! You can control the player.' }
+      };
+      const msg = quranMessages[language] || quranMessages.ar;
+      
       // Ajouter les messages dans le chat
       const surahNames = quranRequest.surahs.map(s => s.name).join(' و ');
       const userMessage = {
@@ -226,7 +234,7 @@ export default function IslamicChatApp() {
       const assistantMessage = {
         id: nextId + 1,
         role: 'assistant',
-        content: `🕌 جاري تشغيل: ${surahNames}\n\nاستمتع بالتلاوة! يمكنك التحكم في المشغل.`,
+        content: `🕌 ${msg.playing}: ${surahNames}\n\n${msg.enjoy}`,
         isFavorite: false
       };
       
@@ -530,6 +538,7 @@ export default function IslamicChatApp() {
             setQuranPlaylist([]);
           }}
           isRTL={isRTL}
+          language={language}
           playlist={quranPlaylist}
           autoPlay={true}
         />
