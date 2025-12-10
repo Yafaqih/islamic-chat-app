@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import { Send, BookOpen, Sparkles, Star, X, Crown, Check, Zap, LogOut, MessageSquare, Shield, AlertCircle, Moon, Sun, Download, User, Navigation, Menu, Tag } from 'lucide-react';
@@ -10,6 +10,7 @@ import AdminDashboard from '../components/AdminDashboard';
 import SubscriptionModal from '../components/SubscriptionModal';
 import InputBar from '../components/InputBar';
 import QiblaModal from '../components/QiblaModal';
+import QuranPlayer, { detectQuranRequest } from '../components/QuranPlayer';
 import LanguageSelector from '../components/LanguageSelector';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -50,6 +51,8 @@ export default function IslamicChatApp() {
   const [showQiblaModal, setShowQiblaModal] = useState(false);
   const [showPrayerModal, setShowPrayerModal] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [showQuranPlayer, setShowQuranPlayer] = useState(false);
+  const [quranPlaylist, setQuranPlaylist] = useState([]);
   const messagesEndRef = useRef(null);
 
   const FREE_MESSAGE_LIMIT = 10;
@@ -204,6 +207,34 @@ export default function IslamicChatApp() {
   const handleSend = async (directMessage = null) => {
     const messageText = directMessage || input;
     if (!messageText.trim() || isLoading) return;
+
+    // 🕌 DÉTECTION RÉCITATION CORAN
+    const quranRequest = detectQuranRequest(messageText);
+    if (quranRequest) {
+      // Ouvrir le player avec la playlist
+      setQuranPlaylist(quranRequest.playlist);
+      setShowQuranPlayer(true);
+      
+      // Ajouter les messages dans le chat
+      const surahNames = quranRequest.surahs.map(s => s.name).join(' و ');
+      const userMessage = {
+        id: nextId,
+        role: 'user',
+        content: messageText,
+        isFavorite: false
+      };
+      const assistantMessage = {
+        id: nextId + 1,
+        role: 'assistant',
+        content: `🕌 جاري تشغيل: ${surahNames}\n\nاستمتع بالتلاوة! يمكنك التحكم في المشغل.`,
+        isFavorite: false
+      };
+      
+      setMessages(prev => [...prev, userMessage, assistantMessage]);
+      setNextId(prev => prev + 2);
+      setInput('');
+      return; // Ne pas envoyer à l'API
+    }
 
     const messageLimit = subscriptionTier === 'free' ? FREE_MESSAGE_LIMIT : 
                         subscriptionTier === 'pro' ? PRO_MESSAGE_LIMIT : Infinity;
@@ -490,6 +521,20 @@ export default function IslamicChatApp() {
         />
       )}
 
+      {/* Quran Player Modal */}
+      {showQuranPlayer && (
+        <QuranPlayer
+          isOpen={showQuranPlayer}
+          onClose={() => {
+            setShowQuranPlayer(false);
+            setQuranPlaylist([]);
+          }}
+          isRTL={isRTL}
+          playlist={quranPlaylist}
+          autoPlay={true}
+        />
+      )}
+
       {/* Modal Historique */}
       {showHistory && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -677,6 +722,10 @@ export default function IslamicChatApp() {
             placeholder={t('placeholder')}
             onQiblaClick={() => setShowQiblaModal(true)}
             onPrayerClick={() => setShowPrayerModal(true)}
+            onQuranClick={() => {
+              setQuranPlaylist([]);
+              setShowQuranPlayer(true);
+            }}
           />
         </div>
       </div>
