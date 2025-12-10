@@ -10,6 +10,8 @@ import { useLanguage } from '../contexts/LanguageContext';
 import UsersTab from './admin/UsersTab';
 import PromoCodesTab from './admin/PromoCodesTab';
 import AnalyticsTab from './admin/AnalyticsTab';
+import SubscriptionsTab from './admin/SubscriptionsTab';
+import SettingsTab from './admin/SettingsTab';
 
 /**
  * Dashboard Admin Multilingue pour Ya Faqih
@@ -273,10 +275,10 @@ export default function AdminDashboard({ user, onLogout, onClose }) {
       <main className="px-4 sm:px-6 lg:px-8 py-8 pb-24">
         {activeTab === 'overview' && <OverviewTab stats={stats} loading={loading} txt={txt} isRTL={isRTL} />}
         {activeTab === 'users' && <UsersTab />}
-        {activeTab === 'subscriptions' && <SubscriptionsTab txt={txt} isRTL={isRTL} />}
+        {activeTab === 'subscriptions' && <SubscriptionsTab />}
         {activeTab === 'promo' && <PromoCodesTab />}
         {activeTab === 'analytics' && <AnalyticsTab />}
-        {activeTab === 'settings' && <SettingsTab txt={txt} isRTL={isRTL} />}
+        {activeTab === 'settings' && <SettingsTab />}
       </main>
     </div>
   );
@@ -381,27 +383,6 @@ function SubscriptionBar({ label, count, total, color, isRTL }) {
       <div className={`w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 ${isRTL ? 'rotate-180' : ''}`}>
         <div className={`${colorClasses[color]} h-2 rounded-full`} style={{ width: `${percentage}%` }} />
       </div>
-    </div>
-  );
-}
-
-// Placeholder tabs
-function SubscriptionsTab({ txt, isRTL }) {
-  return (
-    <div className={`text-center py-16 ${isRTL ? 'text-right' : 'text-left'}`}>
-      <CreditCard className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-      <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200">{txt.subscriptionSettings}</h3>
-      <p className="text-gray-500 dark:text-gray-400">{txt.comingSoon}</p>
-    </div>
-  );
-}
-
-function SettingsTab({ txt, isRTL }) {
-  return (
-    <div className={`text-center py-16 ${isRTL ? 'text-right' : 'text-left'}`}>
-      <Settings className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-      <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200">{txt.systemSettings}</h3>
-      <p className="text-gray-500 dark:text-gray-400">{txt.comingSoon}</p>
     </div>
   );
 }
