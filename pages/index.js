@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useRouter } from 'next/router';
-import { Send, BookOpen, Sparkles, Star, X, Crown, Check, Zap, LogOut, MessageSquare, Shield, AlertCircle, Moon, Sun, Download, User, Navigation, Menu, Tag } from 'lucide-react';
+import { Send, BookOpen, Sparkles, Star, X, Crown, Check, Zap, LogOut, MessageSquare, Shield, AlertCircle, Moon, Sun, Download, User, Navigation, Menu, Tag, Lock } from 'lucide-react';
 import { exportCurrentConversationToPDF, exportConversationToPDF } from '../lib/pdfExport';
 import PrayerNotification from '../components/PrayerNotification';
 import ArabicTTS from '../components/ArabicTTS';
@@ -14,6 +14,7 @@ import QuranPlayer, { detectQuranRequest } from '../components/QuranPlayer';
 import MosqueMap from '../components/MosqueMap';
 import LanguageSelector from '../components/LanguageSelector';
 import { useLanguage } from '../contexts/LanguageContext';
+import { usePermissions } from '../hooks/usePermissions'; // ✅ AJOUTÉ
 
 export default function IslamicChatApp() {
   const { data: session, status } = useSession();
@@ -23,6 +24,9 @@ export default function IslamicChatApp() {
   
   // Hook de langue
   const { t, language, dir, isRTL } = useLanguage();
+
+  // ✅ Hook de permissions - avec valeurs par défaut sécurisées
+  const { can = () => true, usage = {}, tier = 'free', loading: permissionsLoading, refresh: refreshPermissions } = usePermissions() || {};
 
   const [darkMode, setDarkMode] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -101,8 +105,9 @@ export default function IslamicChatApp() {
     }
   };
 
+  // ✅ MODIFIÉ - Utilise les permissions au lieu de subscriptionTier
   const handleExportPDF = () => {
-    if (subscriptionTier !== 'premium') {
+    if (!can('exportPDF')) {
       setShowPremiumModal(true);
       return;
     }
@@ -110,8 +115,9 @@ export default function IslamicChatApp() {
     exportCurrentConversationToPDF(messages, user?.name, title);
   };
 
+  // ✅ MODIFIÉ - Utilise les permissions
   const handleExportHistoricalPDF = async (conversationId) => {
-    if (subscriptionTier !== 'premium') {
+    if (!can('exportPDF')) {
       setShowPremiumModal(true);
       return;
     }
@@ -125,6 +131,33 @@ export default function IslamicChatApp() {
       console.error('Error exporting PDF:', error);
       alert(t('errorOccurred'));
     }
+  };
+
+  // ✅ AJOUTÉ - Vérifier permission pour Qibla
+  const handleQiblaClick = () => {
+    if (!can('qiblaCompass')) {
+      setShowPremiumModal(true);
+      return;
+    }
+    setShowQiblaModal(true);
+  };
+
+  // ✅ AJOUTÉ - Vérifier permission pour Mosquées
+  const handleMosqueClick = () => {
+    if (!can('mosqueFinder')) {
+      setShowPremiumModal(true);
+      return;
+    }
+    setShowMosqueMap(true);
+  };
+
+  // ✅ AJOUTÉ - Vérifier permission pour sauvegarder conversations
+  const handleHistoryClick = () => {
+    if (!can('saveConversations')) {
+      setShowPremiumModal(true);
+      return;
+    }
+    setShowHistory(true);
   };
 
   const scrollToBottom = () => {
@@ -285,10 +318,8 @@ export default function IslamicChatApp() {
       return; // Ne pas envoyer à l'API
     }
 
-    const messageLimit = subscriptionTier === 'free' ? FREE_MESSAGE_LIMIT : 
-                        subscriptionTier === 'pro' ? PRO_MESSAGE_LIMIT : Infinity;
-
-    if (messageCount >= messageLimit && subscriptionTier !== 'premium') {
+    // ✅ MODIFIÉ - Utilise les permissions pour la limite de messages
+    if (usage && usage.canSendMessage === false) {
       setShowPremiumModal(true);
       return;
     }
@@ -337,6 +368,8 @@ export default function IslamicChatApp() {
         if (data.conversationId) {
           setCurrentConversationId(data.conversationId);
         }
+        // ✅ Rafraîchir les permissions après envoi de message
+        if (refreshPermissions) refreshPermissions();
       } else {
         console.error('Erreur:', data.error);
         const errorMessage = {
@@ -366,7 +399,8 @@ export default function IslamicChatApp() {
   };
 
   const handleSuggestion = (suggestion) => {
-    handleSend(suggestion);
+    setInput(suggestion);
+    setTimeout(() => handleSend(), 100);
   };
 
   const toggleFavorite = (messageId) => {
@@ -470,11 +504,23 @@ export default function IslamicChatApp() {
                 <button onClick={() => setShowFavorites(true)} className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-colors" title={t('favorites')}>
                   <Star className="w-5 h-5" />
                 </button>
-                <button onClick={() => setShowHistory(true)} className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-colors" title={t('history')}>
+                {/* ✅ Historique avec vérification permission */}
+                <button 
+                  onClick={handleHistoryClick} 
+                  className={`p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-colors relative ${!can('saveConversations') ? 'opacity-60' : ''}`} 
+                  title={t('history')}
+                >
                   <MessageSquare className="w-5 h-5" />
+                  {!can('saveConversations') && <Lock className="w-3 h-3 absolute -top-1 -right-1 text-yellow-300" />}
                 </button>
-                <button onClick={handleExportPDF} className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-colors" title={t('exportPDF')}>
+                {/* ✅ Export PDF avec vérification permission */}
+                <button 
+                  onClick={handleExportPDF} 
+                  className={`p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-colors relative ${!can('exportPDF') ? 'opacity-60' : ''}`} 
+                  title={t('exportPDF')}
+                >
                   <Download className="w-5 h-5" />
+                  {!can('exportPDF') && <Lock className="w-3 h-3 absolute -top-1 -right-1 text-yellow-300" />}
                 </button>
                 <button onClick={toggleDarkMode} className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-colors">
                   {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
@@ -535,7 +581,7 @@ export default function IslamicChatApp() {
                 <Star className="w-5 h-5" />
                 <span className="text-sm">{t('favorites')}</span>
               </button>
-              <button onClick={() => { setShowHistory(true); setShowMobileMenu(false); }} className="flex-1 flex items-center justify-center gap-2 p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl">
+              <button onClick={() => { handleHistoryClick(); setShowMobileMenu(false); }} className="flex-1 flex items-center justify-center gap-2 p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl">
                 <MessageSquare className="w-5 h-5" />
                 <span className="text-sm">{t('history')}</span>
               </button>
@@ -553,7 +599,7 @@ export default function IslamicChatApp() {
         <SubscriptionModal
           isOpen={showPremiumModal}
           onClose={() => setShowPremiumModal(false)}
-          currentTier={subscriptionTier}
+          currentTier={tier || subscriptionTier}
           user={user}
         />
       )}
@@ -615,7 +661,8 @@ export default function IslamicChatApp() {
                       <button onClick={() => deleteConversation(conv.id)} className="text-gray-400 hover:text-red-500 transition-colors p-1" title={t('deleteConversation')}>
                         <X className="w-4 h-4" />
                       </button>
-                      {subscriptionTier === 'premium' && (
+                      {/* ✅ MODIFIÉ - Utilise can('exportPDF') */}
+                      {can('exportPDF') && (
                         <button onClick={() => handleExportHistoricalPDF(conv.id)} className="text-gray-400 hover:text-emerald-500 transition-colors p-1" title={t('exportPDF')}>
                           <Download className="w-4 h-4" />
                         </button>
@@ -662,6 +709,18 @@ export default function IslamicChatApp() {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ✅ Indicateur de messages restants */}
+      {usage && usage.dailyLimit && usage.dailyLimit !== -1 && (
+        <div className="fixed top-20 right-4 z-30 bg-white dark:bg-gray-800 rounded-xl px-3 py-2 shadow-lg border border-gray-200 dark:border-gray-700">
+          <div className={`flex items-center gap-2 text-sm ${isRTL ? 'flex-row-reverse' : ''}`}>
+            <MessageSquare className="w-4 h-4 text-emerald-500" />
+            <span className="text-gray-600 dark:text-gray-400">
+              {usage.messagesRemaining}/{usage.dailyLimit}
+            </span>
           </div>
         </div>
       )}
@@ -807,7 +866,7 @@ export default function IslamicChatApp() {
         )}
       </div>
 
-      {/* Input Bar */}
+      {/* Input Bar - ✅ MODIFIÉ avec vérification des permissions */}
       <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-white dark:from-gray-900 via-white/95 dark:via-gray-900/95 to-transparent p-3 sm:p-4" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom, 12px))' }}>
         <div className="max-w-4xl mx-auto">
           <InputBar
@@ -818,13 +877,13 @@ export default function IslamicChatApp() {
             isLoading={isLoading}
             disabled={false}
             placeholder={t('placeholder')}
-            onQiblaClick={() => setShowQiblaModal(true)}
+            onQiblaClick={handleQiblaClick}
             onPrayerClick={() => setShowPrayerModal(true)}
             onQuranClick={() => {
               setQuranPlaylist([]);
               setShowQuranPlayer(true);
             }}
-            onMosqueClick={() => setShowMosqueMap(true)}
+            onMosqueClick={handleMosqueClick}
           />
         </div>
       </div>
