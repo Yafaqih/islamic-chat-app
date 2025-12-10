@@ -322,17 +322,18 @@ export default function InputBar({
       <div className={`bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-2xl focus-within:border-emerald-500 transition-all shadow-sm ${isDragging ? 'border-emerald-500' : ''}`}>
         
         {/* Ligne 1: Boutons d'outils */}
-        <div className={`flex items-center justify-between px-2 sm:px-3 pt-2 pb-1.5 border-b border-gray-100 dark:border-gray-700 ${isRTL ? 'flex-row-reverse' : ''}`}>
-          {/* Boutons gauche */}
-          <div className={`flex items-center gap-0.5 sm:gap-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
+        <div className={`flex items-center justify-between px-1.5 sm:px-3 pt-2 pb-1.5 border-b border-gray-100 dark:border-gray-700 ${isRTL ? 'flex-row-reverse' : ''}`}>
+          {/* Boutons gauche - scroll horizontal sur mobile */}
+          <div className={`flex items-center gap-0.5 overflow-x-auto hide-scrollbar ${isRTL ? 'flex-row-reverse' : ''}`}>
             {/* Bouton Prayer */}
             {onPrayerClick && (
               <button 
                 onClick={onPrayerClick} 
-                className="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all text-purple-600 dark:text-purple-400"
+                className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all text-purple-600 dark:text-purple-400 flex-shrink-0"
+                title={txt.prayerTimes}
               >
-                <Bell className="w-4 h-4 flex-shrink-0" />
-                <span className="text-xs font-medium truncate max-w-[50px] sm:max-w-none">{txt.prayerTimes}</span>
+                <Bell className="w-4 h-4" />
+                <span className="text-xs font-medium hidden sm:inline">{txt.prayerTimes}</span>
               </button>
             )}
             
@@ -340,10 +341,11 @@ export default function InputBar({
             {onQiblaClick && (
               <button 
                 onClick={onQiblaClick} 
-                className="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all text-emerald-600 dark:text-emerald-400"
+                className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all text-emerald-600 dark:text-emerald-400 flex-shrink-0"
+                title={txt.qiblaDirection}
               >
-                <span className="text-sm flex-shrink-0">🕋</span>
-                <span className="text-xs font-medium truncate max-w-[50px] sm:max-w-none">{txt.qiblaDirection}</span>
+                <span className="text-sm">🕋</span>
+                <span className="text-xs font-medium hidden sm:inline">{txt.qiblaDirection}</span>
               </button>
             )}
 
@@ -351,10 +353,11 @@ export default function InputBar({
             {onQuranClick && (
               <button 
                 onClick={onQuranClick} 
-                className="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-all text-teal-600 dark:text-teal-400"
+                className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-all text-teal-600 dark:text-teal-400 flex-shrink-0"
+                title={txt.quranPlayer}
               >
-                <BookOpen className="w-4 h-4 flex-shrink-0" />
-                <span className="text-xs font-medium truncate max-w-[50px] sm:max-w-none">{txt.quranPlayer}</span>
+                <BookOpen className="w-4 h-4" />
+                <span className="text-xs font-medium hidden sm:inline">{txt.quranPlayer}</span>
               </button>
             )}
 
@@ -362,10 +365,11 @@ export default function InputBar({
             {onMosqueClick && (
               <button 
                 onClick={onMosqueClick} 
-                className="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-all text-orange-600 dark:text-orange-400"
+                className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-all text-orange-600 dark:text-orange-400 flex-shrink-0"
+                title={txt.mosques}
               >
-                <MapPin className="w-4 h-4 flex-shrink-0" />
-                <span className="text-xs font-medium truncate max-w-[50px] sm:max-w-none">{txt.mosques}</span>
+                <MapPin className="w-4 h-4" />
+                <span className="text-xs font-medium hidden sm:inline">{txt.mosques}</span>
               </button>
             )}
           </div>
@@ -375,14 +379,15 @@ export default function InputBar({
             <button 
               onClick={() => setShowAttachMenu(!showAttachMenu)} 
               disabled={disabled}
-              className={`flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-lg transition-all ${
+              className={`flex items-center gap-1 px-2 py-1.5 rounded-lg transition-all ${
                 showAttachMenu 
                   ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600' 
                   : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
               }`}
+              title={txt.attachFile}
             >
-              <Plus className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 ${showAttachMenu ? 'rotate-45' : ''}`} />
-              <span className="text-xs font-medium truncate max-w-[50px] sm:max-w-none">{txt.attachFile}</span>
+              <Plus className={`w-4 h-4 transition-transform duration-200 ${showAttachMenu ? 'rotate-45' : ''}`} />
+              <span className="text-xs font-medium hidden sm:inline">{txt.attachFile}</span>
             </button>
 
             {/* Menu d'attachement */}
@@ -532,6 +537,13 @@ export default function InputBar({
         @keyframes fadeInUp {
           from { opacity: 0; transform: translateY(10px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        .hide-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+          display: none;
         }
       `}</style>
     </div>
