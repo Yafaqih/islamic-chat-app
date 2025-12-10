@@ -50,7 +50,7 @@ model User {
   createdAt              DateTime       @default(now())
   updatedAt              DateTime       @updatedAt
   
-  // ✅ CHAMPS POUR DASHBOARD ADMIN
+  // ✅ NOUVEAUX CHAMPS POUR DASHBOARD ADMIN
   isAdmin                Boolean        @default(false)
   role                   String         @default("user")
   subscriptionStatus     String         @default("active")
@@ -68,12 +68,12 @@ model User {
   sessions               Session[]
   conversations          Conversation[]
   
-  // Relations admin
+  // ✅ NOUVELLES RELATIONS
   promoUsage             PromoUsage[]
   adminLogs              AdminLog[]     @relation("AdminActions")
   preferences            UserPreferences?
   
-  // INDEX POUR PERFORMANCE
+  // ✅ INDEX POUR PERFORMANCE
   @@index([subscriptionTier])
   @@index([isAdmin])
   @@index([lastActivity])
@@ -112,7 +112,7 @@ model Message {
 }
 
 // ============================================
-// MODÈLE PROMO CODE
+// 🆕 MODÈLE PROMO CODE
 // ============================================
 model PromoCode {
   id              String       @id @default(cuid())
@@ -140,7 +140,7 @@ model PromoCode {
 }
 
 // ============================================
-// MODÈLE PROMO USAGE
+// 🆕 MODÈLE PROMO USAGE
 // ============================================
 model PromoUsage {
   id              String     @id @default(cuid())
@@ -159,7 +159,7 @@ model PromoUsage {
 }
 
 // ============================================
-// MODÈLE PRODUCT (Plans tarifaires)
+// 🆕 MODÈLE PRODUCT (Plans tarifaires)
 // ============================================
 model Product {
   id              String    @id @default(cuid())
@@ -183,7 +183,7 @@ model Product {
 }
 
 // ============================================
-// MODÈLE ADMIN LOG
+// 🆕 MODÈLE ADMIN LOG
 // ============================================
 model AdminLog {
   id          String    @id @default(cuid())
@@ -204,7 +204,7 @@ model AdminLog {
 }
 
 // ============================================
-// MODÈLE USER PREFERENCES
+// 🆕 MODÈLE USER PREFERENCES (Suggestions intelligentes)
 // ============================================
 model UserPreferences {
   id          String    @id @default(cuid())
@@ -214,7 +214,7 @@ model UserPreferences {
   // Thèmes préférés avec scores (JSON: { "companions": 5, "quran": 3, ... })
   themes      Json      @default("{}")
   
-  // Historique des dernières questions
+  // Historique des dernières questions (pour analyse plus poussée)
   recentTopics String[] @default([])
   
   // Langue préférée
@@ -225,43 +225,4 @@ model UserPreferences {
 
   @@index([userId])
   @@map("user_preferences")
-}
-
-// ============================================
-// 🆕 MODÈLE SETTINGS (Paramètres système)
-// ============================================
-model Settings {
-  id          String    @id @default(cuid())
-  key         String    @unique    // Clé unique: 'subscription_plans', 'app_config', etc.
-  value       String    @db.Text   // Valeur JSON stringifiée
-  description String?              // Description optionnelle
-  category    String    @default("general") // Catégorie: general, subscriptions, notifications, etc.
-  
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@index([key])
-  @@index([category])
-  @@map("settings")
-}
-
-// ============================================
-// 🆕 MODÈLE SUBSCRIPTION HISTORY (Historique des changements)
-// ============================================
-model SubscriptionHistory {
-  id              String    @id @default(cuid())
-  userId          String
-  previousTier    String?
-  newTier         String
-  previousStatus  String?
-  newStatus       String
-  reason          String?   // Raison du changement (upgrade, downgrade, admin, etc.)
-  changedBy       String?   // ID de l'admin si changement manuel
-  amount          Decimal?  @db.Decimal(10, 2)
-  
-  createdAt       DateTime  @default(now())
-
-  @@index([userId])
-  @@index([createdAt])
-  @@map("subscription_history")
 }

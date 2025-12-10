@@ -4,360 +4,371 @@ import {
   CreditCard, Users, DollarSign, TrendingUp, Calendar,
   RefreshCw, Search, Filter, Download, Edit2, Trash2,
   CheckCircle, XCircle, Clock, Zap, Crown, User,
-  ChevronLeft, ChevronRight, MoreVertical, Eye, AlertCircle
+  ChevronLeft, ChevronRight, MoreVertical, Eye, AlertCircle,
+  Save, X, Plus
 } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 
 /**
- * SubscriptionsTab - Gestion des abonnements
+ * SubscriptionsTab - Gestion des abonnements avec vraies données
  */
 export default function SubscriptionsTab() {
   const { language, isRTL } = useLanguage();
   const [loading, setLoading] = useState(true);
-  const [activeView, setActiveView] = useState('overview'); // overview, plans, history
+  const [saving, setSaving] = useState(false);
+  const [activeView, setActiveView] = useState('overview');
   const [subscriptions, setSubscriptions] = useState([]);
   const [stats, setStats] = useState(null);
+  const [plans, setPlans] = useState([]);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterTier, setFilterTier] = useState('all');
   const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  
+  // Modals
   const [editingPlan, setEditingPlan] = useState(null);
+  const [editingSubscription, setEditingSubscription] = useState(null);
+  const [showSuccess, setShowSuccess] = useState('');
 
   const txt = {
     ar: {
       title: 'إدارة الاشتراكات',
       overview: 'نظرة عامة',
       plans: 'الخطط',
-      history: 'السجل',
-      
-      // Stats
-      totalSubscribers: 'إجمالي المشتركين',
-      activeSubscriptions: 'الاشتراكات النشطة',
+      history: 'المشتركون',
+      totalSubscribers: 'إجمالي المستخدمين',
+      activeSubscriptions: 'الاشتراكات المدفوعة',
       monthlyRevenue: 'الإيرادات الشهرية',
       yearlyRevenue: 'الإيرادات السنوية',
-      
-      // Plans
       planName: 'اسم الخطة',
       price: 'السعر',
+      messageLimit: 'حد الرسائل',
       features: 'المميزات',
       subscribers: 'المشتركون',
       status: 'الحالة',
       actions: 'إجراءات',
-      
-      // Status
       active: 'نشط',
       inactive: 'غير نشط',
       cancelled: 'ملغي',
       expired: 'منتهي',
       trial: 'تجريبي',
-      
-      // Plans
       free: 'مجاني',
       pro: 'احترافي',
       premium: 'مميز',
-      
-      // Features
-      messagesPerDay: 'رسالة/يوم',
-      unlimitedMessages: 'رسائل غير محدودة',
-      basicSupport: 'دعم أساسي',
-      prioritySupport: 'دعم أولوية',
-      premiumSupport: 'دعم مميز 24/7',
-      quranAccess: 'الوصول للقرآن',
-      advancedFeatures: 'مميزات متقدمة',
-      allFeatures: 'جميع المميزات',
-      
-      // Actions
       edit: 'تعديل',
-      delete: 'حذف',
-      view: 'عرض',
       save: 'حفظ',
       cancel: 'إلغاء',
-      
-      // History
+      close: 'إغلاق',
       user: 'المستخدم',
       plan: 'الخطة',
       amount: 'المبلغ',
       date: 'التاريخ',
-      paymentMethod: 'طريقة الدفع',
-      
-      // Messages
+      nextBilling: 'الفاتورة التالية',
       noSubscriptions: 'لا توجد اشتراكات',
       loading: 'جاري التحميل...',
-      searchPlaceholder: 'البحث...',
-      exportData: 'تصدير البيانات',
-      
+      searchPlaceholder: 'البحث بالاسم أو البريد...',
+      exportData: 'تصدير',
+      allPlans: 'جميع الخطط',
+      allStatus: 'جميع الحالات',
       month: '/شهر',
-      year: '/سنة'
+      unlimited: 'غير محدود',
+      messagesPerDay: 'رسالة/يوم',
+      editPlan: 'تعديل الخطة',
+      editSubscription: 'تعديل الاشتراك',
+      changePlan: 'تغيير الخطة',
+      saveSuccess: 'تم الحفظ بنجاح',
+      currency: 'العملة',
+      planColor: 'اللون',
+      planActive: 'الخطة نشطة',
+      addFeature: 'إضافة ميزة',
+      removeFeature: 'حذف',
+      featurePlaceholder: 'ميزة جديدة...',
+      reason: 'السبب (اختياري)',
+      upgrade: 'ترقية',
+      downgrade: 'تخفيض'
     },
     fr: {
       title: 'Gestion des Abonnements',
       overview: 'Vue d\'ensemble',
-      plans: 'Plans',
-      history: 'Historique',
-      
-      // Stats
-      totalSubscribers: 'Total Abonnés',
-      activeSubscriptions: 'Abonnements Actifs',
+      plans: 'Forfaits',
+      history: 'Abonnés',
+      totalSubscribers: 'Total Utilisateurs',
+      activeSubscriptions: 'Abonnements Payants',
       monthlyRevenue: 'Revenu Mensuel',
       yearlyRevenue: 'Revenu Annuel',
-      
-      // Plans
-      planName: 'Nom du plan',
+      planName: 'Nom du forfait',
       price: 'Prix',
+      messageLimit: 'Limite messages',
       features: 'Fonctionnalités',
       subscribers: 'Abonnés',
       status: 'Statut',
       actions: 'Actions',
-      
-      // Status
       active: 'Actif',
       inactive: 'Inactif',
       cancelled: 'Annulé',
       expired: 'Expiré',
       trial: 'Essai',
-      
-      // Plans
       free: 'Free',
       pro: 'Pro',
       premium: 'Premium',
-      
-      // Features
-      messagesPerDay: 'messages/jour',
-      unlimitedMessages: 'Messages illimités',
-      basicSupport: 'Support basique',
-      prioritySupport: 'Support prioritaire',
-      premiumSupport: 'Support premium 24/7',
-      quranAccess: 'Accès Coran',
-      advancedFeatures: 'Fonctionnalités avancées',
-      allFeatures: 'Toutes les fonctionnalités',
-      
-      // Actions
       edit: 'Modifier',
-      delete: 'Supprimer',
-      view: 'Voir',
       save: 'Enregistrer',
       cancel: 'Annuler',
-      
-      // History
+      close: 'Fermer',
       user: 'Utilisateur',
-      plan: 'Plan',
+      plan: 'Forfait',
       amount: 'Montant',
       date: 'Date',
-      paymentMethod: 'Méthode de paiement',
-      
-      // Messages
+      nextBilling: 'Prochaine facture',
       noSubscriptions: 'Aucun abonnement',
       loading: 'Chargement...',
-      searchPlaceholder: 'Rechercher...',
-      exportData: 'Exporter les données',
-      
+      searchPlaceholder: 'Rechercher par nom ou email...',
+      exportData: 'Exporter',
+      allPlans: 'Tous les forfaits',
+      allStatus: 'Tous les statuts',
       month: '/mois',
-      year: '/an'
+      unlimited: 'Illimité',
+      messagesPerDay: 'messages/jour',
+      editPlan: 'Modifier le forfait',
+      editSubscription: 'Modifier l\'abonnement',
+      changePlan: 'Changer de forfait',
+      saveSuccess: 'Enregistré avec succès',
+      currency: 'Devise',
+      planColor: 'Couleur',
+      planActive: 'Forfait actif',
+      addFeature: 'Ajouter une fonctionnalité',
+      removeFeature: 'Supprimer',
+      featurePlaceholder: 'Nouvelle fonctionnalité...',
+      reason: 'Raison (optionnel)',
+      upgrade: 'Upgrade',
+      downgrade: 'Downgrade'
     },
     en: {
       title: 'Subscription Management',
       overview: 'Overview',
       plans: 'Plans',
-      history: 'History',
-      
-      // Stats
-      totalSubscribers: 'Total Subscribers',
-      activeSubscriptions: 'Active Subscriptions',
+      history: 'Subscribers',
+      totalSubscribers: 'Total Users',
+      activeSubscriptions: 'Paid Subscriptions',
       monthlyRevenue: 'Monthly Revenue',
       yearlyRevenue: 'Yearly Revenue',
-      
-      // Plans
       planName: 'Plan Name',
       price: 'Price',
+      messageLimit: 'Message Limit',
       features: 'Features',
       subscribers: 'Subscribers',
       status: 'Status',
       actions: 'Actions',
-      
-      // Status
       active: 'Active',
       inactive: 'Inactive',
       cancelled: 'Cancelled',
       expired: 'Expired',
       trial: 'Trial',
-      
-      // Plans
       free: 'Free',
       pro: 'Pro',
       premium: 'Premium',
-      
-      // Features
-      messagesPerDay: 'messages/day',
-      unlimitedMessages: 'Unlimited messages',
-      basicSupport: 'Basic support',
-      prioritySupport: 'Priority support',
-      premiumSupport: 'Premium 24/7 support',
-      quranAccess: 'Quran access',
-      advancedFeatures: 'Advanced features',
-      allFeatures: 'All features',
-      
-      // Actions
       edit: 'Edit',
-      delete: 'Delete',
-      view: 'View',
       save: 'Save',
       cancel: 'Cancel',
-      
-      // History
+      close: 'Close',
       user: 'User',
       plan: 'Plan',
       amount: 'Amount',
       date: 'Date',
-      paymentMethod: 'Payment Method',
-      
-      // Messages
+      nextBilling: 'Next Billing',
       noSubscriptions: 'No subscriptions',
       loading: 'Loading...',
-      searchPlaceholder: 'Search...',
-      exportData: 'Export Data',
-      
+      searchPlaceholder: 'Search by name or email...',
+      exportData: 'Export',
+      allPlans: 'All Plans',
+      allStatus: 'All Status',
       month: '/month',
-      year: '/year'
+      unlimited: 'Unlimited',
+      messagesPerDay: 'messages/day',
+      editPlan: 'Edit Plan',
+      editSubscription: 'Edit Subscription',
+      changePlan: 'Change Plan',
+      saveSuccess: 'Saved successfully',
+      currency: 'Currency',
+      planColor: 'Color',
+      planActive: 'Plan Active',
+      addFeature: 'Add Feature',
+      removeFeature: 'Remove',
+      featurePlaceholder: 'New feature...',
+      reason: 'Reason (optional)',
+      upgrade: 'Upgrade',
+      downgrade: 'Downgrade'
     }
-  }[language] || {
-    title: 'Subscriptions', overview: 'Overview', plans: 'Plans', history: 'History',
-    totalSubscribers: 'Subscribers', activeSubscriptions: 'Active', monthlyRevenue: 'MRR',
-    yearlyRevenue: 'ARR', planName: 'Plan', price: 'Price', features: 'Features',
-    subscribers: 'Subscribers', status: 'Status', actions: 'Actions', active: 'Active',
-    inactive: 'Inactive', cancelled: 'Cancelled', expired: 'Expired', trial: 'Trial',
-    free: 'Free', pro: 'Pro', premium: 'Premium', edit: 'Edit', delete: 'Delete',
-    view: 'View', save: 'Save', cancel: 'Cancel', user: 'User', plan: 'Plan',
-    amount: 'Amount', date: 'Date', paymentMethod: 'Payment', noSubscriptions: 'None',
-    loading: 'Loading...', searchPlaceholder: 'Search...', exportData: 'Export',
-    month: '/mo', year: '/yr', messagesPerDay: 'msg/day', unlimitedMessages: 'Unlimited',
-    basicSupport: 'Basic', prioritySupport: 'Priority', premiumSupport: '24/7',
-    quranAccess: 'Quran', advancedFeatures: 'Advanced', allFeatures: 'All'
-  };
+  }[language] || {};
 
-  // Plans de base
-  const [plans, setPlans] = useState([
-    {
-      id: 'free',
-      name: txt.free,
-      price: 0,
-      currency: '$',
-      interval: 'month',
-      features: [
-        `10 ${txt.messagesPerDay}`,
-        txt.basicSupport,
-        txt.quranAccess
-      ],
-      color: 'gray',
-      icon: User,
-      isActive: true
-    },
-    {
-      id: 'pro',
-      name: txt.pro,
-      price: 9.99,
-      currency: '$',
-      interval: 'month',
-      features: [
-        `100 ${txt.messagesPerDay}`,
-        txt.prioritySupport,
-        txt.quranAccess,
-        txt.advancedFeatures
-      ],
-      color: 'blue',
-      icon: Zap,
-      isActive: true
-    },
-    {
-      id: 'premium',
-      name: txt.premium,
-      price: 29.99,
-      currency: '$',
-      interval: 'month',
-      features: [
-        txt.unlimitedMessages,
-        txt.premiumSupport,
-        txt.allFeatures
-      ],
-      color: 'purple',
-      icon: Crown,
-      isActive: true
-    }
-  ]);
-
+  // Charger les données au montage
   useEffect(() => {
     loadData();
   }, []);
 
+  // Recharger l'historique quand les filtres changent
+  useEffect(() => {
+    if (activeView === 'history') {
+      loadHistory();
+    }
+  }, [page, filterStatus, filterTier, search, activeView]);
+
   const loadData = async () => {
     setLoading(true);
     try {
-      // Charger les stats
-      const statsRes = await fetch('/api/admin/subscriptions/stats');
-      if (statsRes.ok) {
-        const data = await statsRes.json();
-        setStats(data);
-      } else {
-        // Données de démo
-        setStats({
-          totalSubscribers: 1250,
-          activeSubscriptions: 580,
-          monthlyRevenue: 4999.50,
-          yearlyRevenue: 52000,
-          byPlan: { free: 650, pro: 420, premium: 180 },
-          growth: 12.5
-        });
-      }
-
-      // Charger l'historique
-      const historyRes = await fetch('/api/admin/subscriptions/history');
-      if (historyRes.ok) {
-        const data = await historyRes.json();
-        setSubscriptions(data.subscriptions || []);
-      } else {
-        // Données de démo
-        setSubscriptions(generateMockHistory());
-      }
+      await Promise.all([loadStats(), loadPlans(), loadHistory()]);
     } catch (error) {
-      console.error('Error loading data:', error);
-      setStats({
-        totalSubscribers: 1250,
-        activeSubscriptions: 580,
-        monthlyRevenue: 4999.50,
-        yearlyRevenue: 52000,
-        byPlan: { free: 650, pro: 420, premium: 180 },
-        growth: 12.5
-      });
-      setSubscriptions(generateMockHistory());
+      console.error('Erreur chargement données:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const generateMockHistory = () => {
-    const names = ['Ahmed M.', 'Sarah L.', 'Mohammed K.', 'Fatima A.', 'Omar B.', 'Aisha C.', 'Youssef D.', 'Meryem E.'];
-    const plans = ['pro', 'premium', 'pro', 'premium'];
-    const statuses = ['active', 'active', 'active', 'cancelled', 'expired'];
-    
-    return Array.from({ length: 20 }, (_, i) => ({
-      id: `sub_${i}`,
-      user: {
-        name: names[i % names.length],
-        email: `user${i}@example.com`
-      },
-      plan: plans[i % plans.length],
-      amount: plans[i % plans.length] === 'pro' ? 9.99 : 29.99,
-      status: statuses[i % statuses.length],
-      startDate: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000).toISOString(),
-      nextBilling: new Date(Date.now() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
-      paymentMethod: i % 2 === 0 ? 'Stripe' : 'PayPal'
-    }));
+  const loadStats = async () => {
+    try {
+      const res = await fetch('/api/admin/subscriptions/stats');
+      if (res.ok) {
+        const data = await res.json();
+        setStats(data);
+      }
+    } catch (error) {
+      console.error('Erreur stats:', error);
+    }
   };
 
-  const filteredSubscriptions = subscriptions.filter(sub => {
-    const matchesSearch = sub.user.name.toLowerCase().includes(search.toLowerCase()) ||
-                         sub.user.email.toLowerCase().includes(search.toLowerCase());
-    const matchesFilter = filterStatus === 'all' || sub.status === filterStatus;
-    return matchesSearch && matchesFilter;
-  });
+  const loadPlans = async () => {
+    try {
+      const res = await fetch('/api/admin/subscriptions/plans');
+      if (res.ok) {
+        const data = await res.json();
+        setPlans(data.plans || []);
+      }
+    } catch (error) {
+      console.error('Erreur plans:', error);
+    }
+  };
+
+  const loadHistory = async () => {
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: '10',
+        status: filterStatus,
+        tier: filterTier,
+        search: search
+      });
+
+      const res = await fetch(`/api/admin/subscriptions/history?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSubscriptions(data.subscriptions || []);
+        setTotalPages(data.pagination?.totalPages || 1);
+      }
+    } catch (error) {
+      console.error('Erreur historique:', error);
+    }
+  };
+
+  // Sauvegarder les modifications d'un plan
+  const savePlan = async () => {
+    if (!editingPlan) return;
+    
+    setSaving(true);
+    try {
+      // Mettre à jour le plan dans la liste
+      const updatedPlans = plans.map(p => 
+        p.id === editingPlan.id ? editingPlan : p
+      );
+
+      const res = await fetch('/api/admin/subscriptions/plans', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plans: updatedPlans })
+      });
+
+      if (res.ok) {
+        setPlans(updatedPlans);
+        setEditingPlan(null);
+        showSuccessMessage(txt.saveSuccess);
+        await loadStats(); // Recharger les stats pour mettre à jour les revenus
+      } else {
+        const error = await res.json();
+        alert(error.error || 'Erreur lors de la sauvegarde');
+      }
+    } catch (error) {
+      console.error('Erreur sauvegarde plan:', error);
+      alert('Erreur lors de la sauvegarde');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Modifier l'abonnement d'un utilisateur
+  const saveSubscription = async () => {
+    if (!editingSubscription) return;
+
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/admin/subscriptions/${editingSubscription.user.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subscriptionTier: editingSubscription.plan,
+          subscriptionStatus: editingSubscription.status,
+          reason: editingSubscription.reason
+        })
+      });
+
+      if (res.ok) {
+        setEditingSubscription(null);
+        showSuccessMessage(txt.saveSuccess);
+        await Promise.all([loadStats(), loadHistory()]);
+      } else {
+        const error = await res.json();
+        alert(error.error || 'Erreur lors de la modification');
+      }
+    } catch (error) {
+      console.error('Erreur modification abonnement:', error);
+      alert('Erreur lors de la modification');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const showSuccessMessage = (message) => {
+    setShowSuccess(message);
+    setTimeout(() => setShowSuccess(''), 3000);
+  };
+
+  const exportData = async () => {
+    try {
+      const res = await fetch('/api/admin/subscriptions/history?limit=1000&tier=all');
+      if (res.ok) {
+        const data = await res.json();
+        const csv = [
+          ['Nom', 'Email', 'Forfait', 'Statut', 'Montant', 'Date'].join(','),
+          ...data.subscriptions.map(s => [
+            s.user.name,
+            s.user.email,
+            s.plan,
+            s.status,
+            s.amount,
+            new Date(s.startDate).toLocaleDateString()
+          ].join(','))
+        ].join('\n');
+
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `subscriptions_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+      }
+    } catch (error) {
+      console.error('Erreur export:', error);
+    }
+  };
 
   const getStatusBadge = (status) => {
     const config = {
@@ -405,21 +416,30 @@ export default function SubscriptionsTab() {
       <div className={`flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center ${isRTL ? 'sm:flex-row-reverse' : ''}`}>
         <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-200">{txt.title}</h2>
         
-        {/* Sub-navigation */}
-        <div className={`flex gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-          {['overview', 'plans', 'history'].map((view) => (
-            <button
-              key={view}
-              onClick={() => setActiveView(view)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activeView === view
-                  ? 'bg-emerald-500 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
-            >
-              {txt[view]}
-            </button>
-          ))}
+        <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+          {showSuccess && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-green-100 dark:bg-green-900/30 text-green-600 rounded-lg">
+              <CheckCircle className="w-4 h-4" />
+              <span className="text-sm">{showSuccess}</span>
+            </div>
+          )}
+          
+          {/* Sub-navigation */}
+          <div className={`flex gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
+            {['overview', 'plans', 'history'].map((view) => (
+              <button
+                key={view}
+                onClick={() => setActiveView(view)}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  activeView === view
+                    ? 'bg-white dark:bg-gray-600 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100'
+                }`}
+              >
+                {txt[view]}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -430,42 +450,42 @@ export default function SubscriptionsTab() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
               title={txt.totalSubscribers}
-              value={stats.totalSubscribers?.toLocaleString()}
+              value={stats.totalSubscribers?.toLocaleString() || '0'}
               icon={Users}
               color="blue"
               isRTL={isRTL}
             />
             <StatCard
               title={txt.activeSubscriptions}
-              value={stats.activeSubscriptions?.toLocaleString()}
+              value={stats.activeSubscriptions?.toLocaleString() || '0'}
               icon={CheckCircle}
               color="green"
               isRTL={isRTL}
             />
             <StatCard
               title={txt.monthlyRevenue}
-              value={`$${stats.monthlyRevenue?.toLocaleString()}`}
+              value={`$${stats.monthlyRevenue?.toLocaleString() || '0'}`}
               icon={DollarSign}
               color="emerald"
+              trend={stats.growth}
               isRTL={isRTL}
             />
             <StatCard
               title={txt.yearlyRevenue}
-              value={`$${stats.yearlyRevenue?.toLocaleString()}`}
+              value={`$${stats.yearlyRevenue?.toLocaleString() || '0'}`}
               icon={TrendingUp}
               color="purple"
               isRTL={isRTL}
             />
           </div>
 
-          {/* Distribution */}
+          {/* Distribution par plan */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {plans.map((plan) => {
               const count = stats.byPlan?.[plan.id] || 0;
               const percentage = stats.totalSubscribers > 0 
                 ? ((count / stats.totalSubscribers) * 100).toFixed(1) 
                 : 0;
-              const Icon = plan.icon;
               
               return (
                 <div
@@ -474,20 +494,20 @@ export default function SubscriptionsTab() {
                 >
                   <div className={`flex items-center gap-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                      plan.color === 'gray' ? 'bg-gray-100 dark:bg-gray-700' :
-                      plan.color === 'blue' ? 'bg-blue-100 dark:bg-blue-900/30' :
+                      plan.id === 'free' ? 'bg-gray-100 dark:bg-gray-700' :
+                      plan.id === 'pro' ? 'bg-blue-100 dark:bg-blue-900/30' :
                       'bg-purple-100 dark:bg-purple-900/30'
                     }`}>
-                      <Icon className={`w-6 h-6 ${
-                        plan.color === 'gray' ? 'text-gray-600 dark:text-gray-400' :
-                        plan.color === 'blue' ? 'text-blue-600 dark:text-blue-400' :
-                        'text-purple-600 dark:text-purple-400'
-                      }`} />
+                      {plan.id === 'free' ? <User className="w-6 h-6 text-gray-600" /> :
+                       plan.id === 'pro' ? <Zap className="w-6 h-6 text-blue-600" /> :
+                       <Crown className="w-6 h-6 text-purple-600" />}
                     </div>
                     <div className={isRTL ? 'text-right' : 'text-left'}>
-                      <h3 className="font-semibold text-gray-800 dark:text-gray-200">{plan.name}</h3>
+                      <h3 className="font-semibold text-gray-800 dark:text-gray-200">
+                        {language === 'ar' ? plan.nameAr : language === 'fr' ? plan.nameFr : plan.name}
+                      </h3>
                       <p className="text-sm text-gray-500">
-                        {plan.price > 0 ? `${plan.currency}${plan.price}${txt.month}` : txt.free}
+                        {plan.price > 0 ? `$${plan.price}${txt.month}` : txt.free}
                       </p>
                     </div>
                   </div>
@@ -498,9 +518,9 @@ export default function SubscriptionsTab() {
                     </div>
                     <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                       <div
-                        className={`h-2 rounded-full ${
-                          plan.color === 'gray' ? 'bg-gray-500' :
-                          plan.color === 'blue' ? 'bg-blue-500' :
+                        className={`h-2 rounded-full transition-all ${
+                          plan.id === 'free' ? 'bg-gray-500' :
+                          plan.id === 'pro' ? 'bg-blue-500' :
                           'bg-purple-500'
                         }`}
                         style={{ width: `${percentage}%` }}
@@ -514,75 +534,77 @@ export default function SubscriptionsTab() {
         </div>
       )}
 
-      {/* Plans */}
+      {/* Plans Management */}
       {activeView === 'plans' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {plans.map((plan) => {
-            const Icon = plan.icon;
-            return (
-              <div
-                key={plan.id}
-                className={`bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border-2 ${
-                  plan.id === 'premium' 
-                    ? 'border-purple-500 relative' 
-                    : 'border-gray-200 dark:border-gray-700'
-                }`}
-              >
-                {plan.id === 'premium' && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <span className="bg-purple-500 text-white text-xs font-bold px-3 py-1 rounded-full">
-                      POPULAIRE
-                    </span>
-                  </div>
-                )}
-                
-                <div className="text-center mb-6">
-                  <div className={`w-16 h-16 mx-auto rounded-2xl flex items-center justify-center mb-4 ${
-                    plan.color === 'gray' ? 'bg-gray-100 dark:bg-gray-700' :
-                    plan.color === 'blue' ? 'bg-blue-100 dark:bg-blue-900/30' :
-                    'bg-purple-100 dark:bg-purple-900/30'
-                  }`}>
-                    <Icon className={`w-8 h-8 ${
-                      plan.color === 'gray' ? 'text-gray-600 dark:text-gray-400' :
-                      plan.color === 'blue' ? 'text-blue-600 dark:text-blue-400' :
-                      'text-purple-600 dark:text-purple-400'
-                    }`} />
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">{plan.name}</h3>
-                  <div className="mt-2">
-                    <span className="text-3xl font-bold text-gray-800 dark:text-gray-200">
-                      {plan.currency}{plan.price}
-                    </span>
-                    {plan.price > 0 && (
-                      <span className="text-gray-500">{txt.month}</span>
-                    )}
-                  </div>
+          {plans.map((plan) => (
+            <div
+              key={plan.id}
+              className={`bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border-2 transition-all relative ${
+                plan.id === 'premium' 
+                  ? 'border-purple-500' 
+                  : 'border-gray-200 dark:border-gray-700'
+              }`}
+            >
+              {plan.id === 'premium' && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  <span className="bg-purple-500 text-white text-xs font-bold px-3 py-1 rounded-full">
+                    POPULAIRE
+                  </span>
                 </div>
-
-                <ul className="space-y-3 mb-6">
-                  {plan.features.map((feature, idx) => (
-                    <li key={idx} className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                      <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-                      <span className="text-gray-600 dark:text-gray-400 text-sm">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <div className={`flex gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                  <button
-                    onClick={() => setEditingPlan(plan)}
-                    className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm font-medium"
-                  >
-                    {txt.edit}
-                  </button>
+              )}
+              
+              <div className="text-center mb-6">
+                <div className={`w-16 h-16 mx-auto rounded-2xl flex items-center justify-center mb-4 ${
+                  plan.id === 'free' ? 'bg-gray-100 dark:bg-gray-700' :
+                  plan.id === 'pro' ? 'bg-blue-100 dark:bg-blue-900/30' :
+                  'bg-purple-100 dark:bg-purple-900/30'
+                }`}>
+                  {plan.id === 'free' ? <User className="w-8 h-8 text-gray-600" /> :
+                   plan.id === 'pro' ? <Zap className="w-8 h-8 text-blue-600" /> :
+                   <Crown className="w-8 h-8 text-purple-600" />}
                 </div>
+                <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">
+                  {language === 'ar' ? plan.nameAr : language === 'fr' ? plan.nameFr : plan.name}
+                </h3>
+                <div className="mt-2">
+                  <span className="text-3xl font-bold text-gray-800 dark:text-gray-200">
+                    ${plan.price}
+                  </span>
+                  {plan.price > 0 && (
+                    <span className="text-gray-500">{txt.month}</span>
+                  )}
+                </div>
+                <p className="text-sm text-gray-500 mt-2">
+                  {plan.messageLimit === -1 ? txt.unlimited : `${plan.messageLimit} ${txt.messagesPerDay}`}
+                </p>
+                <p className="text-sm text-emerald-600 font-medium mt-1">
+                  {plan.subscriberCount || 0} {txt.subscribers}
+                </p>
               </div>
-            );
-          })}
+
+              <ul className="space-y-2 mb-6">
+                {(language === 'ar' ? plan.featuresAr : language === 'fr' ? plan.featuresFr : plan.features)?.map((feature, idx) => (
+                  <li key={idx} className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                    <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                    <span className="text-sm text-gray-600 dark:text-gray-400">{feature}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <button
+                onClick={() => setEditingPlan({...plan})}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                <Edit2 className="w-4 h-4" />
+                {txt.edit}
+              </button>
+            </div>
+          ))}
         </div>
       )}
 
-      {/* History */}
+      {/* Subscribers List */}
       {activeView === 'history' && (
         <div className="space-y-4">
           {/* Filters */}
@@ -593,21 +615,37 @@ export default function SubscriptionsTab() {
                 type="text"
                 placeholder={txt.searchPlaceholder}
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                 className={`w-full ${isRTL ? 'pr-10 pl-4 text-right' : 'pl-10 pr-4'} py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200`}
               />
             </div>
+            
             <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
+              value={filterTier}
+              onChange={(e) => { setFilterTier(e.target.value); setPage(1); }}
               className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
             >
-              <option value="all">{txt.status}: All</option>
+              <option value="all">{txt.allPlans}</option>
+              <option value="free">{txt.free}</option>
+              <option value="pro">{txt.pro}</option>
+              <option value="premium">{txt.premium}</option>
+            </select>
+            
+            <select
+              value={filterStatus}
+              onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+            >
+              <option value="all">{txt.allStatus}</option>
               <option value="active">{txt.active}</option>
               <option value="cancelled">{txt.cancelled}</option>
               <option value="expired">{txt.expired}</option>
             </select>
-            <button className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600">
+            
+            <button 
+              onClick={exportData}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600"
+            >
               <Download className="w-4 h-4" />
               {txt.exportData}
             </button>
@@ -628,55 +666,78 @@ export default function SubscriptionsTab() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {filteredSubscriptions.slice((page - 1) * 10, page * 10).map((sub) => (
-                    <tr key={sub.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                      <td className={`px-6 py-4 ${isRTL ? 'text-right' : 'text-left'}`}>
-                        <div>
-                          <p className="font-medium text-gray-800 dark:text-gray-200">{sub.user.name}</p>
-                          <p className="text-sm text-gray-500">{sub.user.email}</p>
-                        </div>
-                      </td>
-                      <td className={`px-6 py-4 ${isRTL ? 'text-right' : 'text-left'}`}>
-                        {getPlanBadge(sub.plan)}
-                      </td>
-                      <td className={`px-6 py-4 font-medium text-gray-800 dark:text-gray-200 ${isRTL ? 'text-right' : 'text-left'}`}>
-                        ${sub.amount}
-                      </td>
-                      <td className={`px-6 py-4 ${isRTL ? 'text-right' : 'text-left'}`}>
-                        {getStatusBadge(sub.status)}
-                      </td>
-                      <td className={`px-6 py-4 text-gray-600 dark:text-gray-400 ${isRTL ? 'text-right' : 'text-left'}`}>
-                        {new Date(sub.startDate).toLocaleDateString()}
-                      </td>
-                      <td className={`px-6 py-4 ${isRTL ? 'text-right' : 'text-left'}`}>
-                        <button className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                          <Eye className="w-4 h-4" />
-                        </button>
+                  {subscriptions.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                        {txt.noSubscriptions}
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    subscriptions.map((sub) => (
+                      <tr key={sub.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                        <td className={`px-6 py-4 ${isRTL ? 'text-right' : 'text-left'}`}>
+                          <div className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                            {sub.user.image ? (
+                              <img src={sub.user.image} alt="" className="w-8 h-8 rounded-full" />
+                            ) : (
+                              <div className="w-8 h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center">
+                                <span className="text-emerald-600 font-medium text-sm">
+                                  {sub.user.name?.charAt(0) || '?'}
+                                </span>
+                              </div>
+                            )}
+                            <div>
+                              <p className="font-medium text-gray-800 dark:text-gray-200">{sub.user.name}</p>
+                              <p className="text-sm text-gray-500">{sub.user.email}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className={`px-6 py-4 ${isRTL ? 'text-right' : 'text-left'}`}>
+                          {getPlanBadge(sub.plan)}
+                        </td>
+                        <td className={`px-6 py-4 font-medium text-gray-800 dark:text-gray-200 ${isRTL ? 'text-right' : 'text-left'}`}>
+                          ${sub.amount}{txt.month}
+                        </td>
+                        <td className={`px-6 py-4 ${isRTL ? 'text-right' : 'text-left'}`}>
+                          {getStatusBadge(sub.status)}
+                        </td>
+                        <td className={`px-6 py-4 text-gray-600 dark:text-gray-400 ${isRTL ? 'text-right' : 'text-left'}`}>
+                          {new Date(sub.startDate).toLocaleDateString()}
+                        </td>
+                        <td className={`px-6 py-4 ${isRTL ? 'text-right' : 'text-left'}`}>
+                          <button 
+                            onClick={() => setEditingSubscription({...sub})}
+                            className="p-2 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors"
+                            title={txt.edit}
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
 
           {/* Pagination */}
-          {filteredSubscriptions.length > 10 && (
+          {totalPages > 1 && (
             <div className={`flex items-center justify-center gap-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg disabled:opacity-50"
+                className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg disabled:opacity-50 hover:bg-gray-200 dark:hover:bg-gray-600"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <span className="text-gray-600 dark:text-gray-400">
-                {page} / {Math.ceil(filteredSubscriptions.length / 10)}
+                {page} / {totalPages}
               </span>
               <button
-                onClick={() => setPage(p => Math.min(Math.ceil(filteredSubscriptions.length / 10), p + 1))}
-                disabled={page >= Math.ceil(filteredSubscriptions.length / 10)}
-                className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg disabled:opacity-50"
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg disabled:opacity-50 hover:bg-gray-200 dark:hover:bg-gray-600"
               >
                 <ChevronRight className="w-5 h-5" />
               </button>
@@ -684,12 +745,246 @@ export default function SubscriptionsTab() {
           )}
         </div>
       )}
+
+      {/* Modal: Edit Plan */}
+      {editingPlan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className={`flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">{txt.editPlan}</h3>
+              <button onClick={() => setEditingPlan(null)} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              {/* Nom */}
+              <div>
+                <label className={`block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 ${isRTL ? 'text-right' : ''}`}>
+                  {txt.planName}
+                </label>
+                <input
+                  type="text"
+                  value={editingPlan.name}
+                  onChange={(e) => setEditingPlan({...editingPlan, name: e.target.value})}
+                  className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 ${isRTL ? 'text-right' : ''}`}
+                />
+              </div>
+
+              {/* Prix */}
+              <div>
+                <label className={`block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 ${isRTL ? 'text-right' : ''}`}>
+                  {txt.price} (USD)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={editingPlan.price}
+                  onChange={(e) => setEditingPlan({...editingPlan, price: parseFloat(e.target.value) || 0})}
+                  className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 ${isRTL ? 'text-right' : ''}`}
+                />
+              </div>
+
+              {/* Limite messages */}
+              <div>
+                <label className={`block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 ${isRTL ? 'text-right' : ''}`}>
+                  {txt.messageLimit} (-1 = {txt.unlimited})
+                </label>
+                <input
+                  type="number"
+                  value={editingPlan.messageLimit}
+                  onChange={(e) => setEditingPlan({...editingPlan, messageLimit: parseInt(e.target.value) || 0})}
+                  className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 ${isRTL ? 'text-right' : ''}`}
+                />
+              </div>
+
+              {/* Features */}
+              <div>
+                <label className={`block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 ${isRTL ? 'text-right' : ''}`}>
+                  {txt.features}
+                </label>
+                <div className="space-y-2">
+                  {editingPlan.features?.map((feature, idx) => (
+                    <div key={idx} className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                      <input
+                        type="text"
+                        value={feature}
+                        onChange={(e) => {
+                          const newFeatures = [...editingPlan.features];
+                          newFeatures[idx] = e.target.value;
+                          setEditingPlan({...editingPlan, features: newFeatures});
+                        }}
+                        className={`flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-sm ${isRTL ? 'text-right' : ''}`}
+                      />
+                      <button
+                        onClick={() => {
+                          const newFeatures = editingPlan.features.filter((_, i) => i !== idx);
+                          setEditingPlan({...editingPlan, features: newFeatures});
+                        }}
+                        className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => setEditingPlan({...editingPlan, features: [...(editingPlan.features || []), '']})}
+                    className={`flex items-center gap-2 text-sm text-emerald-600 hover:text-emerald-700 ${isRTL ? 'flex-row-reverse' : ''}`}
+                  >
+                    <Plus className="w-4 h-4" />
+                    {txt.addFeature}
+                  </button>
+                </div>
+              </div>
+
+              {/* Active toggle */}
+              <div className={`flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg ${isRTL ? 'flex-row-reverse' : ''}`}>
+                <span className="font-medium text-gray-700 dark:text-gray-300">{txt.planActive}</span>
+                <button
+                  onClick={() => setEditingPlan({...editingPlan, isActive: !editingPlan.isActive})}
+                  className={`relative w-12 h-6 rounded-full transition-colors ${
+                    editingPlan.isActive ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'
+                  }`}
+                >
+                  <div
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                      editingPlan.isActive ? 'right-1' : 'left-1'
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+
+            <div className={`flex gap-3 p-6 border-t border-gray-200 dark:border-gray-700 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <button
+                onClick={() => setEditingPlan(null)}
+                className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
+              >
+                {txt.cancel}
+              </button>
+              <button
+                onClick={savePlan}
+                disabled={saving}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 disabled:opacity-50"
+              >
+                {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {txt.save}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Edit Subscription */}
+      {editingSubscription && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md">
+            <div className={`flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">{txt.editSubscription}</h3>
+              <button onClick={() => setEditingSubscription(null)} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              {/* User info */}
+              <div className={`flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg ${isRTL ? 'flex-row-reverse' : ''}`}>
+                <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center">
+                  <span className="text-emerald-600 font-bold text-lg">
+                    {editingSubscription.user.name?.charAt(0) || '?'}
+                  </span>
+                </div>
+                <div className={isRTL ? 'text-right' : ''}>
+                  <p className="font-medium text-gray-800 dark:text-gray-200">{editingSubscription.user.name}</p>
+                  <p className="text-sm text-gray-500">{editingSubscription.user.email}</p>
+                </div>
+              </div>
+
+              {/* Change Plan */}
+              <div>
+                <label className={`block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 ${isRTL ? 'text-right' : ''}`}>
+                  {txt.changePlan}
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {['free', 'pro', 'premium'].map((tier) => (
+                    <button
+                      key={tier}
+                      onClick={() => setEditingSubscription({...editingSubscription, plan: tier})}
+                      className={`p-3 rounded-lg border-2 transition-colors ${
+                        editingSubscription.plan === tier
+                          ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
+                          : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                      }`}
+                    >
+                      <div className="text-center">
+                        {tier === 'free' ? <User className="w-5 h-5 mx-auto text-gray-500" /> :
+                         tier === 'pro' ? <Zap className="w-5 h-5 mx-auto text-blue-500" /> :
+                         <Crown className="w-5 h-5 mx-auto text-purple-500" />}
+                        <p className="text-sm font-medium mt-1 text-gray-700 dark:text-gray-300">{txt[tier]}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Status */}
+              <div>
+                <label className={`block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 ${isRTL ? 'text-right' : ''}`}>
+                  {txt.status}
+                </label>
+                <select
+                  value={editingSubscription.status}
+                  onChange={(e) => setEditingSubscription({...editingSubscription, status: e.target.value})}
+                  className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 ${isRTL ? 'text-right' : ''}`}
+                >
+                  <option value="active">{txt.active}</option>
+                  <option value="cancelled">{txt.cancelled}</option>
+                  <option value="expired">{txt.expired}</option>
+                  <option value="trial">{txt.trial}</option>
+                </select>
+              </div>
+
+              {/* Reason */}
+              <div>
+                <label className={`block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 ${isRTL ? 'text-right' : ''}`}>
+                  {txt.reason}
+                </label>
+                <input
+                  type="text"
+                  value={editingSubscription.reason || ''}
+                  onChange={(e) => setEditingSubscription({...editingSubscription, reason: e.target.value})}
+                  placeholder="Ex: Upgrade gratuit, cadeau..."
+                  className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 ${isRTL ? 'text-right' : ''}`}
+                />
+              </div>
+            </div>
+
+            <div className={`flex gap-3 p-6 border-t border-gray-200 dark:border-gray-700 ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <button
+                onClick={() => setEditingSubscription(null)}
+                className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600"
+              >
+                {txt.cancel}
+              </button>
+              <button
+                onClick={saveSubscription}
+                disabled={saving}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 disabled:opacity-50"
+              >
+                {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {txt.save}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // StatCard Component
-function StatCard({ title, value, icon: Icon, color, isRTL }) {
+function StatCard({ title, value, icon: Icon, color, trend, isRTL }) {
   const colorClasses = {
     blue: 'from-blue-500 to-blue-600',
     green: 'from-green-500 to-green-600',
@@ -703,6 +998,11 @@ function StatCard({ title, value, icon: Icon, color, isRTL }) {
         <div className={isRTL ? 'text-right' : 'text-left'}>
           <p className="text-sm text-gray-500 dark:text-gray-400">{title}</p>
           <p className="text-2xl font-bold text-gray-800 dark:text-gray-200 mt-1">{value}</p>
+          {trend !== undefined && (
+            <p className={`text-sm mt-1 ${trend >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+              {trend >= 0 ? '+' : ''}{trend}%
+            </p>
+          )}
         </div>
         <div className={`w-12 h-12 bg-gradient-to-br ${colorClasses[color]} rounded-xl flex items-center justify-center`}>
           <Icon className="w-6 h-6 text-white" />
