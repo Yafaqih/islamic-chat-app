@@ -563,9 +563,9 @@ export default function IslamicChatApp() {
 
   // === PAGE AUTHENTIFIÉE ===
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800`} dir={dir}>
+    <div className={`h-screen flex flex-col overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800`} dir={dir}>
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-40 bg-gradient-to-r from-emerald-600 to-teal-600 shadow-lg" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+      <header className="flex-shrink-0 z-40 bg-gradient-to-r from-emerald-600 to-teal-600 shadow-lg" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3">
           <div className="flex items-center justify-between">
             {/* Logo et titre */}
@@ -812,30 +812,27 @@ export default function IslamicChatApp() {
         </div>
       )}
 
-      {/* Indicateur de messages restants */}
-      {usage && usage.dailyLimit && usage.dailyLimit !== -1 && (
-        <div 
-          className="fixed right-3 sm:right-4 z-30 bg-white dark:bg-gray-800 rounded-xl px-3 py-2 shadow-lg border border-gray-200 dark:border-gray-700"
-          style={{ top: 'calc(60px + env(safe-area-inset-top, 0px))' }}
-        >
-          <div className={`flex items-center gap-2 text-sm ${isRTL ? 'flex-row-reverse' : ''}`}>
-            <MessageSquare className="w-4 h-4 text-emerald-500" />
-            <span className="text-gray-600 dark:text-gray-400">
-              {usage.messagesRemaining}/{usage.dailyLimit}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Zone de messages - scroll optimisé mobile */}
-      <div 
-        className="max-w-4xl mx-auto px-3 sm:px-4 pb-44 sm:pb-48"
-        style={{ 
-          paddingTop: 'calc(80px + env(safe-area-inset-top, 0px))',
-          minHeight: '100vh'
-        }}
+      {/* Zone de messages - Container scrollable */}
+      <main 
+        className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain"
+        style={{ WebkitOverflowScrolling: 'touch' }}
       >
-        <div className="space-y-6">
+        {/* Indicateur de messages restants */}
+        {usage && usage.dailyLimit && usage.dailyLimit !== -1 && (
+          <div className="sticky top-0 z-10 flex justify-end px-4 py-2">
+            <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-xl px-3 py-1.5 shadow-lg border border-gray-200 dark:border-gray-700">
+              <div className={`flex items-center gap-2 text-sm ${isRTL ? 'flex-row-reverse' : ''}`}>
+                <MessageSquare className="w-4 h-4 text-emerald-500" />
+                <span className="text-gray-600 dark:text-gray-400">
+                  {usage.messagesRemaining}/{usage.dailyLimit}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="max-w-4xl mx-auto px-3 sm:px-4 py-4">
+          <div className="space-y-6">
           {messages.map((msg) => (
             <div key={msg.id} className={`flex gap-4 ${msg.role === 'user' ? (isRTL ? '' : 'flex-row-reverse') : (isRTL ? 'flex-row-reverse' : '')}`}>
               <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
@@ -1000,10 +997,14 @@ export default function IslamicChatApp() {
             </div>
           </div>
         )}
-      </div>
+        </div>
+      </main>
 
       {/* Input Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-white dark:from-gray-900 via-white/95 dark:via-gray-900/95 to-transparent p-3 sm:p-4" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom, 12px))' }}>
+      <div 
+        className="flex-shrink-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 p-3 sm:p-4" 
+        style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom, 12px))' }}
+      >
         <div className="max-w-4xl mx-auto">
           <InputBar
             value={input}
