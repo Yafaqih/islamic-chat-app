@@ -12,7 +12,8 @@ import {
   Plus,
   Bell,
   BookOpen,
-  MapPin
+  MapPin,
+  ScanLine
 } from 'lucide-react';
 import useGoogleDrivePicker from '../hooks/useGoogleDrivePicker';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -31,7 +32,8 @@ export default function InputBar({
   onQiblaClick,
   onPrayerClick,
   onQuranClick,
-  onMosqueClick
+  onMosqueClick,
+  onHalalScanClick // ✅ Nouveau prop pour le scanner halal
 }) {
   const { language, isRTL } = useLanguage();
   
@@ -61,6 +63,7 @@ export default function InputBar({
       qiblaDirection: 'القبلة',
       quranPlayer: 'القرآن',
       mosques: 'المساجد',
+      halalScan: 'حلال', // ✅ Nouveau
       hint: 'اضغط Enter للإرسال • Shift+Enter لسطر جديد',
       voiceNotSupported: 'التعرف على الصوت غير مدعوم في هذا المتصفح',
       screenshotNotSupported: 'التقاط الشاشة غير مدعوم في هذا المتصفح',
@@ -83,6 +86,7 @@ export default function InputBar({
       qiblaDirection: 'Qibla',
       quranPlayer: 'Coran',
       mosques: 'Mosquées',
+      halalScan: 'Halal', // ✅ Nouveau
       hint: 'Entrée pour envoyer • Shift+Entrée nouvelle ligne',
       voiceNotSupported: 'La reconnaissance vocale n\'est pas prise en charge',
       screenshotNotSupported: 'La capture d\'écran n\'est pas prise en charge',
@@ -105,6 +109,7 @@ export default function InputBar({
       qiblaDirection: 'Qibla',
       quranPlayer: 'Quran',
       mosques: 'Mosques',
+      halalScan: 'Halal', // ✅ Nouveau
       hint: 'Enter to send • Shift+Enter new line',
       voiceNotSupported: 'Voice recognition not supported',
       screenshotNotSupported: 'Screenshot not supported',
@@ -126,6 +131,7 @@ export default function InputBar({
     prayerTimes: 'الصلاة',
     qiblaDirection: 'القبلة',
     quranPlayer: 'القرآن',
+    halalScan: 'حلال',
     hint: 'اضغط Enter للإرسال',
     voiceNotSupported: 'التعرف على الصوت غير مدعوم',
     screenshotNotSupported: 'التقاط الشاشة غير مدعوم',
@@ -184,14 +190,11 @@ export default function InputBar({
   };
 
   const handleFileSelect = (e) => {
-    const files = Array.from(e.target.files);
-    processFiles(files);
-    e.target.value = '';
-  };
-
-  const processFiles = (files) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    
     const newFiles = files.map(file => ({
-      id: Math.random().toString(36).substring(7),
+      id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name: file.name,
       type: file.type,
       size: file.size,
@@ -199,13 +202,11 @@ export default function InputBar({
       preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
       source: 'local'
     }));
+    
     setUploadedFiles(prev => [...prev, ...newFiles]);
     setShowAttachMenu(false);
     if (onFileUpload) onFileUpload(newFiles);
-  };
-
-  const removeFile = (fileId) => {
-    setUploadedFiles(prev => prev.filter(f => f.id !== fileId));
+    e.target.value = '';
   };
 
   const handleScreenshot = async () => {
@@ -223,36 +224,52 @@ export default function InputBar({
       canvas.height = video.videoHeight;
       canvas.getContext('2d').drawImage(video, 0, 0);
       stream.getTracks().forEach(track => track.stop());
-      canvas.toBlob((blob) => {
-        const file = new File([blob], `screenshot-${Date.now()}.png`, { type: 'image/png' });
-        processFiles([file]);
+      canvas.toBlob(blob => {
+        if (blob) {
+          const file = new File([blob], `screenshot-${Date.now()}.png`, { type: 'image/png' });
+          const newFile = {
+            id: `screenshot-${Date.now()}`,
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            file: file,
+            preview: URL.createObjectURL(blob),
+            source: 'screenshot'
+          };
+          setUploadedFiles(prev => [...prev, newFile]);
+          if (onFileUpload) onFileUpload([newFile]);
+        }
       }, 'image/png');
+      setShowAttachMenu(false);
     } catch (err) {
       console.error('Screenshot error:', err);
     }
-    setShowAttachMenu(false);
+  };
+
+  const removeFile = (fileId) => {
+    setUploadedFiles(prev => {
+      const file = prev.find(f => f.id === fileId);
+      if (file?.preview) URL.revokeObjectURL(file.preview);
+      return prev.filter(f => f.id !== fileId);
+    });
   };
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      if (canSend) handleSendWithFiles();
+      handleSendWithFiles();
     }
   };
 
-  // Fonction pour envoyer avec les fichiers
   const handleSendWithFiles = () => {
-    if (onSend && (value.trim() || uploadedFiles.length > 0)) {
-      onSend(uploadedFiles); // Passer les fichiers au parent
-      setUploadedFiles([]); // Effacer les fichiers après envoi
-    }
+    if ((!value.trim() && uploadedFiles.length === 0) || isLoading) return;
+    onSend(uploadedFiles);
+    setUploadedFiles([]);
   };
-
-  // Peut envoyer si texte OU fichiers
-  const canSend = (value.trim() || uploadedFiles.length > 0) && !isLoading && !disabled;
 
   const handleTextareaChange = (e) => {
     onChange(e.target.value);
+    // Auto-resize
     const textarea = textareaRef.current;
     if (textarea) {
       textarea.style.height = 'auto';
@@ -260,57 +277,61 @@ export default function InputBar({
     }
   };
 
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-  };
-
+  // Drag and drop handlers
   const handleDragOver = (e) => { e.preventDefault(); setIsDragging(true); };
   const handleDragLeave = (e) => { e.preventDefault(); setIsDragging(false); };
   const handleDrop = (e) => {
     e.preventDefault();
     setIsDragging(false);
     const files = Array.from(e.dataTransfer.files);
-    if (files.length > 0) processFiles(files);
+    if (files.length > 0) {
+      const newFiles = files.map(file => ({
+        id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        file: file,
+        preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
+        source: 'local'
+      }));
+      setUploadedFiles(prev => [...prev, ...newFiles]);
+      if (onFileUpload) onFileUpload(newFiles);
+    }
   };
+
+  const canSend = (value.trim() || uploadedFiles.length > 0) && !isLoading;
 
   return (
     <div 
-      className="w-full px-3 sm:px-4 pb-3 sm:pb-4"
+      className="relative"
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {/* Zone de drag & drop */}
+      {/* Drop Zone Overlay */}
       {isDragging && (
-        <div className="absolute inset-0 bg-emerald-500/10 border-2 border-dashed border-emerald-500 rounded-2xl flex items-center justify-center z-10 backdrop-blur-sm">
-          <div className="text-center">
-            <Paperclip className="w-10 h-10 text-emerald-500 mx-auto mb-2" />
-            <p className="text-emerald-600 font-medium">{txt.dragFiles}</p>
-          </div>
+        <div className="absolute inset-0 bg-emerald-500/20 border-2 border-dashed border-emerald-500 rounded-2xl z-20 flex items-center justify-center">
+          <p className="text-emerald-600 dark:text-emerald-400 font-medium">{txt.dragFiles}</p>
         </div>
       )}
 
-      {/* Fichiers uploadés */}
+      {/* Fichiers attachés */}
       {uploadedFiles.length > 0 && (
-        <div className={`mb-3 flex flex-wrap gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+        <div className={`mb-2 flex flex-wrap gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
           {uploadedFiles.map((file) => (
-            <div key={file.id} className="relative group bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-2 flex items-center gap-2 max-w-[200px]">
+            <div key={file.id} className="relative group bg-gray-100 dark:bg-gray-700 rounded-xl p-2 flex items-center gap-2 max-w-[180px]">
               {file.preview ? (
                 <img src={file.preview} alt={file.name} className="w-10 h-10 object-cover rounded-lg" />
               ) : (
-                <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 bg-gray-200 dark:bg-gray-600 rounded-lg flex items-center justify-center">
                   <FileText className="w-5 h-5 text-gray-500" />
                 </div>
               )}
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{file.name}</p>
-                <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+                <p className="text-xs text-gray-500">{(file.size / 1024).toFixed(0)} KB</p>
               </div>
-              <button onClick={() => removeFile(file.id)} className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <button onClick={() => removeFile(file.id)} className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                 <X className="w-3 h-3" />
               </button>
             </div>
@@ -318,42 +339,44 @@ export default function InputBar({
         </div>
       )}
 
-      {/* Conteneur principal */}
-      <div className={`bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-2xl focus-within:border-emerald-500 transition-all shadow-sm ${isDragging ? 'border-emerald-500' : ''}`}>
-        
-        {/* Ligne 1: Boutons d'outils */}
-        <div className={`flex items-center justify-between px-1.5 sm:px-3 pt-2 pb-1.5 border-b border-gray-100 dark:border-gray-700 ${isRTL ? 'flex-row-reverse' : ''}`}>
-          {/* Boutons gauche - scroll horizontal sur mobile */}
-          <div className={`flex items-center gap-0.5 overflow-x-auto hide-scrollbar ${isRTL ? 'flex-row-reverse' : ''}`}>
-            {/* Bouton Prayer */}
+      {/* Input Container */}
+      <div className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-lg ${isDragging ? 'ring-2 ring-emerald-500' : ''}`}>
+        {/* Ligne 1: Outils rapides */}
+        <div className={`flex items-center gap-1 p-2 border-b border-gray-100 dark:border-gray-700 overflow-x-auto hide-scrollbar ${isRTL ? 'flex-row-reverse' : ''}`}>
+          {/* Boutons outils islamiques */}
+          <div className={`flex items-center gap-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
+            {/* Horaires Prière */}
             {onPrayerClick && (
               <button 
-                onClick={onPrayerClick} 
-                className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all text-purple-600 dark:text-purple-400 flex-shrink-0"
+                onClick={onPrayerClick}
+                className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/20 text-amber-600 dark:text-amber-400 transition-colors flex-shrink-0"
                 title={txt.prayerTimes}
               >
                 <Bell className="w-4 h-4" />
                 <span className="text-xs font-medium hidden sm:inline">{txt.prayerTimes}</span>
               </button>
             )}
-            
-            {/* Bouton Qibla */}
+
+            {/* Qibla */}
             {onQiblaClick && (
               <button 
-                onClick={onQiblaClick} 
-                className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all text-emerald-600 dark:text-emerald-400 flex-shrink-0"
+                onClick={onQiblaClick}
+                className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600 dark:text-blue-400 transition-colors flex-shrink-0"
                 title={txt.qiblaDirection}
               >
-                <span className="text-sm">🕋</span>
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polygon points="12,2 15,10 12,8 9,10" fill="currentColor"/>
+                </svg>
                 <span className="text-xs font-medium hidden sm:inline">{txt.qiblaDirection}</span>
               </button>
             )}
 
-            {/* Bouton Quran */}
+            {/* Coran */}
             {onQuranClick && (
               <button 
-                onClick={onQuranClick} 
-                className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-all text-teal-600 dark:text-teal-400 flex-shrink-0"
+                onClick={onQuranClick}
+                className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 transition-colors flex-shrink-0"
                 title={txt.quranPlayer}
               >
                 <BookOpen className="w-4 h-4" />
@@ -361,15 +384,27 @@ export default function InputBar({
               </button>
             )}
 
-            {/* Bouton Mosquées */}
+            {/* Mosquées */}
             {onMosqueClick && (
               <button 
-                onClick={onMosqueClick} 
-                className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-all text-orange-600 dark:text-orange-400 flex-shrink-0"
+                onClick={onMosqueClick}
+                className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 text-purple-600 dark:text-purple-400 transition-colors flex-shrink-0"
                 title={txt.mosques}
               >
                 <MapPin className="w-4 h-4" />
                 <span className="text-xs font-medium hidden sm:inline">{txt.mosques}</span>
+              </button>
+            )}
+
+            {/* ✅ Scanner Halal - NOUVEAU */}
+            {onHalalScanClick && (
+              <button 
+                onClick={onHalalScanClick}
+                className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400 transition-colors flex-shrink-0"
+                title={txt.halalScan}
+              >
+                <ScanLine className="w-4 h-4" />
+                <span className="text-xs font-medium hidden sm:inline">{txt.halalScan}</span>
               </button>
             )}
           </div>
