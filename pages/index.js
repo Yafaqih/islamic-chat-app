@@ -814,7 +814,10 @@ export default function IslamicChatApp() {
 
       {/* Indicateur de messages restants */}
       {usage && usage.dailyLimit && usage.dailyLimit !== -1 && (
-        <div className="fixed top-20 right-4 z-30 bg-white dark:bg-gray-800 rounded-xl px-3 py-2 shadow-lg border border-gray-200 dark:border-gray-700">
+        <div 
+          className="fixed right-3 sm:right-4 z-30 bg-white dark:bg-gray-800 rounded-xl px-3 py-2 shadow-lg border border-gray-200 dark:border-gray-700"
+          style={{ top: 'calc(60px + env(safe-area-inset-top, 0px))' }}
+        >
           <div className={`flex items-center gap-2 text-sm ${isRTL ? 'flex-row-reverse' : ''}`}>
             <MessageSquare className="w-4 h-4 text-emerald-500" />
             <span className="text-gray-600 dark:text-gray-400">
@@ -824,8 +827,14 @@ export default function IslamicChatApp() {
         </div>
       )}
 
-      {/* Zone de messages - pt pour header fixed, pb pour InputBar fixed */}
-      <div className="max-w-4xl mx-auto p-4 pb-52 pt-16 sm:pt-20">
+      {/* Zone de messages - scroll optimisé mobile */}
+      <div 
+        className="max-w-4xl mx-auto px-3 sm:px-4 pb-44 sm:pb-48"
+        style={{ 
+          paddingTop: 'calc(80px + env(safe-area-inset-top, 0px))',
+          minHeight: '100vh'
+        }}
+      >
         <div className="space-y-6">
           {messages.map((msg) => (
             <div key={msg.id} className={`flex gap-4 ${msg.role === 'user' ? (isRTL ? '' : 'flex-row-reverse') : (isRTL ? 'flex-row-reverse' : '')}`}>
