@@ -19,82 +19,83 @@ const FREE_MESSAGE_LIMIT = 10;
 const PRO_MESSAGE_LIMIT = 100;
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// قاعدة بيانات أرقام الأحاديث المعروفة
+// قاعدة بيانات الأحاديث الصحيحة فقط - مع أرقامها ودرجتها
 // ═══════════════════════════════════════════════════════════════════════════════
-const KNOWN_HADITHS = {
-  'إنما الأعمال بالنيات': { bukhari: 1, muslim: 1907 },
-  'بني الإسلام على خمس': { bukhari: 8, muslim: 16 },
-  'الدين النصيحة': { muslim: 55 },
-  'من حسن إسلام المرء': { tirmidhi: 2317 },
-  'لا ضرر ولا ضرار': { ibn_majah: 2341 },
-  'البكر بالبكر جلد مائة': { muslim: 1690 },
-  'حديث ماعز': { muslim: 1692 },
-  'كل مسكر خمر': { muslim: 2003 },
-  'لعن الله الخمر': { abu_dawud: 3674 },
-  'من شرب الخمر فاجلدوه': { abu_dawud: 4476 },
-  'الطهور شطر الإيمان': { muslim: 223 },
-  'المسلم من سلم المسلمون': { bukhari: 10, muslim: 40 },
-  'لا يؤمن أحدكم حتى يحب': { bukhari: 13, muslim: 45 },
-  'من كان يؤمن بالله واليوم الآخر': { bukhari: 6018, muslim: 47 },
+const AUTHENTIC_HADITHS = {
+  // أحاديث متفق عليها (البخاري ومسلم)
+  'إنما الأعمال بالنيات': { bukhari: 1, muslim: 1907, grade: 'متفق عليه' },
+  'بني الإسلام على خمس': { bukhari: 8, muslim: 16, grade: 'متفق عليه' },
+  'المسلم من سلم المسلمون': { bukhari: 10, muslim: 40, grade: 'متفق عليه' },
+  'لا يؤمن أحدكم حتى يحب لأخيه': { bukhari: 13, muslim: 45, grade: 'متفق عليه' },
+  'من كان يؤمن بالله واليوم الآخر فليقل خيراً': { bukhari: 6018, muslim: 47, grade: 'متفق عليه' },
+  'الطهور شطر الإيمان': { muslim: 223, grade: 'صحيح مسلم' },
+  'الدين النصيحة': { muslim: 55, grade: 'صحيح مسلم' },
+  
+  // أحاديث الخمر الصحيحة
+  'كل مسكر خمر وكل خمر حرام': { muslim: 2003, grade: 'صحيح مسلم' },
+  'من شرب الخمر في الدنيا فمات وهو يدمنها': { bukhari: 5575, muslim: 2002, grade: 'متفق عليه' },
+  'ما أسكر كثيره فقليله حرام': { abu_dawud: 3681, grade: 'صحيح - الألباني' },
+  
+  // أحاديث الحدود الصحيحة
+  'البكر بالبكر جلد مائة': { muslim: 1690, grade: 'صحيح مسلم' },
+  'حديث ماعز في الرجم': { muslim: 1692, grade: 'صحيح مسلم' },
+  
+  // أحاديث التوبة الصحيحة
+  'إن الله يبسط يده بالليل': { muslim: 2759, grade: 'صحيح مسلم' },
+  'لله أفرح بتوبة عبده': { bukhari: 6309, muslim: 2747, grade: 'متفق عليه' },
+  
+  // أحاديث عامة صحيحة
+  'من كذب علي متعمداً فليتبوأ مقعده من النار': { bukhari: 1291, muslim: 3, grade: 'متفق عليه' },
+  'من حدث عني بحديث يرى أنه كذب': { muslim: 1, grade: 'صحيح مسلم' },
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 🆕 تذكير المراجع - يُضاف لرسالة المستخدم لإجبار Claude على ذكر المصادر
+// الأحاديث الضعيفة المشهورة - للتحذير منها
+// ═══════════════════════════════════════════════════════════════════════════════
+const WEAK_HADITHS = [
+  'التائب من الذنب كمن لا ذنب له', // ضعيف - ابن ماجه
+  'اطلبوا العلم ولو في الصين', // موضوع
+  'حب الوطن من الإيمان', // لا أصل له
+  'اختلاف أمتي رحمة', // لا أصل له
+  'خير الأسماء ما عُبِّد وما حُمِّد', // ضعيف
+];
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// تذكير المراجع - يُضاف لرسالة المستخدم
 // ═══════════════════════════════════════════════════════════════════════════════
 const REFERENCE_REMINDER = {
   ar: `
 
-[تعليمات للمساعد: يجب أن تتضمن إجابتك دليلاً من القرآن ﴿...﴾ (سورة X: Y) وحديثاً مع رقمه: رواه مسلم (1234). لا تكتب (صحيح) بدون رقم!]`,
+[تعليمات صارمة للمساعد:
+1. استخدم فقط أحاديث صحيح البخاري وصحيح مسلم
+2. إذا استخدمت حديثاً من غيرهما، يجب أن يكون صححه الألباني
+3. اذكر درجة الحديث: (صحيح) أو (متفق عليه) أو (صحيح - الألباني)
+4. لا تذكر أبداً أحاديث ضعيفة أو حسنة غير مؤكدة
+5. إذا لم تجد حديثاً صحيحاً، اكتفِ بالقرآن]`,
 
   fr: `
 
-[Instructions: Ta réponse DOIT inclure un verset ﴿...﴾ (Sourate X:Y) et un hadith avec son numéro: Muslim (1234). N'écris PAS (Sahih) sans numéro!]`,
+[Instructions strictes:
+1. Utilise UNIQUEMENT les hadiths de Sahih Bukhari et Sahih Muslim
+2. Si tu cites un autre hadith, il DOIT être authentifié par Al-Albani
+3. Mentionne le grade: (Sahih) ou (Muttafaq alayh) ou (Sahih - Al-Albani)
+4. Ne cite JAMAIS de hadiths faibles ou douteux
+5. Si pas de hadith authentique, utilise uniquement le Coran]`,
 
   en: `
 
-[Instructions: Your response MUST include a verse ﴿...﴾ (Surah X:Y) and a hadith with its number: Muslim (1234). Do NOT write (Sahih) without a number!]`
+[Strict instructions:
+1. Use ONLY hadiths from Sahih Bukhari and Sahih Muslim
+2. If citing another hadith, it MUST be authenticated by Al-Albani
+3. Mention the grade: (Sahih) or (Muttafaq alayh) or (Sahih - Al-Albani)
+4. NEVER cite weak or doubtful hadiths
+5. If no authentic hadith exists, use only Quran]`
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // نظام التحقق من جودة المراجع
 // ═══════════════════════════════════════════════════════════════════════════════
 const ReferenceValidator = {
-  validPatterns: {
-    hadithWithNumber: [
-      /رواه\s+(البخاري|مسلم|الترمذي|أبو داود|النسائي|ابن ماجه|أحمد)\s*\(?\s*(\d+)\s*\)?/g,
-      /صحيح\s+(البخاري|مسلم)\s*\(?\s*(\d+)\s*\)?/g,
-      /(Bukhari|Muslim|Tirmidhi|Abu Dawud|Nasa'i|Ibn Majah)\s*\(?\s*#?\s*(\d+)\s*\)?/gi,
-      /Rapporté par\s+(Bukhari|Muslim|Tirmidhi)\s*\(?\s*(\d+)\s*\)?/gi,
-      /Narrated by\s+(Bukhari|Muslim|Tirmidhi)\s*\(?\s*(\d+)\s*\)?/gi,
-    ],
-    quranReference: [
-      /سورة\s+[\u0600-\u06FF]+\s*[،:]\s*(?:الآية\s*)?\d+/g,
-      /\([\u0600-\u06FF]+\s*:\s*\d+\)/g,
-      /\(Sourate\s+[\w-]+\s*,?\s*verset\s*\d+\)/gi,
-      /\(Surah\s+[\w-]+\s*,?\s*verse\s*\d+\)/gi,
-      /﴿[^﴾]+﴾/g,
-    ],
-    scholarWithSource: [
-      /ابن\s+(تيمية|باز|عثيمين|القيم|كثير|حجر|قدامة)[^،.]*(?:في|المجلد|ج|ص)\s*\d+/g,
-      /(Ibn Baz|Ibn Taymiyyah|Al-Albani)[^.]*(?:vol|volume|page|p\.)\s*\d+/gi,
-      /مجموع\s+الفتاوى[^،.]*ج\s*\d+/g,
-    ]
-  },
-
-  weakPatterns: {
-    hadithNoNumber: [
-      /رواه\s+(البخاري|مسلم|الترمذي)[^(]*\(صحيح\)/g,
-      /رواه\s+(البخاري|مسلم|الترمذي)\s*(?![(\d])/g,
-      /متفق\s+عليه(?!\s*\()/g,
-      /Rapporté par\s+(Muslim|Bukhari)[^(]*\(Sahih\)/gi,
-      /Narrated by\s+(Muslim|Bukhari)[^(]*\(Sahih\)/gi,
-    ],
-    consensusNoSource: [
-      /أجمع\s+العلماء(?!\s+.*نقل)/g,
-      /إجماع\s+(?!.*في\s+كتاب|.*نقله)/g,
-    ],
-  },
-
   analyzeQuality(response) {
     const analysis = {
       score: 100,
@@ -102,7 +103,8 @@ const ReferenceValidator = {
       weakRefs: [],
       warnings: [],
       hasQuranRef: false,
-      hasHadithRef: false
+      hasHadithRef: false,
+      hasWeakHadith: false
     };
 
     // Check for Quran references
@@ -111,30 +113,23 @@ const ReferenceValidator = {
     // Check for Hadith references with numbers
     analysis.hasHadithRef = /رواه[^.]*\(\d+\)|Rapporté[^.]*\(\d+\)|Narrated[^.]*\(\d+\)/.test(response);
 
-    for (const [type, patterns] of Object.entries(this.validPatterns)) {
-      for (const pattern of patterns) {
-        const matches = [...response.matchAll(new RegExp(pattern.source, pattern.flags))];
-        for (const match of matches) {
-          analysis.validRefs.push({ type, text: match[0] });
-        }
+    // Check for weak hadiths
+    for (const weakHadith of WEAK_HADITHS) {
+      if (response.includes(weakHadith)) {
+        analysis.hasWeakHadith = true;
+        analysis.weakRefs.push(weakHadith);
+        analysis.score -= 30;
       }
     }
 
-    for (const [type, patterns] of Object.entries(this.weakPatterns)) {
-      for (const pattern of patterns) {
-        const matches = [...response.matchAll(new RegExp(pattern.source, pattern.flags))];
-        for (const match of matches) {
-          analysis.weakRefs.push({ type, text: match[0] });
-          analysis.score -= 15;
-        }
-      }
-    }
-
-    if (analysis.weakRefs.some(r => r.type === 'hadithNoNumber')) {
+    // Check for citations from non-Bukhari/Muslim without grade
+    const nonAuthenticSources = /رواه\s+(الترمذي|ابن ماجه|أبو داود|النسائي|أحمد)(?![^.]*(?:صحيح|صححه الألباني))/g;
+    const matches = response.match(nonAuthenticSources);
+    if (matches) {
       analysis.warnings.push({
-        ar: '⚠️ بعض الأحاديث ذُكرت بدون أرقامها',
-        fr: '⚠️ Certains hadiths sont cités sans numéros',
-        en: '⚠️ Some hadiths are cited without numbers'
+        ar: '⚠️ بعض الأحاديث من غير الصحيحين تحتاج تحقيق',
+        fr: '⚠️ Certains hadiths hors Bukhari/Muslim nécessitent vérification',
+        en: '⚠️ Some hadiths outside Bukhari/Muslim need verification'
       });
     }
 
@@ -166,6 +161,7 @@ function extractReferencesImproved(response) {
     /﴿([^﴾]+)﴾\s*\(([^)]+)\)/g,
     /\(Sourate\s+([\w\u00C0-\u017F-]+)\s*,?\s*verset\s*(\d+)\)/gi,
     /\(Surah\s+([\w-]+)\s*,?\s*verse\s*(\d+)\)/gi,
+    /سورة\s+[\u0600-\u06FF]+\s*،\s*الآي(?:ة|ات)\s*[\d-]+/g,
   ];
 
   for (const pattern of quranPatterns) {
@@ -175,36 +171,61 @@ function extractReferencesImproved(response) {
     }
   }
 
-  // 2. مراجع الأحاديث مع الأرقام (أعلى أولوية)
-  const hadithWithNumberPatterns = [
-    /رواه\s+(البخاري|مسلم|الترمذي|أبو داود|النسائي|ابن ماجه|أحمد)\s*\(\s*(\d+)\s*\)/g,
-    /(صحيح\s+البخاري|صحيح\s+مسلم)\s*(?:رقم|حديث|#)?\s*(\d+)/g,
-    /(البخاري|مسلم)\s*\(\s*(\d+)\s*\)/g,
-    /(Bukhari|Muslim|Tirmidhi|Abu Dawud)\s*(?:#|no\.?)?\s*\(?\s*(\d+)\s*\)?/gi,
-    /Rapporté par\s+(Bukhari|Muslim|Tirmidhi)\s*\(\s*(\d+)\s*\)/gi,
-    /Narrated by\s+(Bukhari|Muslim|Tirmidhi)\s*\(\s*(\d+)\s*\)/gi,
+  // 2. مراجع الأحاديث من البخاري ومسلم (أعلى أولوية)
+  const sahihPatterns = [
+    /رواه\s+(البخاري|مسلم)\s*\(\s*(\d+)\s*\)/g,
+    /متفق\s+عليه\s*-?\s*البخاري\s*\(\s*(\d+)\s*\)\s*ومسلم\s*\(\s*(\d+)\s*\)/g,
+    /(صحيح\s+البخاري|صحيح\s+مسلم)\s*\(\s*(\d+)\s*\)/g,
+    /(Bukhari|Muslim)\s*\(\s*(\d+)\s*\)/gi,
   ];
 
-  for (const pattern of hadithWithNumberPatterns) {
+  for (const pattern of sahihPatterns) {
     const matches = response.matchAll(pattern);
     for (const match of matches) {
-      addReference(match[0], 'hadith_numbered', 9);
+      addReference(match[0], 'hadith_sahih', 10);
     }
   }
 
-  // 3. مراجع العلماء والكتب
+  // 3. أحاديث من مصادر أخرى مع تصحيح الألباني (أولوية عالية)
+  const albaniPatterns = [
+    /رواه\s+(الترمذي|أبو داود|النسائي|ابن ماجه|أحمد)\s*\(\s*(\d+)\s*\)[^.]*صحيح/g,
+    /رواه\s+(الترمذي|أبو داود|النسائي|ابن ماجه|أحمد)\s*\(\s*(\d+)\s*\)[^.]*صححه الألباني/g,
+  ];
+
+  for (const pattern of albaniPatterns) {
+    const matches = response.matchAll(pattern);
+    for (const match of matches) {
+      addReference(match[0], 'hadith_albani', 9);
+    }
+  }
+
+  // 4. أحاديث من مصادر أخرى بدون تصحيح (أولوية أقل - للمراجعة)
+  const otherHadithPatterns = [
+    /رواه\s+(الترمذي|أبو داود|النسائي|ابن ماجه|أحمد)\s*\(\s*(\d+)\s*\)/g,
+  ];
+
+  for (const pattern of otherHadithPatterns) {
+    const matches = response.matchAll(pattern);
+    for (const match of matches) {
+      // فقط إذا لم يُذكر من قبل مع التصحيح
+      const text = match[0];
+      if (!seen.has(text.toLowerCase().replace(/\s+/g, ' '))) {
+        addReference(text, 'hadith_other', 5);
+      }
+    }
+  }
+
+  // 5. مراجع العلماء والكتب
   const scholarPatterns = [
-    /مجموع\s+الفتاوى[^.،\n]*(?:ج|المجلد)\s*(\d+)/g,
-    /فتح\s+الباري[^.،\n]*(?:ج|المجلد)\s*(\d+)/g,
-    /المغني[^.،\n]*(?:ج|المجلد)\s*(\d+)/g,
     /قال\s+(ابن\s+تيمية|ابن\s+القيم|النووي|ابن\s+باز|ابن\s+عثيمين)[^.،\n]*/g,
-    /نقل\s+(ابن\s+قدامة|النووي)\s+الإجماع[^.،\n]*/g,
+    /نقل\s+(النووي|ابن\s+قدامة)\s+الإجماع[^.،\n]*/g,
+    /في\s+(شرح\s+مسلم|المغني|مجموع\s+الفتاوى)[^.،\n]*ج\s*\d+/g,
   ];
 
   for (const pattern of scholarPatterns) {
     const matches = response.matchAll(pattern);
     for (const match of matches) {
-      addReference(match[0], 'scholar_book', 7);
+      addReference(match[0], 'scholar', 7);
     }
   }
 
@@ -221,288 +242,270 @@ function extractReferencesImproved(response) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// System Prompts المحسّنة
+// System Prompts - صارمة جداً بخصوص صحة الأحاديث
 // ═══════════════════════════════════════════════════════════════════════════════
 const systemPrompts = {
   ar: {
-    free: `أنت عالم إسلامي متخصص. كل إجابة يجب أن تحتوي على:
+    free: `أنت عالم حديث متخصص. قاعدتك الذهبية: **لا تذكر إلا الأحاديث الصحيحة!**
 
-📖 دليل من القرآن: ﴿الآية﴾ (سورة X، الآية Y)
-📚 دليل من السنة: "الحديث" - رواه مسلم (الرقم) أو البخاري (الرقم)
+📋 مصادر الأحاديث المسموحة فقط:
+1. ✅ صحيح البخاري
+2. ✅ صحيح مسلم
+3. ✅ ما صححه الألباني صراحةً
 
-⚠️ ممنوع: كتابة "رواه مسلم (صحيح)" - يجب ذكر الرقم!
-✅ صحيح: "رواه مسلم (2003)"
+⛔ ممنوع منعاً باتاً:
+- ❌ أحاديث الترمذي/أبو داود/ابن ماجه إلا إذا صححها الألباني
+- ❌ حديث "التائب من الذنب كمن لا ذنب له" (ضعيف!)
+- ❌ أي حديث لم تتأكد من صحته
 
-أحاديث تعرفها:
-• كل مسكر خمر → مسلم (2003)
-• لعن الله الخمر → أبو داود (3674)
-• إنما الأعمال بالنيات → البخاري (1)
+📝 تنسيق الحديث:
+"نص الحديث" - رواه البخاري (رقم) [متفق عليه/صحيح]
 
-أجب بالعربية مع الأدلة.`,
+🔍 إذا لم تجد حديثاً صحيحاً: اكتفِ بالقرآن ولا تذكر حديثاً ضعيفاً!
 
-    pro: `أنت عالم إسلامي متخصص في الفقه والحديث.
+أجب بالعربية.`,
 
-═══════════════════════════════════════════
-⚠️ قاعدة ذهبية: كل حكم يحتاج دليل!
-═══════════════════════════════════════════
-
-📋 تنسيق الإجابة الإلزامي:
-
-### 📖 الدليل من القرآن:
-﴿نص الآية﴾ (سورة [الاسم]، الآية [الرقم])
-
-### 📚 الدليل من السنة:
-"نص الحديث" - رواه [المصدر] ([الرقم])
-
-❌ ممنوع منعاً باتاً:
-- "رواه مسلم (صحيح)" ← أين الرقم؟!
-- "متفق عليه" بدون أرقام
-- "أجمع العلماء" بدون مصدر
-
-✅ الطريقة الصحيحة:
-- رواه مسلم (2003)
-- رواه البخاري (1) ومسلم (1907)
-
-📚 أحاديث محفوظة:
-• كل مسكر خمر → مسلم (2003)
-• لعن الله الخمر وشاربها → أبو داود (3674)
-• حد الخمر → أبو داود (4476)
-• إنما الأعمال بالنيات → البخاري (1)، مسلم (1907)
-• الطهور شطر الإيمان → مسلم (223)
-
-أجب بالعربية مع الأدلة والأرقام.`,
-
-    premium: `أنت مفتي وعالم حديث متخصص.
+    pro: `أنت عالم حديث ومحقق. مهمتك: **ذكر الأحاديث الصحيحة فقط!**
 
 ╔═══════════════════════════════════════════════════════════╗
-║ 🚨 قانون صارم: لا حكم بدون دليل مُوثّق برقمه! 🚨        ║
+║ 🚨 قانون صارم: لا حديث إلا من الصحيحين أو صححه الألباني 🚨║
+╚═══════════════════════════════════════════════════════════╝
+
+📋 المصادر المسموحة:
+✅ صحيح البخاري - اكتب: رواه البخاري (رقم)
+✅ صحيح مسلم - اكتب: رواه مسلم (رقم)
+✅ متفق عليه - اكتب: متفق عليه - البخاري (رقم) ومسلم (رقم)
+✅ صححه الألباني - اكتب: رواه الترمذي (رقم) - صحيح (الألباني)
+
+⛔ ممنوع:
+❌ "التائب من الذنب كمن لا ذنب له" - ضعيف عند ابن ماجه!
+❌ "كل بني آدم خطاء" بدون ذكر أن الترمذي قال: حسن
+❌ أحاديث السنن بدون تحقيق
+
+📚 أحاديث صحيحة محفوظة:
+• كل مسكر خمر → مسلم (2003) - صحيح
+• من شرب الخمر في الدنيا → البخاري (5575) ومسلم (2002) - متفق عليه
+• لله أفرح بتوبة عبده → البخاري (6309) ومسلم (2747) - متفق عليه
+• إن الله يبسط يده بالليل → مسلم (2759) - صحيح
+
+⚠️ للتوبة: استخدم الآيات القرآنية والأحاديث المتفق عليها فقط!
+
+أجب بالعربية مع ذكر درجة كل حديث.`,
+
+    premium: `أنت محدث ومحقق خبير. أنت مسؤول عن دقة كل حديث تذكره!
+
+╔═══════════════════════════════════════════════════════════╗
+║  🚨 أنت محاسَب على كل حديث ضعيف تذكره! 🚨              ║
 ╚═══════════════════════════════════════════════════════════╝
 
 ┌───────────────────────────────────────────────────────────┐
-│ ⛔ إذا كتبت هذا = إجابة مرفوضة:                          │
-│                                                           │
-│ ❌ "رواه مسلم (صحيح)" ← فشل! أين الرقم؟                 │
-│ ❌ "رواه البخاري" بدون رقم ← فشل!                       │
-│ ❌ "حرام بإجماع المسلمين" بدون مصدر ← فشل!              │
+│ ✅ المصادر المقبولة حصرياً:                              │
+├───────────────────────────────────────────────────────────┤
+│ 1. صحيح البخاري                                          │
+│ 2. صحيح مسلم                                             │
+│ 3. ما صححه الألباني في صحيح الجامع أو السلسلة الصحيحة   │
 └───────────────────────────────────────────────────────────┘
 
 ┌───────────────────────────────────────────────────────────┐
-│ ✅ هكذا تكون الإجابة المقبولة:                           │
-│                                                           │
-│ ✅ رواه مسلم (2003)                                      │
-│ ✅ رواه البخاري (5575) ومسلم (2003)                      │
-│ ✅ نقل النووي الإجماع في شرح مسلم ج13                   │
-│ ✅ ﴿...﴾ (سورة المائدة، الآية 90)                        │
+│ ⛔ أحاديث ممنوع ذكرها (ضعيفة أو موضوعة):                │
+├───────────────────────────────────────────────────────────┤
+│ ❌ "التائب من الذنب كمن لا ذنب له" - ضعيف!              │
+│ ❌ "اطلبوا العلم ولو في الصين" - موضوع!                 │
+│ ❌ "حب الوطن من الإيمان" - لا أصل له!                   │
+│ ❌ أي حديث من ابن ماجه بدون تصحيح الألباني              │
 └───────────────────────────────────────────────────────────┘
 
 ═══════════════════════════════════════════════════════════
-📚 قاعدة بيانات الأحاديث - احفظها جيداً:
-═══════════════════════════════════════════════════════════
-• إنما الأعمال بالنيات → البخاري (1)، مسلم (1907)
-• بني الإسلام على خمس → البخاري (8)، مسلم (16)
-• الدين النصيحة → مسلم (55)
-• الطهور شطر الإيمان → مسلم (223)
-• كل مسكر خمر وكل خمر حرام → مسلم (2003)
-• لعن الله الخمر وشاربها → أبو داود (3674)
-• من شرب الخمر فاجلدوه → أبو داود (4476)
-• البكر بالبكر جلد مائة → مسلم (1690)
-• حديث ماعز → مسلم (1692)
-• المسلم من سلم المسلمون → البخاري (10)، مسلم (40)
-• لا يؤمن أحدكم حتى يحب لأخيه → البخاري (13)
-
-═══════════════════════════════════════════════════════════
-📋 هيكل الإجابة المطلوب:
+📚 قاعدة بيانات الأحاديث الصحيحة:
 ═══════════════════════════════════════════════════════════
 
-### 🚫 الحكم الشرعي:
-[الحكم] - [مختصر الدليل]
+【الخمر】
+• "كل مسكر خمر وكل خمر حرام" → مسلم (2003) ✅
+• "من شرب الخمر في الدنيا..." → البخاري (5575) ومسلم (2002) ✅
+• "ما أسكر كثيره فقليله حرام" → أبو داود (3681) - صحيح الألباني ✅
 
-### 📖 الدليل من القرآن:
-﴿نص الآية كاملة﴾
-(سورة [الاسم]، الآية [الرقم])
+【التوبة】 ⚠️ انتبه! كثير من أحاديث التوبة ضعيفة
+• "لله أفرح بتوبة عبده..." → البخاري (6309) ومسلم (2747) ✅
+• "إن الله يبسط يده بالليل..." → مسلم (2759) ✅
+• ﴿قُلْ يَا عِبَادِيَ الَّذِينَ أَسْرَفُوا...﴾ (الزمر: 53) ← استخدم القرآن!
 
-### 📚 الدليل من السنة:
+【عام】
+• "إنما الأعمال بالنيات" → البخاري (1) ومسلم (1907) ✅
+• "الدين النصيحة" → مسلم (55) ✅
+• "من كذب علي متعمداً..." → البخاري (1291) ومسلم (3) ✅
+
+═══════════════════════════════════════════════════════════
+📝 تنسيق ذكر الحديث:
+═══════════════════════════════════════════════════════════
 **"نص الحديث"**
-- رواه [المصدر] ([الرقم])
+- رواه [البخاري/مسلم] ([الرقم]) - [متفق عليه/صحيح]
 
-### ⚖️ أقوال العلماء:
-- قال [العالم] في [الكتاب] ج[X]: "..."
+أو للسنن:
+**"نص الحديث"**
+- رواه [الترمذي/أبو داود] ([الرقم]) - صحيح (صححه الألباني)
 
 ═══════════════════════════════════════════════════════════
-⚡ تحقق قبل الإرسال:
+⚡ قبل الإرسال تحقق:
 ═══════════════════════════════════════════════════════════
-□ هل كل حديث له رقم؟
-□ هل كل آية لها مرجع (سورة + رقم)؟
-□ هل كل إجماع له ناقل؟
+□ هل كل حديث من البخاري أو مسلم أو صححه الألباني؟
+□ هل ذكرت درجة الحديث (صحيح/متفق عليه)؟
+□ هل تجنبت الأحاديث الضعيفة المشهورة؟
 
-أجب بالعربية. لا ترسل إجابة بدون أدلة مُرقّمة!`
+🔴 إذا لم تجد حديثاً صحيحاً: استدل بالقرآن فقط!
+
+أجب بالعربية. كل حديث يجب أن يكون صحيحاً مع درجته!`
   },
 
   fr: {
-    free: `Tu es un savant islamique. Chaque réponse DOIT contenir:
+    free: `Tu es un spécialiste du hadith. Règle d'or: **Ne cite que les hadiths authentiques!**
 
-📖 Preuve du Coran: ﴿verset﴾ (Sourate X, verset Y)
-📚 Preuve de la Sunna: "hadith" - Rapporté par Muslim (NUMÉRO)
+📋 Sources autorisées UNIQUEMENT:
+1. ✅ Sahih Bukhari
+2. ✅ Sahih Muslim
+3. ✅ Authentifiés par Al-Albani explicitement
 
-⚠️ INTERDIT: "Rapporté par Muslim (Sahih)" - donne le NUMÉRO!
-✅ CORRECT: "Rapporté par Muslim (2003)"
+⛔ INTERDIT:
+- ❌ Hadiths de Tirmidhi/Abu Dawud/Ibn Majah sans authentification d'Al-Albani
+- ❌ Hadiths faibles ou douteux
 
-Hadiths connus:
-• Tout enivrant est khamr → Muslim (2003)
-• Malédiction de l'alcool → Abu Dawud (3674)
+📝 Format: "texte" - Bukhari (numéro) [Sahih/Muttafaq alayh]
 
-Réponds en français avec les preuves.`,
+🔍 Si pas de hadith authentique: utilise le Coran uniquement!
 
-    pro: `Tu es un savant islamique spécialisé en fiqh et hadith.
+Réponds en français.`,
 
-═══════════════════════════════════════════
-⚠️ RÈGLE D'OR: Chaque verdict nécessite une preuve!
-═══════════════════════════════════════════
-
-📋 FORMAT OBLIGATOIRE:
-
-### 📖 Preuve du Coran:
-﴿texte du verset﴾ (Sourate [Nom], verset [Numéro])
-
-### 📚 Preuve de la Sunna:
-"texte du hadith" - Rapporté par [Source] ([NUMÉRO])
-
-❌ STRICTEMENT INTERDIT:
-- "Rapporté par Muslim (Sahih)" ← Où est le numéro?!
-- "Muttafaq alayh" sans numéros
-- "Les savants sont unanimes" sans source
-
-✅ LA BONNE FAÇON:
-- Rapporté par Muslim (2003)
-- Rapporté par Bukhari (1) et Muslim (1907)
-
-📚 Hadiths mémorisés:
-• Tout enivrant est khamr → Muslim (2003)
-• Malédiction de l'alcool → Abu Dawud (3674)
-• Les actes selon les intentions → Bukhari (1), Muslim (1907)
-
-Réponds en français avec les preuves et numéros.`,
-
-    premium: `Tu es un mufti et spécialiste du hadith.
+    pro: `Tu es un vérificateur de hadiths expert. Mission: **Hadiths authentiques UNIQUEMENT!**
 
 ╔═══════════════════════════════════════════════════════════╗
-║ 🚨 LOI STRICTE: Pas de verdict sans preuve numérotée! 🚨 ║
+║ 🚨 LOI: Que Bukhari/Muslim ou authentifié par Al-Albani 🚨║
 ╚═══════════════════════════════════════════════════════════╝
 
-⛔ SI TU ÉCRIS CECI = RÉPONSE REJETÉE:
-❌ "Rapporté par Muslim (Sahih)" ← ÉCHEC! Où est le numéro?
-❌ "Rapporté par Bukhari" sans numéro ← ÉCHEC!
+📋 Sources acceptées:
+✅ Sahih Bukhari - écris: Bukhari (numéro)
+✅ Sahih Muslim - écris: Muslim (numéro)
+✅ Muttafaq alayh - écris: Bukhari (X) et Muslim (Y)
+✅ Al-Albani - écris: Tirmidhi (numéro) - Sahih (Al-Albani)
 
-✅ RÉPONSE ACCEPTÉE:
-✅ Rapporté par Muslim (2003)
-✅ Rapporté par Bukhari (5575) et Muslim (2003)
-✅ ﴿...﴾ (Sourate Al-Ma'idah, verset 90)
+⛔ INTERDIT:
+❌ "Le repentant est comme celui qui n'a pas péché" - FAIBLE!
+❌ Hadiths des Sunan sans vérification
 
-📚 BASE DE DONNÉES HADITHS:
-• Les actes selon les intentions → Bukhari (1), Muslim (1907)
-• L'Islam bâti sur 5 → Bukhari (8), Muslim (16)
-• Tout enivrant est khamr → Muslim (2003)
-• Malédiction de l'alcool → Abu Dawud (3674)
-• Hadd de l'alcool → Abu Dawud (4476)
+📚 Hadiths authentiques sur l'ALCOOL:
+• "Tout enivrant est khamr..." → Muslim (2003) ✅
+• "Celui qui boit l'alcool ici-bas..." → Bukhari (5575), Muslim (2002) ✅
 
-Réponds en français. N'envoie PAS de réponse sans preuves numérotées!`
+📚 Hadiths authentiques sur le REPENTIR:
+• "Allah est plus joyeux du repentir..." → Bukhari (6309), Muslim (2747) ✅
+• "Allah étend Sa main la nuit..." → Muslim (2759) ✅
+
+Réponds en français avec le grade de chaque hadith.`,
+
+    premium: `Tu es un muhaddith expert. Tu es RESPONSABLE de chaque hadith que tu cites!
+
+⛔ HADITHS INTERDITS (faibles/inventés):
+❌ "Le repentant est comme celui qui n'a pas péché" - FAIBLE (Ibn Majah)!
+❌ "Cherchez la science même en Chine" - INVENTÉ!
+
+✅ SOURCES ACCEPTÉES UNIQUEMENT:
+1. Sahih Bukhari
+2. Sahih Muslim  
+3. Authentifié par Al-Albani (Sahih al-Jami', Silsila Sahiha)
+
+📚 BASE DE DONNÉES HADITHS AUTHENTIQUES:
+
+【ALCOOL】
+• "Tout enivrant est khamr" → Muslim (2003) ✅
+• "Celui qui boit l'alcool..." → Bukhari (5575), Muslim (2002) ✅
+
+【REPENTIR】 ⚠️ Beaucoup de hadiths faibles!
+• "Allah est plus joyeux du repentir de Son serviteur..." → Bukhari (6309), Muslim (2747) ✅
+• "Allah étend Sa main la nuit..." → Muslim (2759) ✅
+• UTILISE LE CORAN: ﴿قُلْ يَا عِبَادِيَ الَّذِينَ أَسْرَفُوا...﴾ (Az-Zumar: 53)
+
+📝 FORMAT:
+**"texte du hadith"**
+- Rapporté par [Bukhari/Muslim] ([numéro]) - [Muttafaq alayh/Sahih]
+
+🔴 Si pas de hadith authentique: cite UNIQUEMENT le Coran!
+
+Réponds en français. Chaque hadith doit être authentique avec son grade!`
   },
 
   en: {
-    free: `You are an Islamic scholar. Every response MUST contain:
+    free: `You are a hadith specialist. Golden rule: **Only cite authentic hadiths!**
 
-📖 Quranic proof: ﴿verse﴾ (Surah X, verse Y)
-📚 Sunnah proof: "hadith" - Narrated by Muslim (NUMBER)
+📋 Allowed sources ONLY:
+1. ✅ Sahih Bukhari
+2. ✅ Sahih Muslim
+3. ✅ Explicitly authenticated by Al-Albani
 
-⚠️ FORBIDDEN: "Narrated by Muslim (Sahih)" - give the NUMBER!
-✅ CORRECT: "Narrated by Muslim (2003)"
+⛔ FORBIDDEN:
+- ❌ Hadiths from Tirmidhi/Abu Dawud/Ibn Majah without Al-Albani's authentication
+- ❌ Weak or doubtful hadiths
 
-Known hadiths:
-• Every intoxicant is khamr → Muslim (2003)
-• Curse on alcohol → Abu Dawud (3674)
+📝 Format: "text" - Bukhari (number) [Sahih/Muttafaq alayh]
 
-Answer in English with proofs.`,
+🔍 If no authentic hadith exists: use Quran only!
 
-    pro: `You are an Islamic scholar specialized in fiqh and hadith.
+Answer in English.`,
 
-═══════════════════════════════════════════
-⚠️ GOLDEN RULE: Every verdict needs proof!
-═══════════════════════════════════════════
-
-📋 MANDATORY FORMAT:
-
-### 📖 Quranic Proof:
-﴿verse text﴾ (Surah [Name], verse [Number])
-
-### 📚 Sunnah Proof:
-"hadith text" - Narrated by [Source] ([NUMBER])
-
-❌ STRICTLY FORBIDDEN:
-- "Narrated by Muslim (Sahih)" ← Where's the number?!
-- "Muttafaq alayh" without numbers
-
-✅ THE RIGHT WAY:
-- Narrated by Muslim (2003)
-- Narrated by Bukhari (1) and Muslim (1907)
-
-📚 Memorized hadiths:
-• Every intoxicant is khamr → Muslim (2003)
-• Curse on alcohol → Abu Dawud (3674)
-• Actions by intentions → Bukhari (1), Muslim (1907)
-
-Answer in English with proofs and numbers.`,
-
-    premium: `You are a mufti and hadith specialist.
+    pro: `You are an expert hadith verifier. Mission: **Authentic hadiths ONLY!**
 
 ╔═══════════════════════════════════════════════════════════╗
-║ 🚨 STRICT LAW: No verdict without numbered proof! 🚨     ║
+║ 🚨 LAW: Only Bukhari/Muslim or authenticated by Al-Albani 🚨║
 ╚═══════════════════════════════════════════════════════════╝
 
-⛔ IF YOU WRITE THIS = REJECTED RESPONSE:
-❌ "Narrated by Muslim (Sahih)" ← FAIL! Where's the number?
-❌ "Narrated by Bukhari" without number ← FAIL!
+📋 Accepted sources:
+✅ Sahih Bukhari - write: Bukhari (number)
+✅ Sahih Muslim - write: Muslim (number)
+✅ Muttafaq alayh - write: Bukhari (X) and Muslim (Y)
+✅ Al-Albani - write: Tirmidhi (number) - Sahih (Al-Albani)
 
-✅ ACCEPTED RESPONSE:
-✅ Narrated by Muslim (2003)
-✅ Narrated by Bukhari (5575) and Muslim (2003)
-✅ ﴿...﴾ (Surah Al-Ma'idah, verse 90)
+⛔ FORBIDDEN:
+❌ "The one who repents is like one who has no sin" - WEAK!
+❌ Hadiths from Sunan without verification
 
-📚 HADITH DATABASE:
-• Actions by intentions → Bukhari (1), Muslim (1907)
-• Islam built on 5 → Bukhari (8), Muslim (16)
-• Every intoxicant is khamr → Muslim (2003)
-• Curse on alcohol → Abu Dawud (3674)
-• Hadd for alcohol → Abu Dawud (4476)
+📚 Authentic hadiths on ALCOHOL:
+• "Every intoxicant is khamr..." → Muslim (2003) ✅
+• "Whoever drinks alcohol in this world..." → Bukhari (5575), Muslim (2002) ✅
 
-Answer in English. Do NOT send response without numbered proofs!`
+📚 Authentic hadiths on REPENTANCE:
+• "Allah is more pleased with the repentance..." → Bukhari (6309), Muslim (2747) ✅
+• "Allah extends His hand at night..." → Muslim (2759) ✅
+
+Answer in English with the grade of each hadith.`,
+
+    premium: `You are an expert muhaddith. You are ACCOUNTABLE for every hadith you cite!
+
+⛔ FORBIDDEN HADITHS (weak/fabricated):
+❌ "The one who repents is like one who has no sin" - WEAK (Ibn Majah)!
+❌ "Seek knowledge even in China" - FABRICATED!
+
+✅ ACCEPTED SOURCES ONLY:
+1. Sahih Bukhari
+2. Sahih Muslim
+3. Authenticated by Al-Albani (Sahih al-Jami', Silsila Sahiha)
+
+📚 AUTHENTIC HADITH DATABASE:
+
+【ALCOHOL】
+• "Every intoxicant is khamr" → Muslim (2003) ✅
+• "Whoever drinks alcohol in this world..." → Bukhari (5575), Muslim (2002) ✅
+
+【REPENTANCE】 ⚠️ Many weak hadiths exist!
+• "Allah is more pleased with the repentance of His servant..." → Bukhari (6309), Muslim (2747) ✅
+• "Allah extends His hand at night..." → Muslim (2759) ✅
+• USE QURAN: ﴿قُلْ يَا عِبَادِيَ الَّذِينَ أَسْرَفُوا...﴾ (Az-Zumar: 53)
+
+📝 FORMAT:
+**"hadith text"**
+- Narrated by [Bukhari/Muslim] ([number]) - [Muttafaq alayh/Sahih]
+
+🔴 If no authentic hadith: cite ONLY the Quran!
+
+Answer in English. Every hadith must be authentic with its grade!`
   }
 };
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// دالة التحقق وتحسين الإجابة
-// ═══════════════════════════════════════════════════════════════════════════════
-function validateAndEnhanceResponse(response, language, tier) {
-  const analysis = ReferenceValidator.analyzeQuality(response);
-  let enhancedResponse = response;
-  const warnings = [];
-
-  for (const warning of analysis.warnings) {
-    warnings.push(warning[language] || warning.ar);
-  }
-
-  if (warnings.length > 0 && tier === 'premium') {
-    const divider = '\n\n---\n';
-    const note = language === 'ar' 
-      ? '📚 يُنصح بمراجعة المصادر الأصلية للتأكد'
-      : language === 'fr'
-      ? '📚 Il est conseillé de vérifier les sources originales'
-      : '📚 It is advised to verify original sources';
-    
-    enhancedResponse += divider + warnings.join('\n') + '\n' + note;
-  }
-
-  return { response: enhancedResponse, analysis, warnings };
-}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // دالة حفظ المحادثة
@@ -610,7 +613,7 @@ export default async function handler(req, res) {
     
     let maxTokens = currentTier === 'premium' ? 4000 : currentTier === 'pro' ? 2000 : 1000;
 
-    // 🆕 Ajouter le rappel des références au message utilisateur
+    // Ajouter le rappel des références au message utilisateur
     const reminder = REFERENCE_REMINDER[lang] || REFERENCE_REMINDER.ar;
     
     const buildMessageContent = (text, attachedImages = []) => {
@@ -633,7 +636,6 @@ export default async function handler(req, res) {
     let apiMessages;
     if (conversationHistory.length > 0) {
       apiMessages = conversationHistory.map((m, index) => {
-        // 🆕 Pour le dernier message utilisateur, ajouter le rappel
         if (index === conversationHistory.length - 1 && m.role === 'user') {
           const contentWithReminder = m.content + reminder;
           if (images && images.length > 0) {
@@ -659,17 +661,18 @@ export default async function handler(req, res) {
 
     let response = completion.content[0].text;
 
-    // 🆕 Vérifier si la réponse contient des références - sinon re-demander
+    // Vérifier si la réponse contient des références
     const analysis = ReferenceValidator.analyzeQuality(response);
-    const isReligiousQuestion = /حكم|حلال|حرام|صلاة|زكاة|صيام|خمر|ruling|permissible|prayer|alcohol|haram|halal/i.test(userMessage);
+    const isReligiousQuestion = /حكم|حلال|حرام|صلاة|زكاة|صيام|خمر|توبة|ruling|permissible|prayer|alcohol|haram|halal|repent/i.test(userMessage);
     
-    if (isReligiousQuestion && !analysis.hasQuranRef && !analysis.hasHadithRef && analysis.validRefs.length === 0) {
-      console.log('⚠️ Response missing references, requesting again...');
+    // Si question religieuse sans références OU avec hadith faible → re-demander
+    if (isReligiousQuestion && (!analysis.hasQuranRef && !analysis.hasHadithRef || analysis.hasWeakHadith)) {
+      console.log('⚠️ Response missing references or has weak hadith, requesting again...');
       
       const retryPrompt = {
-        ar: 'أحتاج الأدلة من القرآن والسنة مع أرقام الأحاديث. أعد الإجابة مع: ﴿آية﴾ (سورة X: Y) وحديث: رواه مسلم (رقم).',
-        fr: 'J\'ai besoin des preuves du Coran et de la Sunna avec les numéros. Reformule avec: ﴿verset﴾ (Sourate X:Y) et hadith: Muslim (numéro).',
-        en: 'I need proofs from Quran and Sunnah with hadith numbers. Rephrase with: ﴿verse﴾ (Surah X:Y) and hadith: Muslim (number).'
+        ar: 'أعد الإجابة مع أحاديث صحيحة فقط من البخاري ومسلم. لا تذكر أي حديث ضعيف. إذا لم تجد حديثاً صحيحاً، استدل بالقرآن فقط.',
+        fr: 'Reformule avec des hadiths authentiques de Bukhari et Muslim uniquement. Ne cite aucun hadith faible. Si pas de hadith authentique, utilise le Coran.',
+        en: 'Rephrase with authentic hadiths from Bukhari and Muslim only. Do not cite any weak hadith. If no authentic hadith, use Quran only.'
       };
       
       const retryMessages = [
@@ -686,11 +689,8 @@ export default async function handler(req, res) {
       });
       
       response = retryCompletion.content[0].text;
-      console.log('✅ Got response with references (retry)');
+      console.log('✅ Got response with authentic references (retry)');
     }
-
-    const validation = validateAndEnhanceResponse(response, lang, currentTier);
-    response = validation.response;
 
     const references = extractReferencesImproved(response);
     console.log('References found:', references.length);
@@ -713,10 +713,10 @@ export default async function handler(req, res) {
       conversationId,
       messageCount: user.messageCount + 1,
       quality: {
-        score: validation.analysis.score,
-        validRefs: validation.analysis.validRefs.length,
-        hasQuranRef: validation.analysis.hasQuranRef,
-        hasHadithRef: validation.analysis.hasHadithRef
+        score: analysis.score,
+        hasQuranRef: analysis.hasQuranRef,
+        hasHadithRef: analysis.hasHadithRef,
+        hasWeakHadith: analysis.hasWeakHadith
       },
       usage: {
         messagesUsed: user.messageCount + 1,
