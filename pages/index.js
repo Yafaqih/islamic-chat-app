@@ -231,6 +231,30 @@ export default function IslamicChatApp() {
     scrollToBottom();
   }, [messages]);
 
+  // Bloquer le scroll du body pour éviter le double scroll sur mobile
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Bloquer tous les scrolls sur body/html
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.height = '100%';
+      document.body.style.top = '0';
+      document.body.style.left = '0';
+      document.documentElement.style.overflow = 'hidden';
+      
+      return () => {
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.width = '';
+        document.body.style.height = '';
+        document.body.style.top = '';
+        document.body.style.left = '';
+        document.documentElement.style.overflow = '';
+      };
+    }
+  }, [isAuthenticated]);
+
   useEffect(() => {
     if (isAuthenticated && user) {
       setSubscriptionTier(user.subscriptionTier || 'free');
@@ -563,7 +587,7 @@ export default function IslamicChatApp() {
 
   // === PAGE AUTHENTIFIÉE ===
   return (
-    <div className={`h-screen flex flex-col overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800`} dir={dir}>
+    <div className={`h-screen flex flex-col overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800`} dir={dir} style={{ position: 'fixed', inset: 0 }}>
       {/* Header */}
       <header className="flex-shrink-0 z-40 bg-gradient-to-r from-emerald-600 to-teal-600 shadow-lg" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3">
@@ -814,8 +838,11 @@ export default function IslamicChatApp() {
 
       {/* Zone de messages - Container scrollable */}
       <main 
-        className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain"
-        style={{ WebkitOverflowScrolling: 'touch' }}
+        className="flex-1 overflow-y-auto overflow-x-hidden overscroll-none"
+        style={{ 
+          WebkitOverflowScrolling: 'touch',
+          touchAction: 'pan-y'
+        }}
       >
         {/* Indicateur de messages restants */}
         {usage && usage.dailyLimit && usage.dailyLimit !== -1 && (
