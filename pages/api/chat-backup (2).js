@@ -679,40 +679,7 @@ export default async function handler(req, res) {
 
     console.log('Anthropic API response received');
 
-    let response = completion.content[0].text;
-
-    // ===== POST-TRAITEMENT: Vérification des sources =====
-    const warnings = [];
-    
-    // Détecter "رواه مسلم (صحيح)" ou "رواه البخاري (صحيح)" sans numéro
-    if (response.match(/رواه\s+(مسلم|البخاري|الترمذي)[^(]*\(صحيح\)/)) {
-      warnings.push('⚠️ تنبيه: بعض الأحاديث ذُكرت بدون أرقامها');
-    }
-    
-    // Détecter "Rapporté par Muslim (Sahih)" sans numéro
-    if (response.match(/Rapporté par\s+(Muslim|Bukhari)[^(]*\(Sahih\)/i)) {
-      warnings.push('⚠️ Note: Certains hadiths sont cités sans numéros');
-    }
-    
-    // Détecter "Narrated by Muslim (Sahih)" sans numéro  
-    if (response.match(/Narrated by\s+(Muslim|Bukhari)[^(]*\(Sahih\)/i)) {
-      warnings.push('⚠️ Note: Some hadiths are cited without numbers');
-    }
-    
-    // Détecter شروط / conditions sans دليل / preuve après
-    if (response.match(/شروط[^:]*:/) && !response.match(/الدليل|📖|📚/)) {
-      warnings.push('⚠️ تنبيه: بعض الشروط قد تحتاج مراجعة أدلتها');
-    }
-    
-    // Détecter "أجمع العلماء" sans qui a rapporté
-    if (response.match(/أجمع\s+العلماء/) && !response.match(/نقل\s+الإجماع|في\s+المغني|في\s+الإجماع/)) {
-      warnings.push('⚠️ تنبيه: ادعاء الإجماع يحتاج توثيق من نقله');
-    }
-    
-    // Ajouter les avertissements à la fin de la réponse si présents
-    if (warnings.length > 0 && currentTier === 'premium') {
-      response += '\n\n---\n' + warnings.join('\n') + '\n📚 يُنصح بمراجعة المصادر الأصلية للتأكد';
-    }
+    const response = completion.content[0].text;
 
     const references = [];
     
