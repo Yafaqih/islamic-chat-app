@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useRouter } from 'next/router';
-import { Send, BookOpen, Sparkles, Star, X, Crown, Check, Zap, LogOut, MessageSquare, Shield, AlertCircle, Moon, Sun, Download, User, Navigation, Menu, Tag } from 'lucide-react';
+import { Send, BookOpen, Sparkles, Star, X, Crown, Check, Zap, LogOut, MessageSquare, Shield, AlertCircle, Moon, Sun, Download, User, Navigation, Menu, Tag, Lock, Heart } from 'lucide-react';
 import { exportCurrentConversationToPDF, exportConversationToPDF } from '../lib/pdfExport';
 import PrayerNotification from '../components/PrayerNotification';
 import ArabicTTS from '../components/ArabicTTS';
@@ -14,6 +14,10 @@ import QuranPlayer, { detectQuranRequest } from '../components/QuranPlayer';
 import MosqueMap from '../components/MosqueMap';
 import LanguageSelector from '../components/LanguageSelector';
 import { useLanguage } from '../contexts/LanguageContext';
+import { usePermissions } from '../hooks/usePermissions';
+
+// ✅ URL de don LemonSqueezy
+const DONATION_URL = 'https://yafaqih.lemonsqueezy.com/buy/f61ce506-089b-476f-92a9-acbc7c050626';
 
 export default function IslamicChatApp() {
   const { data: session, status } = useSession();
@@ -23,6 +27,9 @@ export default function IslamicChatApp() {
   
   // Hook de langue
   const { t, language, dir, isRTL } = useLanguage();
+
+  // Hook de permissions - avec valeurs par défaut sécurisées
+  const { can = () => true, usage = {}, tier = 'free', loading: permissionsLoading, refresh: refreshPermissions } = usePermissions() || {};
 
   const [darkMode, setDarkMode] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -55,10 +62,58 @@ export default function IslamicChatApp() {
   const [showQuranPlayer, setShowQuranPlayer] = useState(false);
   const [quranPlaylist, setQuranPlaylist] = useState([]);
   const [showMosqueMap, setShowMosqueMap] = useState(false);
+  const [sessionMessageCount, setSessionMessageCount] = useState(0); // ✅ Compteur de messages de la session
   const messagesEndRef = useRef(null);
 
   const FREE_MESSAGE_LIMIT = 10;
   const PRO_MESSAGE_LIMIT = 100;
+
+  // ✅ Messages de don multilingues
+  const donationMessages = {
+    ar: {
+      text: '💝 إذا كان يا فقيه مفيداً لك، يمكنك دعم المشروع بتبرع صغير. جزاك الله خيراً!',
+      button: 'دعم المشروع'
+    },
+    fr: {
+      text: '💝 Si Ya Faqih vous est utile, vous pouvez soutenir le projet par un petit don. Merci !',
+      button: 'Soutenir le projet'
+    },
+    en: {
+      text: '💝 If Ya Faqih is helpful to you, you can support the project with a small donation. Thank you!',
+      button: 'Support the project'
+    }
+  };
+
+  // ✅ Vérifier si on doit afficher le message de don (1x par semaine, après 10 messages)
+  const shouldShowDonationMessage = () => {
+    const lastShown = localStorage.getItem('lastDonationPrompt');
+    const now = Date.now();
+    const oneWeek = 7 * 24 * 60 * 60 * 1000; // 7 jours en ms
+    
+    if (lastShown && (now - parseInt(lastShown)) < oneWeek) {
+      return false; // Déjà montré cette semaine
+    }
+    
+    return sessionMessageCount > 0 && sessionMessageCount % 10 === 0; // Tous les 10 messages
+  };
+
+  // ✅ Ajouter le message de don dans le chat
+  const addDonationMessage = () => {
+    const donationMsg = donationMessages[language] || donationMessages.fr;
+    
+    const donationMessage = {
+      id: nextId,
+      role: 'assistant',
+      content: donationMsg.text,
+      isFavorite: false,
+      isDonation: true, // ✅ Flag pour identifier ce message
+      donationButton: donationMsg.button
+    };
+    
+    setMessages(prev => [...prev, donationMessage]);
+    setNextId(prev => prev + 1);
+    localStorage.setItem('lastDonationPrompt', Date.now().toString());
+  };
 
   // Mettre à jour le message de bienvenue quand la langue change
   useEffect(() => {
@@ -101,8 +156,14 @@ export default function IslamicChatApp() {
     }
   };
 
+  // ✅ Ouvrir la page de don
+  const handleDonationClick = () => {
+    window.open(DONATION_URL, '_blank');
+  };
+
+  // Utilise les permissions au lieu de subscriptionTier
   const handleExportPDF = () => {
-    if (subscriptionTier !== 'premium') {
+    if (!can('exportPDF')) {
       setShowPremiumModal(true);
       return;
     }
@@ -110,8 +171,9 @@ export default function IslamicChatApp() {
     exportCurrentConversationToPDF(messages, user?.name, title);
   };
 
+  // Utilise les permissions
   const handleExportHistoricalPDF = async (conversationId) => {
-    if (subscriptionTier !== 'premium') {
+    if (!can('exportPDF')) {
       setShowPremiumModal(true);
       return;
     }
@@ -125,6 +187,33 @@ export default function IslamicChatApp() {
       console.error('Error exporting PDF:', error);
       alert(t('errorOccurred'));
     }
+  };
+
+  // Vérifier permission pour Qibla
+  const handleQiblaClick = () => {
+    if (!can('qiblaCompass')) {
+      setShowPremiumModal(true);
+      return;
+    }
+    setShowQiblaModal(true);
+  };
+
+  // Vérifier permission pour Mosquées
+  const handleMosqueClick = () => {
+    if (!can('mosqueFinder')) {
+      setShowPremiumModal(true);
+      return;
+    }
+    setShowMosqueMap(true);
+  };
+
+  // Vérifier permission pour sauvegarder conversations
+  const handleHistoryClick = () => {
+    if (!can('saveConversations')) {
+      setShowPremiumModal(true);
+      return;
+    }
+    setShowHistory(true);
   };
 
   const scrollToBottom = () => {
@@ -275,20 +364,18 @@ export default function IslamicChatApp() {
         role: 'assistant',
         content: `🕌 ${msg.playing}: ${surahNames}\n\n${msg.enjoy}`,
         isFavorite: false,
-        quranPlaylist: quranRequest.playlist, // Stocker la playlist pour rejouer
+        quranPlaylist: quranRequest.playlist,
         surahNames: surahNames
       };
       
       setMessages(prev => [...prev, userMessage, assistantMessage]);
       setNextId(prev => prev + 2);
       setInput('');
-      return; // Ne pas envoyer à l'API
+      return;
     }
 
-    const messageLimit = subscriptionTier === 'free' ? FREE_MESSAGE_LIMIT : 
-                        subscriptionTier === 'pro' ? PRO_MESSAGE_LIMIT : Infinity;
-
-    if (messageCount >= messageLimit && subscriptionTier !== 'premium') {
+    // Utilise les permissions pour la limite de messages
+    if (usage && usage.canSendMessage === false) {
       setShowPremiumModal(true);
       return;
     }
@@ -334,9 +421,30 @@ export default function IslamicChatApp() {
         setMessages(prev => [...prev, assistantMessage]);
         setNextId(prev => prev + 2);
         setMessageCount(data.messageCount || messageCount + 1);
+        
+        // ✅ Incrémenter le compteur de session
+        const newSessionCount = sessionMessageCount + 1;
+        setSessionMessageCount(newSessionCount);
+        
+        // ✅ Vérifier si on doit montrer le message de don
+        if (newSessionCount > 0 && newSessionCount % 10 === 0) {
+          const lastShown = localStorage.getItem('lastDonationPrompt');
+          const now = Date.now();
+          const oneWeek = 7 * 24 * 60 * 60 * 1000;
+          
+          if (!lastShown || (now - parseInt(lastShown)) >= oneWeek) {
+            // Attendre un peu puis afficher le message de don
+            setTimeout(() => {
+              addDonationMessage();
+            }, 1500);
+          }
+        }
+        
         if (data.conversationId) {
           setCurrentConversationId(data.conversationId);
         }
+        // Rafraîchir les permissions après envoi de message
+        if (refreshPermissions) refreshPermissions();
       } else {
         console.error('Erreur:', data.error);
         const errorMessage = {
@@ -366,7 +474,8 @@ export default function IslamicChatApp() {
   };
 
   const handleSuggestion = (suggestion) => {
-    handleSend(suggestion);
+    setInput(suggestion);
+    setTimeout(() => handleSend(), 100);
   };
 
   const toggleFavorite = (messageId) => {
@@ -467,14 +576,35 @@ export default function IslamicChatApp() {
               
               {/* Boutons desktop */}
               <div className="hidden md:flex items-center gap-2">
+                {/* ✅ Bouton Don dans le header */}
+                <button 
+                  onClick={handleDonationClick} 
+                  className="p-2 text-pink-200 hover:text-white hover:bg-pink-500/30 rounded-xl transition-all group"
+                  title={language === 'ar' ? 'دعم المشروع' : language === 'fr' ? 'Soutenir' : 'Support'}
+                >
+                  <Heart className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                </button>
+                
                 <button onClick={() => setShowFavorites(true)} className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-colors" title={t('favorites')}>
                   <Star className="w-5 h-5" />
                 </button>
-                <button onClick={() => setShowHistory(true)} className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-colors" title={t('history')}>
+                {/* Historique avec vérification permission */}
+                <button 
+                  onClick={handleHistoryClick} 
+                  className={`p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-colors relative ${!can('saveConversations') ? 'opacity-60' : ''}`} 
+                  title={t('history')}
+                >
                   <MessageSquare className="w-5 h-5" />
+                  {!can('saveConversations') && <Lock className="w-3 h-3 absolute -top-1 -right-1 text-yellow-300" />}
                 </button>
-                <button onClick={handleExportPDF} className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-colors" title={t('exportPDF')}>
+                {/* Export PDF avec vérification permission */}
+                <button 
+                  onClick={handleExportPDF} 
+                  className={`p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-colors relative ${!can('exportPDF') ? 'opacity-60' : ''}`} 
+                  title={t('exportPDF')}
+                >
                   <Download className="w-5 h-5" />
+                  {!can('exportPDF') && <Lock className="w-3 h-3 absolute -top-1 -right-1 text-yellow-300" />}
                 </button>
                 <button onClick={toggleDarkMode} className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-colors">
                   {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
@@ -499,10 +629,17 @@ export default function IslamicChatApp() {
                       </div>
                     </button>
                   )}
-                  <button onClick={() => setShowPremiumModal(true)} className={`w-full flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 ${isRTL ? 'flex-row-reverse text-right' : ''}`}>
-                    <Tag className="w-5 h-5 text-emerald-500" />
+                  {/* ✅ Option Don dans le menu */}
+                  <button onClick={handleDonationClick} className={`w-full flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-pink-50 dark:hover:bg-pink-900/20 ${isRTL ? 'flex-row-reverse text-right' : ''}`}>
+                    <Heart className="w-5 h-5 text-pink-500" />
                     <div>
-                      <div className="font-semibold">{t('subscriptions')}</div>
+                      <div className="font-semibold">{language === 'ar' ? 'دعم المشروع' : language === 'fr' ? 'Soutenir Ya Faqih' : 'Support Ya Faqih'}</div>
+                    </div>
+                  </button>
+                  <button onClick={() => setShowPremiumModal(true)} className={`w-full flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 ${isRTL ? 'flex-row-reverse text-right' : ''}`}>
+                    <Sparkles className="w-5 h-5 text-emerald-500" />
+                    <div>
+                      <div className="font-semibold">{language === 'ar' ? 'الميزات' : language === 'fr' ? 'Fonctionnalités' : 'Features'}</div>
                     </div>
                   </button>
                   <button onClick={() => setShowAbout(true)} className={`w-full flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 ${isRTL ? 'flex-row-reverse text-right' : ''}`}>
@@ -531,17 +668,21 @@ export default function IslamicChatApp() {
           {/* Mobile menu */}
           {showMobileMenu && (
             <div className="md:hidden mt-3 pt-3 border-t border-white/20 flex gap-2">
+              {/* ✅ Bouton Don mobile */}
+              <button onClick={() => { handleDonationClick(); setShowMobileMenu(false); }} className="flex-1 flex items-center justify-center gap-2 p-2 text-pink-200 hover:text-white hover:bg-pink-500/30 rounded-xl">
+                <Heart className="w-5 h-5" />
+                <span className="text-sm">{language === 'ar' ? 'دعم' : language === 'fr' ? 'Don' : 'Donate'}</span>
+              </button>
               <button onClick={() => { setShowFavorites(true); setShowMobileMenu(false); }} className="flex-1 flex items-center justify-center gap-2 p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl">
                 <Star className="w-5 h-5" />
                 <span className="text-sm">{t('favorites')}</span>
               </button>
-              <button onClick={() => { setShowHistory(true); setShowMobileMenu(false); }} className="flex-1 flex items-center justify-center gap-2 p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl">
+              <button onClick={() => { handleHistoryClick(); setShowMobileMenu(false); }} className="flex-1 flex items-center justify-center gap-2 p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl">
                 <MessageSquare className="w-5 h-5" />
                 <span className="text-sm">{t('history')}</span>
               </button>
               <button onClick={toggleDarkMode} className="flex-1 flex items-center justify-center gap-2 p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl">
                 {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                <span className="text-sm">{darkMode ? t('lightMode') : t('darkMode')}</span>
               </button>
             </div>
           )}
@@ -553,8 +694,6 @@ export default function IslamicChatApp() {
         <SubscriptionModal
           isOpen={showPremiumModal}
           onClose={() => setShowPremiumModal(false)}
-          currentTier={subscriptionTier}
-          user={user}
         />
       )}
 
@@ -615,7 +754,7 @@ export default function IslamicChatApp() {
                       <button onClick={() => deleteConversation(conv.id)} className="text-gray-400 hover:text-red-500 transition-colors p-1" title={t('deleteConversation')}>
                         <X className="w-4 h-4" />
                       </button>
-                      {subscriptionTier === 'premium' && (
+                      {can('exportPDF') && (
                         <button onClick={() => handleExportHistoricalPDF(conv.id)} className="text-gray-400 hover:text-emerald-500 transition-colors p-1" title={t('exportPDF')}>
                           <Download className="w-4 h-4" />
                         </button>
@@ -666,103 +805,143 @@ export default function IslamicChatApp() {
         </div>
       )}
 
+      {/* Indicateur de messages restants */}
+      {usage && usage.dailyLimit && usage.dailyLimit !== -1 && (
+        <div className="fixed top-20 right-4 z-30 bg-white dark:bg-gray-800 rounded-xl px-3 py-2 shadow-lg border border-gray-200 dark:border-gray-700">
+          <div className={`flex items-center gap-2 text-sm ${isRTL ? 'flex-row-reverse' : ''}`}>
+            <MessageSquare className="w-4 h-4 text-emerald-500" />
+            <span className="text-gray-600 dark:text-gray-400">
+              {usage.messagesRemaining}/{usage.dailyLimit}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Zone de messages - pt pour header fixed, pb pour InputBar fixed */}
       <div className="max-w-4xl mx-auto p-4 pb-52 pt-16 sm:pt-20">
         <div className="space-y-6">
           {messages.map((msg) => (
             <div key={msg.id} className={`flex gap-4 ${msg.role === 'user' ? (isRTL ? '' : 'flex-row-reverse') : (isRTL ? 'flex-row-reverse' : '')}`}>
-              <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${msg.role === 'user' ? 'bg-gradient-to-br from-blue-500 to-blue-600' : 'bg-gradient-to-br from-emerald-500 to-teal-600'}`}>
-                {msg.role === 'user' ? <span className="text-white font-bold text-sm">{user?.name?.[0]?.toUpperCase() || 'U'}</span> : <BookOpen className="w-5 h-5 text-white" />}
+              <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                msg.isDonation 
+                  ? 'bg-gradient-to-br from-pink-500 to-rose-500' 
+                  : msg.role === 'user' 
+                    ? 'bg-gradient-to-br from-blue-500 to-blue-600' 
+                    : 'bg-gradient-to-br from-emerald-500 to-teal-600'
+              }`}>
+                {msg.isDonation ? (
+                  <Heart className="w-5 h-5 text-white" />
+                ) : msg.role === 'user' ? (
+                  <span className="text-white font-bold text-sm">{user?.name?.[0]?.toUpperCase() || 'U'}</span>
+                ) : (
+                  <BookOpen className="w-5 h-5 text-white" />
+                )}
               </div>
 
               <div className="flex-1 max-w-3xl">
-                <div className={`rounded-2xl p-6 ${msg.role === 'user' ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50' : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm'}`}>
-                  <div className={`flex justify-between items-start mb-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{msg.role === 'user' ? t('you') : t('assistant')}</span>
-                    <div className="flex items-center gap-2">
-                      {msg.role === 'assistant' && <ArabicTTS text={msg.content} />}
-                      {msg.role === 'assistant' && (
-                        <button onClick={() => toggleFavorite(msg.id)} className="text-gray-400 dark:text-gray-500 hover:text-yellow-500 transition-colors">
-                          <Star className={`w-5 h-5 ${msg.isFavorite ? 'fill-yellow-500 text-yellow-500' : ''}`} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <p className={`text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed ${isRTL ? 'text-right' : 'text-left'}`}>{msg.content}</p>
-
-                  {/* Afficher les fichiers attachés */}
-                  {msg.attachments && msg.attachments.length > 0 && (
-                    <div className={`mt-3 flex flex-wrap gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                      {msg.attachments.map((file, idx) => (
-                        <div key={idx} className="bg-gray-100 dark:bg-gray-700 rounded-xl p-2 flex items-center gap-2 max-w-[200px]">
-                          {file.preview ? (
-                            <img src={file.preview} alt={file.name} className="w-12 h-12 object-cover rounded-lg" />
-                          ) : (
-                            <div className="w-12 h-12 bg-gray-200 dark:bg-gray-600 rounded-lg flex items-center justify-center">
-                              <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                              </svg>
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{file.name}</p>
-                            <p className="text-xs text-gray-500">{file.source === 'google-drive' ? 'Google Drive' : 'Local'}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Bouton Play pour rouvrir le Quran Player */}
-                  {msg.quranPlaylist && msg.quranPlaylist.length > 0 && (
+                {/* ✅ Message de don spécial */}
+                {msg.isDonation ? (
+                  <div className="bg-gradient-to-r from-pink-50 to-rose-50 dark:from-pink-900/20 dark:to-rose-900/20 border border-pink-200 dark:border-pink-800/50 rounded-2xl p-6 shadow-sm">
+                    <p className={`text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed mb-4 ${isRTL ? 'text-right' : 'text-left'}`}>
+                      {msg.content}
+                    </p>
                     <button
-                      onClick={() => {
-                        setQuranPlaylist(msg.quranPlaylist);
-                        setShowQuranPlayer(true);
-                      }}
-                      className={`mt-4 flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl transition-all shadow-md hover:shadow-lg ${isRTL ? 'flex-row-reverse' : ''}`}
+                      onClick={handleDonationClick}
+                      className={`px-6 py-2 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl font-semibold transition-all flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}
                     >
-                      <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M8 5v14l11-7z"/>
-                        </svg>
-                      </div>
-                      <div className={`${isRTL ? 'text-right' : 'text-left'}`}>
-                        <div className="font-semibold text-sm">
-                          {language === 'ar' ? 'إعادة تشغيل التلاوة' : language === 'fr' ? 'Relancer la récitation' : 'Replay recitation'}
-                        </div>
-                        <div className="text-xs text-white/80">{msg.surahNames}</div>
-                      </div>
+                      <Heart className="w-4 h-4" />
+                      <span>{msg.donationButton}</span>
                     </button>
-                  )}
-
-                  {msg.references && msg.references.length > 0 && (
-                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                      <div className={`flex items-center gap-2 mb-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                        <BookOpen className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('references')}</span>
-                      </div>
-                      <div className="space-y-2">
-                        {msg.references.map((ref, idx) => {
-                          const authenticity = getAuthenticityLevel(ref);
-                          return (
-                            <div key={idx} className={`bg-emerald-50/50 dark:bg-emerald-900/10 rounded-lg p-3 border border-emerald-100/50 dark:border-emerald-800/30 ${isRTL ? 'text-right' : 'text-left'}`}>
-                              <div className={`flex items-start gap-2 mb-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                                {authenticity && (
-                                  <span className={`px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1 ${authenticity.color}`}>
-                                    {authenticity.icon}{authenticity.label}
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{ref}</p>
-                            </div>
-                          );
-                        })}
+                  </div>
+                ) : (
+                  <div className={`rounded-2xl p-6 ${msg.role === 'user' ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50' : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm'}`}>
+                    <div className={`flex justify-between items-start mb-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{msg.role === 'user' ? t('you') : t('assistant')}</span>
+                      <div className="flex items-center gap-2">
+                        {msg.role === 'assistant' && <ArabicTTS text={msg.content} />}
+                        {msg.role === 'assistant' && (
+                          <button onClick={() => toggleFavorite(msg.id)} className="text-gray-400 dark:text-gray-500 hover:text-yellow-500 transition-colors">
+                            <Star className={`w-5 h-5 ${msg.isFavorite ? 'fill-yellow-500 text-yellow-500' : ''}`} />
+                          </button>
+                        )}
                       </div>
                     </div>
-                  )}
-                </div>
+
+                    <p className={`text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed ${isRTL ? 'text-right' : 'text-left'}`}>{msg.content}</p>
+
+                    {/* Afficher les fichiers attachés */}
+                    {msg.attachments && msg.attachments.length > 0 && (
+                      <div className={`mt-3 flex flex-wrap gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                        {msg.attachments.map((file, idx) => (
+                          <div key={idx} className="bg-gray-100 dark:bg-gray-700 rounded-xl p-2 flex items-center gap-2 max-w-[200px]">
+                            {file.preview ? (
+                              <img src={file.preview} alt={file.name} className="w-12 h-12 object-cover rounded-lg" />
+                            ) : (
+                              <div className="w-12 h-12 bg-gray-200 dark:bg-gray-600 rounded-lg flex items-center justify-center">
+                                <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{file.name}</p>
+                              <p className="text-xs text-gray-500">{file.source === 'google-drive' ? 'Google Drive' : 'Local'}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Bouton Play pour rouvrir le Quran Player */}
+                    {msg.quranPlaylist && msg.quranPlaylist.length > 0 && (
+                      <button
+                        onClick={() => {
+                          setQuranPlaylist(msg.quranPlaylist);
+                          setShowQuranPlayer(true);
+                        }}
+                        className={`mt-4 flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl transition-all shadow-md hover:shadow-lg ${isRTL ? 'flex-row-reverse' : ''}`}
+                      >
+                        <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z"/>
+                          </svg>
+                        </div>
+                        <div className={`${isRTL ? 'text-right' : 'text-left'}`}>
+                          <div className="font-semibold text-sm">
+                            {language === 'ar' ? 'إعادة تشغيل التلاوة' : language === 'fr' ? 'Relancer la récitation' : 'Replay recitation'}
+                          </div>
+                          <div className="text-xs text-white/80">{msg.surahNames}</div>
+                        </div>
+                      </button>
+                    )}
+
+                    {msg.references && msg.references.length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <div className={`flex items-center gap-2 mb-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                          <BookOpen className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('references')}</span>
+                        </div>
+                        <div className="space-y-2">
+                          {msg.references.map((ref, idx) => {
+                            const authenticity = getAuthenticityLevel(ref);
+                            return (
+                              <div key={idx} className={`bg-emerald-50/50 dark:bg-emerald-900/10 rounded-lg p-3 border border-emerald-100/50 dark:border-emerald-800/30 ${isRTL ? 'text-right' : 'text-left'}`}>
+                                <div className={`flex items-start gap-2 mb-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                                  {authenticity && (
+                                    <span className={`px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1 ${authenticity.color}`}>
+                                      {authenticity.icon}{authenticity.label}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{ref}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -818,13 +997,13 @@ export default function IslamicChatApp() {
             isLoading={isLoading}
             disabled={false}
             placeholder={t('placeholder')}
-            onQiblaClick={() => setShowQiblaModal(true)}
+            onQiblaClick={handleQiblaClick}
             onPrayerClick={() => setShowPrayerModal(true)}
             onQuranClick={() => {
               setQuranPlaylist([]);
               setShowQuranPlayer(true);
             }}
-            onMosqueClick={() => setShowMosqueMap(true)}
+            onMosqueClick={handleMosqueClick}
           />
         </div>
       </div>

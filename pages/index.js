@@ -12,6 +12,7 @@ import InputBar from '../components/InputBar';
 import QiblaModal from '../components/QiblaModal';
 import QuranPlayer, { detectQuranRequest } from '../components/QuranPlayer';
 import MosqueMap from '../components/MosqueMap';
+import HalalScanner from '../components/HalalScanner';
 import LanguageSelector from '../components/LanguageSelector';
 import { useLanguage } from '../contexts/LanguageContext';
 import { usePermissions } from '../hooks/usePermissions';
@@ -62,6 +63,7 @@ export default function IslamicChatApp() {
   const [showQuranPlayer, setShowQuranPlayer] = useState(false);
   const [quranPlaylist, setQuranPlaylist] = useState([]);
   const [showMosqueMap, setShowMosqueMap] = useState(false);
+  const [showHalalScanner, setShowHalalScanner] = useState(false);
   const [sessionMessageCount, setSessionMessageCount] = useState(0); // ✅ Compteur de messages de la session
   const messagesEndRef = useRef(null);
 
@@ -205,6 +207,11 @@ export default function IslamicChatApp() {
       return;
     }
     setShowMosqueMap(true);
+  };
+
+  // Scanner Halal
+  const handleHalalScanClick = () => {
+    setShowHalalScanner(true);
   };
 
   // Vérifier permission pour sauvegarder conversations
@@ -1004,6 +1011,7 @@ export default function IslamicChatApp() {
               setShowQuranPlayer(true);
             }}
             onMosqueClick={handleMosqueClick}
+            onHalalScanClick={handleHalalScanClick}
           />
         </div>
       </div>
@@ -1016,6 +1024,12 @@ export default function IslamicChatApp() {
         isOpen={showMosqueMap}
         onClose={() => setShowMosqueMap(false)}
         language={language}
+      />
+
+      {/* Scanner Halal */}
+      <HalalScanner
+        isOpen={showHalalScanner}
+        onClose={() => setShowHalalScanner(false)}
       />
       
       {showAdminDashboard && (
