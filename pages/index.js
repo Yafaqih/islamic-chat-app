@@ -234,23 +234,21 @@ export default function IslamicChatApp() {
   // Bloquer le scroll du body pour éviter le double scroll sur mobile
   useEffect(() => {
     if (isAuthenticated) {
-      // Bloquer tous les scrolls sur body/html
+      // Sauvegarder le scroll position
+      const scrollY = window.scrollY;
+      
+      // Bloquer le scroll
       document.body.style.overflow = 'hidden';
-      document.body.style.position = 'fixed';
-      document.body.style.width = '100%';
       document.body.style.height = '100%';
-      document.body.style.top = '0';
-      document.body.style.left = '0';
       document.documentElement.style.overflow = 'hidden';
+      document.documentElement.style.height = '100%';
       
       return () => {
         document.body.style.overflow = '';
-        document.body.style.position = '';
-        document.body.style.width = '';
         document.body.style.height = '';
-        document.body.style.top = '';
-        document.body.style.left = '';
         document.documentElement.style.overflow = '';
+        document.documentElement.style.height = '';
+        window.scrollTo(0, scrollY);
       };
     }
   }, [isAuthenticated]);
@@ -587,7 +585,17 @@ export default function IslamicChatApp() {
 
   // === PAGE AUTHENTIFIÉE ===
   return (
-    <div className={`h-screen flex flex-col overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800`} dir={dir} style={{ position: 'fixed', inset: 0 }}>
+    <div 
+      className={`flex flex-col overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800`} 
+      dir={dir} 
+      style={{ 
+        position: 'fixed', 
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0
+      }}
+    >
       {/* Header */}
       <header className="flex-shrink-0 z-40 bg-gradient-to-r from-emerald-600 to-teal-600 shadow-lg" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3">
@@ -838,7 +846,7 @@ export default function IslamicChatApp() {
 
       {/* Zone de messages - Container scrollable */}
       <main 
-        className="flex-1 overflow-y-auto overflow-x-hidden overscroll-none"
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-none"
         style={{ 
           WebkitOverflowScrolling: 'touch',
           touchAction: 'pan-y'
@@ -1029,8 +1037,8 @@ export default function IslamicChatApp() {
 
       {/* Input Bar */}
       <div 
-        className="flex-shrink-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 p-3 sm:p-4" 
-        style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom, 12px))' }}
+        className="flex-shrink-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-3 sm:px-4 pt-3 sm:pt-4" 
+        style={{ paddingBottom: 'max(20px, calc(20px + env(safe-area-inset-bottom, 0px)))' }}
       >
         <div className="max-w-4xl mx-auto">
           <InputBar
