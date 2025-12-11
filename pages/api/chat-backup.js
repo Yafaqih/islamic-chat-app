@@ -222,7 +222,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { message, messages, language = 'ar' } = req.body;
+  const { message, messages, language = 'ar', images = [] } = req.body;
   const userId = session.user.id;
 
   let userMessage;
@@ -283,14 +283,66 @@ export default async function handler(req, res) {
 
     console.log(`Calling Anthropic API... (language: ${lang}, tier: ${currentTier})`);
     
+    // Fonction pour construire le contenu multimodal avec images
+    const buildMessageContent = (text, attachedImages = []) => {
+      if (!attachedImages || attachedImages.length === 0) {
+        return text;
+      }
+      
+      // Format multimodal pour Claude
+      const content = [];
+      
+      // Ajouter les images
+      for (const img of attachedImages) {
+        if (img.data) {
+          // Extraire le base64 pur (enlever "data:image/png;base64,")
+          const base64Data = img.data.includes(',') ? img.data.split(',')[1] : img.data;
+          const mediaType = img.mimeType || 'image/png';
+          
+          content.push({
+            type: 'image',
+            source: {
+              type: 'base64',
+              media_type: mediaType,
+              data: base64Data
+            }
+          });
+        }
+      }
+      
+      // Ajouter le texte
+      if (text) {
+        content.push({
+          type: 'text',
+          text: text
+        });
+      }
+      
+      return content;
+    };
+    
     let apiMessages;
     if (conversationHistory.length > 0) {
-      apiMessages = conversationHistory.map(m => ({
-        role: m.role,
-        content: m.content
-      }));
+      // Construire les messages avec le dernier message potentiellement avec images
+      apiMessages = conversationHistory.map((m, index) => {
+        // Si c'est le dernier message utilisateur et qu'il y a des images
+        if (index === conversationHistory.length - 1 && m.role === 'user' && images && images.length > 0) {
+          return {
+            role: m.role,
+            content: buildMessageContent(m.content, images)
+          };
+        }
+        return {
+          role: m.role,
+          content: m.content
+        };
+      });
     } else {
-      apiMessages = [{ role: 'user', content: userMessage }];
+      // Message simple avec potentiellement des images
+      apiMessages = [{
+        role: 'user',
+        content: buildMessageContent(userMessage, images)
+      }];
     }
     
     const completion = await anthropic.messages.create({

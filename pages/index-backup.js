@@ -12,6 +12,7 @@ import InputBar from '../components/InputBar';
 import QiblaModal from '../components/QiblaModal';
 import QuranPlayer, { detectQuranRequest } from '../components/QuranPlayer';
 import MosqueMap from '../components/MosqueMap';
+import HalalScanner from '../components/HalalScanner';
 import LanguageSelector from '../components/LanguageSelector';
 import { useLanguage } from '../contexts/LanguageContext';
 import { usePermissions } from '../hooks/usePermissions';
@@ -62,6 +63,7 @@ export default function IslamicChatApp() {
   const [showQuranPlayer, setShowQuranPlayer] = useState(false);
   const [quranPlaylist, setQuranPlaylist] = useState([]);
   const [showMosqueMap, setShowMosqueMap] = useState(false);
+  const [showHalalScanner, setShowHalalScanner] = useState(false);
   const [sessionMessageCount, setSessionMessageCount] = useState(0); // ✅ Compteur de messages de la session
   const messagesEndRef = useRef(null);
 
@@ -207,6 +209,11 @@ export default function IslamicChatApp() {
     setShowMosqueMap(true);
   };
 
+  // Scanner Halal
+  const handleHalalScanClick = () => {
+    setShowHalalScanner(true);
+  };
+
   // Vérifier permission pour sauvegarder conversations
   const handleHistoryClick = () => {
     if (!can('saveConversations')) {
@@ -223,6 +230,28 @@ export default function IslamicChatApp() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Bloquer le scroll du body pour éviter le double scroll sur mobile
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Sauvegarder le scroll position
+      const scrollY = window.scrollY;
+      
+      // Bloquer le scroll
+      document.body.style.overflow = 'hidden';
+      document.body.style.height = '100%';
+      document.documentElement.style.overflow = 'hidden';
+      document.documentElement.style.height = '100%';
+      
+      return () => {
+        document.body.style.overflow = '';
+        document.body.style.height = '';
+        document.documentElement.style.overflow = '';
+        document.documentElement.style.height = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -556,9 +585,19 @@ export default function IslamicChatApp() {
 
   // === PAGE AUTHENTIFIÉE ===
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800`} dir={dir}>
+    <div 
+      className={`flex flex-col overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800`} 
+      dir={dir} 
+      style={{ 
+        position: 'fixed', 
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0
+      }}
+    >
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-40 bg-gradient-to-r from-emerald-600 to-teal-600 shadow-lg" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+      <header className="flex-shrink-0 z-40 bg-gradient-to-r from-emerald-600 to-teal-600 shadow-lg" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 sm:py-3">
           <div className="flex items-center justify-between">
             {/* Logo et titre */}
@@ -805,21 +844,30 @@ export default function IslamicChatApp() {
         </div>
       )}
 
-      {/* Indicateur de messages restants */}
-      {usage && usage.dailyLimit && usage.dailyLimit !== -1 && (
-        <div className="fixed top-20 right-4 z-30 bg-white dark:bg-gray-800 rounded-xl px-3 py-2 shadow-lg border border-gray-200 dark:border-gray-700">
-          <div className={`flex items-center gap-2 text-sm ${isRTL ? 'flex-row-reverse' : ''}`}>
-            <MessageSquare className="w-4 h-4 text-emerald-500" />
-            <span className="text-gray-600 dark:text-gray-400">
-              {usage.messagesRemaining}/{usage.dailyLimit}
-            </span>
+      {/* Zone de messages - Container scrollable */}
+      <main 
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-none"
+        style={{ 
+          WebkitOverflowScrolling: 'touch',
+          touchAction: 'pan-y'
+        }}
+      >
+        {/* Indicateur de messages restants */}
+        {usage && usage.dailyLimit && usage.dailyLimit !== -1 && (
+          <div className="sticky top-0 z-10 flex justify-end px-4 py-2">
+            <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-xl px-3 py-1.5 shadow-lg border border-gray-200 dark:border-gray-700">
+              <div className={`flex items-center gap-2 text-sm ${isRTL ? 'flex-row-reverse' : ''}`}>
+                <MessageSquare className="w-4 h-4 text-emerald-500" />
+                <span className="text-gray-600 dark:text-gray-400">
+                  {usage.messagesRemaining}/{usage.dailyLimit}
+                </span>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Zone de messages - pt pour header fixed, pb pour InputBar fixed */}
-      <div className="max-w-4xl mx-auto p-4 pb-52 pt-16 sm:pt-20">
-        <div className="space-y-6">
+        <div className="max-w-4xl mx-auto px-3 sm:px-4 py-4">
+          <div className="space-y-6">
           {messages.map((msg) => (
             <div key={msg.id} className={`flex gap-4 ${msg.role === 'user' ? (isRTL ? '' : 'flex-row-reverse') : (isRTL ? 'flex-row-reverse' : '')}`}>
               <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
@@ -984,10 +1032,14 @@ export default function IslamicChatApp() {
             </div>
           </div>
         )}
-      </div>
+        </div>
+      </main>
 
       {/* Input Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-white dark:from-gray-900 via-white/95 dark:via-gray-900/95 to-transparent p-3 sm:p-4" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom, 12px))' }}>
+      <div 
+        className="flex-shrink-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-3 sm:px-4 pt-3 sm:pt-4" 
+        style={{ paddingBottom: 'max(20px, calc(20px + env(safe-area-inset-bottom, 0px)))' }}
+      >
         <div className="max-w-4xl mx-auto">
           <InputBar
             value={input}
@@ -1004,6 +1056,7 @@ export default function IslamicChatApp() {
               setShowQuranPlayer(true);
             }}
             onMosqueClick={handleMosqueClick}
+            onHalalScanClick={handleHalalScanClick}
           />
         </div>
       </div>
@@ -1016,6 +1069,12 @@ export default function IslamicChatApp() {
         isOpen={showMosqueMap}
         onClose={() => setShowMosqueMap(false)}
         language={language}
+      />
+
+      {/* Scanner Halal */}
+      <HalalScanner
+        isOpen={showHalalScanner}
+        onClose={() => setShowHalalScanner(false)}
       />
       
       {showAdminDashboard && (
