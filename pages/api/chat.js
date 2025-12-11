@@ -95,18 +95,32 @@ const systemPrompts = {
 
 3. 📖 تنسيق المراجع الإلزامي:
 
+   ⚠️⚠️⚠️ مهم جداً: كل حديث يجب أن يكون معه رقمه! ⚠️⚠️⚠️
+   
    للقرآن الكريم:
    ﴿نص الآية﴾ (سورة [الاسم]، الآية [الرقم])
 
-   للحديث الشريف:
+   للحديث الشريف - التنسيق الإلزامي:
    قال رسول الله ﷺ: "نص الحديث"
-   📚 المصدر: رواه [البخاري/مسلم/الترمذي...]
-   ✓ الحكم: [صحيح/حسن] - [صححه الألباني إن وجد]
+   📚 المصدر: رواه البخاري (رقم XXXX) أو مسلم (رقم XXXX)
+   ✓ الحكم: صحيح
 
-4. 🔍 إذا لم تجد دليلاً صحيحاً:
-   - صرّح بوضوح: "لم أجد في هذا المسألة حديثاً صحيحاً ثابتاً"
-   - استدل بالقرآن أو إجماع العلماء أو القياس الصحيح
-   - اذكر أقوال العلماء المعتبرين مع نسبتها إليهم
+   ❌ ممنوع منعاً باتاً:
+   - "رواه البخاري" بدون رقم الحديث
+   - "رواه مسلم وغيره" بدون تفصيل
+   - "ثبت في الصحيحين" بدون أرقام
+   - "في الحديث الصحيح" بدون مصدر
+   - ذكر قصة صحابي (مثل ماعز والغامدية) بدون رقم الحديث
+
+   ✅ الصحيح:
+   - "رواه مسلم (1695)"
+   - "رواه البخاري (6788) ومسلم (1691)"
+   - "حديث ماعز - رواه مسلم (1695)"
+
+4. 🔍 إذا لم تجد رقم الحديث:
+   - لا تذكر الحديث أصلاً
+   - أو قل: "ورد في هذا حديث لكن لم أتمكن من تحديد رقمه بدقة"
+   - استدل بالقرآن أو إجماع العلماء بدلاً من ذلك
 
 5. 🎓 آراء العلماء المعتبرين:
    
@@ -126,7 +140,7 @@ const systemPrompts = {
    ﴿الآية﴾ (سورة X، آية Y)
    
    من السنة:
-   "نص الحديث" - رواه [المصدر]، [الحكم]
+   "نص الحديث" - رواه [المصدر] (رقم XXXX)
    
    📚 المراجع:
    - [اسم الكتاب]، المجلد [X]، الصفحة [Y]
@@ -146,10 +160,15 @@ const systemPrompts = {
 6. للخطب:
    - المقدمة مع الحمد لله
    - الموضوع مع الآيات والأحاديث الصحيحة فقط
-   - كل استشهاد يجب أن يكون موثقاً
+   - كل استشهاد يجب أن يكون موثقاً برقم الحديث
    - الخاتمة مع الدعاء
 
-أجب بالعربية بوضوح وفصاحة. لا تنسَ المراجع أبداً.`
+7. ⚡ تذكير قبل كل إجابة - اسأل نفسك:
+   □ هل ذكرت رقم كل حديث استشهدت به؟
+   □ هل تجنبت "رواه البخاري" بدون رقم؟
+   □ هل كل قصة صحابي مرفقة برقم الحديث؟
+
+أجب بالعربية بوضوح وفصاحة. لا تنسَ أرقام الأحاديث أبداً!`
   },
   fr: {
     free: `Tu es un assistant islamique spécialisé dans la tradition sunnite.
@@ -251,6 +270,8 @@ Réponds en français de manière claire et cite TOUJOURS tes sources.`,
 
 3. 📖 FORMAT DE RÉFÉRENCE OBLIGATOIRE:
 
+   ⚠️⚠️⚠️ CRITIQUE: Chaque hadith DOIT avoir son numéro! ⚠️⚠️⚠️
+
    CORAN (toujours ce format):
    "[Traduction française complète]"
    ﴿ [Texte arabe original complet] ﴾
@@ -260,19 +281,24 @@ Réponds en français de manière claire et cite TOUJOURS tes sources.`,
    Le Prophète ﷺ a dit:
    "[Texte du hadith en français]"
    « [Texte original en arabe si disponible] »
-   📚 Source: [Bukhari n°XXX / Muslim n°XXX / etc.]
-   ✓ Grade: Sahih (authentique) / Hasan (bon)
-   🔍 Authentification: [Al-Albani dans Sahih al-Jami' / etc.]
+   📚 Source: Bukhari (n°XXXX) ou Muslim (n°XXXX)
+   ✓ Grade: Sahih (authentique)
 
-4. 🔍 QUAND IL N'Y A PAS DE HADITH AUTHENTIQUE:
-   ⚠️ Déclare EXPLICITEMENT:
-   "Sur ce sujet précis, je n'ai pas trouvé de hadith authentique (sahih ou hasan)."
-   
-   Puis propose:
-   - Des versets coraniques pertinents
-   - Le consensus (ijma') des savants si existant
-   - Les avis des 4 écoles juridiques
-   - Les paroles des Compagnons (athar) si authentiques
+   ❌ STRICTEMENT INTERDIT:
+   - "Rapporté par Bukhari" sans numéro
+   - "Dans les deux Sahih" sans numéros
+   - "Hadith authentique" sans source précise
+   - Mentionner une histoire (ex: Ma'iz, Al-Ghamidiyya) sans numéro de hadith
+
+   ✅ CORRECT:
+   - "Rapporté par Muslim (n°1695)"
+   - "Bukhari (6788) et Muslim (1691)"
+   - "Le hadith de Ma'iz - Muslim (1695)"
+
+4. 🔍 SI TU NE CONNAIS PAS LE NUMÉRO:
+   - Ne cite PAS le hadith
+   - Ou dis: "Il existe un hadith sur ce sujet mais je ne peux confirmer son numéro exact"
+   - Utilise plutôt le Coran ou le consensus des savants
 
 5. 🎓 OPINIONS DES SAVANTS RECONNUS:
    
@@ -452,6 +478,8 @@ Answer in English clearly and ALWAYS cite your sources.`,
 
 3. 📖 MANDATORY REFERENCE FORMAT:
 
+   ⚠️⚠️⚠️ CRITICAL: Every hadith MUST include its number! ⚠️⚠️⚠️
+
    QURAN (always this format):
    "[Complete English translation]"
    ﴿ [Complete original Arabic text] ﴾
@@ -461,19 +489,24 @@ Answer in English clearly and ALWAYS cite your sources.`,
    The Prophet ﷺ said:
    "[Hadith text in English]"
    « [Original Arabic text if available] »
-   📚 Source: [Bukhari #XXX / Muslim #XXX / etc.]
-   ✓ Grade: Sahih (authentic) / Hasan (good)
-   🔍 Authentication: [Al-Albani in Sahih al-Jami' / etc.]
+   📚 Source: Bukhari (#XXXX) or Muslim (#XXXX)
+   ✓ Grade: Sahih (authentic)
 
-4. 🔍 WHEN THERE IS NO AUTHENTIC HADITH:
-   ⚠️ EXPLICITLY declare:
-   "On this specific topic, I have not found an authentic hadith (sahih or hasan)."
-   
-   Then offer:
-   - Relevant Quranic verses
-   - Scholarly consensus (ijma') if it exists
-   - Opinions of the 4 juristic schools
-   - Sayings of the Companions (athar) if authentic
+   ❌ STRICTLY FORBIDDEN:
+   - "Narrated by Bukhari" without number
+   - "In the two Sahihs" without numbers
+   - "Authentic hadith" without precise source
+   - Mentioning a story (e.g., Ma'iz, Al-Ghamidiyya) without hadith number
+
+   ✅ CORRECT:
+   - "Narrated by Muslim (#1695)"
+   - "Bukhari (#6788) and Muslim (#1691)"
+   - "The hadith of Ma'iz - Muslim (#1695)"
+
+4. 🔍 IF YOU DON'T KNOW THE NUMBER:
+   - Do NOT cite the hadith
+   - Or say: "There is a hadith on this topic but I cannot confirm its exact number"
+   - Use Quran or scholarly consensus instead
 
 5. 🎓 OPINIONS OF RECOGNIZED SCHOLARS:
    
@@ -866,23 +899,60 @@ export default async function handler(req, res) {
 
     // ===== RÉFÉRENCES AUX SAVANTS =====
     
-    // Savants arabes
+    // Savants arabes - Liste
     const scholarsAr = [
       'ابن تيمية', 'ابن القيم', 'ابن كثير', 'ابن حجر', 'النووي',
       'ابن باز', 'ابن عثيمين', 'الألباني', 'الفوزان',
       'أبو حنيفة', 'مالك', 'الشافعي', 'أحمد بن حنبل',
       'القرطبي', 'ابن قدامة', 'ابن رجب', 'الذهبي',
-      'الشوكاني', 'الصنعاني', 'المباركفوري'
+      'الشوكاني', 'الصنعاني', 'المباركفوري',
+      'البخاري', 'مسلم', 'الترمذي', 'أبو داود', 'النسائي', 'ابن ماجه'
     ];
     
+    // Pattern 1: "قال/ذكر/أفتى + عالم"
     for (const scholar of scholarsAr) {
-      const regex = new RegExp(`(قال|ذكر|أفتى|رأي|مذهب)\\s+[\\u0600-\\u06FF\\s]*${scholar}[^\.،]*`, 'g');
-      const matches = response.matchAll(regex);
-      for (const match of matches) {
+      const regex1 = new RegExp(`(قال|ذكر|أفتى|رأي|مذهب|عند)\\s+[\\u0600-\\u06FF\\s]*${scholar}[^\.،]*`, 'g');
+      const matches1 = response.matchAll(regex1);
+      for (const match of matches1) {
         const cleaned = match[0].trim().substring(0, 120);
         if (!references.includes(cleaned)) {
           references.push(cleaned);
         }
+      }
+      
+      // Pattern 2: "كابن باز" ou "وابن عثيمين" ou "فتاوى ابن باز"
+      const regex2 = new RegExp(`(ك|و|فتاوى\\s+)${scholar}`, 'g');
+      if (regex2.test(response)) {
+        if (!references.includes(scholar)) {
+          references.push(scholar);
+        }
+      }
+      
+      // Pattern 3: Nom seul mentionné
+      if (response.includes(scholar)) {
+        // Vérifier si c'est dans un contexte de citation
+        const contextRegex = new RegExp(`[\\u0600-\\u06FF\\s]{0,20}${scholar}[\\u0600-\\u06FF\\s]{0,20}`, 'g');
+        const contextMatches = response.matchAll(contextRegex);
+        for (const match of contextMatches) {
+          if (match[0].includes('فتاوى') || match[0].includes('قال') || 
+              match[0].includes('ذكر') || match[0].includes('رأي') ||
+              match[0].includes('عند') || match[0].includes('مذهب') ||
+              match[0].includes('الشيخ') || match[0].includes('الإمام')) {
+            if (!references.includes(scholar)) {
+              references.push(scholar);
+            }
+          }
+        }
+      }
+    }
+    
+    // Pattern spécial: "فتاوى العلماء المعاصرين كابن باز وابن عثيمين"
+    const fatwaMentionRegex = /فتاوى\s+[\u0600-\u06FF\s]+ك[\u0600-\u06FF\s]+و[\u0600-\u06FF\s]+/g;
+    const fatwaMatches = response.matchAll(fatwaMentionRegex);
+    for (const match of fatwaMatches) {
+      const cleaned = match[0].trim().substring(0, 100);
+      if (!references.includes(cleaned)) {
+        references.push(cleaned);
       }
     }
     
@@ -892,18 +962,26 @@ export default async function handler(req, res) {
       'Ibn Baz', 'Ibn Uthaymin', 'Al-Albani', 'Al-Fawzan',
       'Abu Hanifa', 'Imam Malik', 'Ash-Shafi\'i', 'Al-Shafi\'i', 'Ahmad ibn Hanbal',
       'Al-Qurtubi', 'Ibn Qudama', 'Ibn Rajab', 'Adh-Dhahabi',
-      'Sheikh', 'Shaykh', 'Imam'
+      'Al-Bukhari', 'Muslim', 'At-Tirmidhi', 'Abu Dawud', 'An-Nasa\'i', 'Ibn Majah'
     ];
     
+    // Pattern 1: "Sheikh/Imam X said/stated..."
     const scholarPatternFrEn = new RegExp(
-      `(${scholarsFrEn.join('|')})\\s+(said|stated|mentioned|ruled|opined|a dit|a déclaré|a mentionné)[^.;]*`,
+      `(Sheikh|Shaykh|Imam|Scholar)?\\s*(${scholarsFrEn.join('|')})\\s*(said|stated|mentioned|ruled|opined|a dit|a déclaré|a mentionné)?[^.;]*`,
       'gi'
     );
     const scholarMatchesFrEn = response.matchAll(scholarPatternFrEn);
     for (const match of scholarMatchesFrEn) {
       const cleaned = match[0].trim().substring(0, 120);
-      if (!references.includes(cleaned)) {
+      if (cleaned.length > 5 && !references.includes(cleaned)) {
         references.push(cleaned);
+      }
+    }
+    
+    // Pattern 2: Noms seuls mentionnés
+    for (const scholar of scholarsFrEn) {
+      if (response.includes(scholar) && !references.includes(scholar)) {
+        references.push(scholar);
       }
     }
     
