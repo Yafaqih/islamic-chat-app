@@ -1037,10 +1037,9 @@ export default function IslamicChatApp() {
 
       {/* Input Bar */}
       <div 
-        className="flex-shrink-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 px-3 sm:px-4 pt-3 sm:pt-4" 
-        style={{ paddingBottom: 'max(20px, calc(20px + env(safe-area-inset-bottom, 0px)))' }}
+        className="flex-shrink-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700"
       >
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-4xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
           <InputBar
             value={input}
             onChange={setInput}
@@ -1059,6 +1058,11 @@ export default function IslamicChatApp() {
             onHalalScanClick={handleHalalScanClick}
           />
         </div>
+        {/* Safe area spacer pour iPhone */}
+        <div 
+          className="bg-white dark:bg-gray-900" 
+          style={{ height: 'env(safe-area-inset-bottom, 0px)' }}
+        />
       </div>
 
       {/* Modals */}

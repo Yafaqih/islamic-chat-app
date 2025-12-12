@@ -17,6 +17,9 @@ import LanguageSelector from '../components/LanguageSelector';
 import { useLanguage } from '../contexts/LanguageContext';
 import { usePermissions } from '../hooks/usePermissions';
 
+// ✅ GOOGLE ANALYTICS
+import * as gtag from '../lib/gtag';
+
 // ✅ URL de don LemonSqueezy
 const DONATION_URL = 'https://yafaqih.lemonsqueezy.com/buy/f61ce506-089b-476f-92a9-acbc7c050626';
 
@@ -151,6 +154,10 @@ export default function IslamicChatApp() {
     const newMode = !darkMode;
     setDarkMode(newMode);
     localStorage.setItem('theme', newMode ? 'dark' : 'light');
+    
+    // 📊 GA: Track theme change
+    gtag.trackThemeChange(newMode ? 'dark' : 'light');
+    
     if (newMode) {
       document.documentElement.classList.add('dark');
     } else {
@@ -160,6 +167,8 @@ export default function IslamicChatApp() {
 
   // ✅ Ouvrir la page de don
   const handleDonationClick = () => {
+    // 📊 GA: Track donation click
+    gtag.trackDonationClick();
     window.open(DONATION_URL, '_blank');
   };
 
@@ -169,6 +178,8 @@ export default function IslamicChatApp() {
       setShowPremiumModal(true);
       return;
     }
+    // 📊 GA: Track PDF export
+    gtag.trackExportPDF();
     const title = messages.length > 1 ? messages[1].content.substring(0, 60) : t('newConversation');
     exportCurrentConversationToPDF(messages, user?.name, title);
   };
@@ -197,6 +208,8 @@ export default function IslamicChatApp() {
       setShowPremiumModal(true);
       return;
     }
+    // 📊 GA: Track Qibla usage
+    gtag.trackQiblaUse();
     setShowQiblaModal(true);
   };
 
@@ -206,11 +219,15 @@ export default function IslamicChatApp() {
       setShowPremiumModal(true);
       return;
     }
+    // 📊 GA: Track mosque finder
+    gtag.trackMosqueFinder();
     setShowMosqueMap(true);
   };
 
   // Scanner Halal
   const handleHalalScanClick = () => {
+    // 📊 GA: Track halal scanner open
+    gtag.event({ action: 'halal_scanner_open', category: 'feature', label: 'opened' });
     setShowHalalScanner(true);
   };
 
@@ -258,6 +275,13 @@ export default function IslamicChatApp() {
       setSubscriptionTier(user.subscriptionTier || 'free');
       setMessageCount(user.messageCount || 0);
       loadConversations();
+      
+      // 📊 GA: Track login (une seule fois par session)
+      const hasTrackedLogin = sessionStorage.getItem('ya_faqih_login_tracked');
+      if (!hasTrackedLogin) {
+        gtag.trackLogin('google');
+        sessionStorage.setItem('ya_faqih_login_tracked', 'true');
+      }
     }
   }, [isAuthenticated, user]);
 
@@ -342,6 +366,9 @@ export default function IslamicChatApp() {
     if (!messageText.trim() && attachedFiles.length === 0) return;
     if (isLoading) return;
 
+    // 📊 GA: Track message sent
+    gtag.trackMessage(language);
+
     // Message par défaut si fichiers sans texte
     const displayMessage = messageText.trim() || (attachedFiles.length > 0 ? 
       (language === 'ar' ? '📎 ملف مرفق' : language === 'fr' ? '📎 Fichier joint' : '📎 Attached file') : '');
@@ -370,6 +397,10 @@ export default function IslamicChatApp() {
       // Ouvrir le player avec la playlist
       setQuranPlaylist(quranRequest.playlist);
       setShowQuranPlayer(true);
+      
+      // 📊 GA: Track Quran recitation
+      const surahNamesForTracking = quranRequest.surahs.map(s => s.name).join(', ');
+      gtag.trackQuranRecitation(surahNamesForTracking);
       
       // Messages multilingues
       const quranMessages = {
@@ -508,9 +539,15 @@ export default function IslamicChatApp() {
   };
 
   const toggleFavorite = (messageId) => {
-    setMessages(prev => prev.map(msg => 
-      msg.id === messageId ? { ...msg, isFavorite: !msg.isFavorite } : msg
-    ));
+    setMessages(prev => prev.map(msg => {
+      if (msg.id === messageId) {
+        const newState = !msg.isFavorite;
+        // 📊 GA: Track favorite
+        gtag.trackFavorite(newState ? 'add' : 'remove');
+        return { ...msg, isFavorite: newState };
+      }
+      return msg;
+    }));
   };
 
   const favoriteMessages = messages.filter(msg => msg.isFavorite);

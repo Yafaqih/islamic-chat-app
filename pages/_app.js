@@ -1,7 +1,10 @@
 // pages/_app.js
 import { SessionProvider } from 'next-auth/react';
 import { useState, useEffect } from 'react';
-import { LanguageProvider } from '../contexts/LanguageContext'; // ✅ NOUVEAU
+import { useRouter } from 'next/router';
+import { LanguageProvider } from '../contexts/LanguageContext';
+import Script from 'next/script';
+import * as gtag from '../lib/gtag';
 // ⚠️ SERVICE WORKER DÉSACTIVÉ TEMPORAIREMENT
 // import useServiceWorker from '../lib/useServiceWorker';
 // import UpdateNotification from '../components/UpdateNotification';
@@ -35,6 +38,8 @@ function CacheBuster() {
 }
 
 function MyApp({ Component, pageProps: { session, ...pageProps } }) {
+  const router = useRouter();
+  
   // ⚠️ SERVICE WORKER DÉSACTIVÉ TEMPORAIREMENT
   // const { updateAvailable, isOnline, updateServiceWorker } = useServiceWorker();
   // const [showUpdateNotification, setShowUpdateNotification] = useState(false);
@@ -57,6 +62,19 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }) {
     };
   }, []);
 
+  // 📊 GOOGLE ANALYTICS - Tracker les changements de page
+  useEffect(() => {
+    const handleRouteChange = (url) => {
+      gtag.pageview(url);
+    };
+    
+    router.events.on('routeChangeComplete', handleRouteChange);
+    
+    return () => {
+      router.events.off('routeChangeComplete', handleRouteChange);
+    };
+  }, [router.events]);
+
   // ⚠️ DÉSACTIVÉ TEMPORAIREMENT
   // useEffect(() => {
   //   if (updateAvailable) {
@@ -68,32 +86,54 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }) {
   // const handleDismiss = () => setShowUpdateNotification(false);
 
   return (
-    <SessionProvider session={session}>
-      {/* ✅ NOUVEAU: Language Provider pour multilingue */}
-      <LanguageProvider>
-        {/* ⚠️ CACHE BUSTER - SUPPRIMER POUR LA PRODUCTION */}
-        <CacheBuster />
+    <>
+      {/* ✅ GOOGLE ANALYTICS - G-R4N29NRJ6Z */}
+      <Script
+        strategy="afterInteractive"
+        src="https://www.googletagmanager.com/gtag/js?id=G-R4N29NRJ6Z"
+      />
+      <Script
+        id="google-analytics"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{
+          __html: `
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-R4N29NRJ6Z', {
+              page_path: window.location.pathname,
+            });
+          `,
+        }}
+      />
 
-        {/* ⚠️ NOTIFICATION MISE À JOUR DÉSACTIVÉE TEMPORAIREMENT */}
-        {/* <UpdateNotification 
-          show={showUpdateNotification}
-          onUpdate={handleUpdate}
-          onDismiss={handleDismiss}
-        /> */}
+      <SessionProvider session={session}>
+        {/* ✅ Language Provider pour multilingue */}
+        <LanguageProvider>
+          {/* ⚠️ CACHE BUSTER - SUPPRIMER POUR LA PRODUCTION */}
+          <CacheBuster />
 
-        {/* Hors ligne */}
-        {!isOnline && (
-          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-[100] text-sm">
-            📡 غير متصل بالإنترنت
+          {/* ⚠️ NOTIFICATION MISE À JOUR DÉSACTIVÉE TEMPORAIREMENT */}
+          {/* <UpdateNotification 
+            show={showUpdateNotification}
+            onUpdate={handleUpdate}
+            onDismiss={handleDismiss}
+          /> */}
+
+          {/* Hors ligne */}
+          {!isOnline && (
+            <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-[100] text-sm">
+              📡 غير متصل بالإنترنت
+            </div>
+          )}
+
+          {/* Conteneur principal */}
+          <div className="min-h-screen w-full">
+            <Component {...pageProps} />
           </div>
-        )}
-
-        {/* Conteneur principal */}
-        <div className="min-h-screen w-full">
-          <Component {...pageProps} />
-        </div>
-      </LanguageProvider>
-    </SessionProvider>
+        </LanguageProvider>
+      </SessionProvider>
+    </>
   );
 }
 
@@ -108,14 +148,29 @@ export default MyApp;
 // pages/_app.js
 import { SessionProvider } from 'next-auth/react';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import { LanguageProvider } from '../contexts/LanguageContext';
+import Script from 'next/script';
+import * as gtag from '../lib/gtag';
 import useServiceWorker from '../lib/useServiceWorker';
 import UpdateNotification from '../components/UpdateNotification';
 import '../styles/globals.css';
 
 function MyApp({ Component, pageProps: { session, ...pageProps } }) {
+  const router = useRouter();
   const { updateAvailable, isOnline, updateServiceWorker } = useServiceWorker();
   const [showUpdateNotification, setShowUpdateNotification] = useState(false);
+
+  // 📊 Google Analytics - page tracking
+  useEffect(() => {
+    const handleRouteChange = (url) => {
+      gtag.pageview(url);
+    };
+    router.events.on('routeChangeComplete', handleRouteChange);
+    return () => {
+      router.events.off('routeChangeComplete', handleRouteChange);
+    };
+  }, [router.events]);
 
   useEffect(() => {
     if (updateAvailable) {
@@ -127,25 +182,46 @@ function MyApp({ Component, pageProps: { session, ...pageProps } }) {
   const handleDismiss = () => setShowUpdateNotification(false);
 
   return (
-    <SessionProvider session={session}>
-      <LanguageProvider>
-        <UpdateNotification 
-          show={showUpdateNotification}
-          onUpdate={handleUpdate}
-          onDismiss={handleDismiss}
-        />
+    <>
+      <Script
+        strategy="afterInteractive"
+        src="https://www.googletagmanager.com/gtag/js?id=G-R4N29NRJ6Z"
+      />
+      <Script
+        id="google-analytics"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{
+          __html: `
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-R4N29NRJ6Z', {
+              page_path: window.location.pathname,
+            });
+          `,
+        }}
+      />
 
-        {!isOnline && (
-          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-[100] text-sm">
-            📡 غير متصل بالإنترنت
+      <SessionProvider session={session}>
+        <LanguageProvider>
+          <UpdateNotification 
+            show={showUpdateNotification}
+            onUpdate={handleUpdate}
+            onDismiss={handleDismiss}
+          />
+
+          {!isOnline && (
+            <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-[100] text-sm">
+              📡 غير متصل بالإنترنت
+            </div>
+          )}
+
+          <div className="min-h-screen w-full">
+            <Component {...pageProps} />
           </div>
-        )}
-
-        <div className="min-h-screen w-full">
-          <Component {...pageProps} />
-        </div>
-      </LanguageProvider>
-    </SessionProvider>
+        </LanguageProvider>
+      </SessionProvider>
+    </>
   );
 }
 
